@@ -75,6 +75,20 @@ const ROUTES = [
     title: 'Forum — Login',
   },
   {
+    path: '/auth/google/login',
+    loader: () => import('./pages/googlelogin.js'),
+    render: 'handleGoogleOAuthLogin',
+    protected: false,
+    title: 'Forum — Login',
+  },
+  {
+    path: '/auth/github/login',
+    loader: () => import('./pages/githublogin.js'),
+    render: 'handleGithubOAuthLogin',
+    protected: false,
+    title: 'Forum — Login',
+  },
+  {
     path: '/register',
     loader: () => import('./pages/register.js'),
     render: 'renderRegisterPage',

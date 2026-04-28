@@ -3,6 +3,7 @@ package oauthlogin
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -59,6 +60,7 @@ func (h *OAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
+	log.Println("hello")
 	if r.Method != http.MethodGet {
 		http.Error(
 			w,
@@ -116,29 +118,61 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 			"action":   "oauth_login",
 			"provider": h.provider.Name(),
 		})
-		http.Error(
-			w,
-			"error at github_login",
-			http.StatusInternalServerError,
-		)
+		// Respond with a popup bridge so SPA popups can receive the error
+		frontendCallbackBase := h.config.OAuth.FrontendCallbackURL
+		switch h.provider.Name() {
+		case "github":
+			frontendCallbackBase = h.config.OAuth.GitHub.FrontendCallbackURL
+		case "google":
+			frontendCallbackBase = h.config.OAuth.Google.FrontendCallbackURL
+		}
+		frontendOrigin := frontendCallbackBase
+		if u, perr := url.Parse(frontendCallbackBase); perr == nil {
+			frontendOrigin = u.Scheme + "://" + u.Host
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		errBridge := fmt.Sprintf(`<!doctype html>
+<html><head><meta charset="utf-8"></head><body><script>
+try { window.opener.postMessage({ type: 'oauth', status: 'error', message: %q, provider: %q }, %q); } catch(e) {}
+window.close();
+</script></body></html>`, err.Error(), h.provider.Name(), frontendOrigin)
+		_, _ = w.Write([]byte(errBridge))
 		return
 	}
 
 	session, err := h.sessionManager.CreateSession(r.Context(), user.ID)
 	if err != nil {
 		h.logger.PrintError(err, nil)
-		http.Error(
-			w,
-			"error at creating session",
-			http.StatusInternalServerError,
-		)
+		// Respond with a bridge error page so popup can know
+		frontendCallbackBase := h.config.OAuth.FrontendCallbackURL
+		switch h.provider.Name() {
+		case "github":
+			frontendCallbackBase = h.config.OAuth.GitHub.FrontendCallbackURL
+		case "google":
+			frontendCallbackBase = h.config.OAuth.Google.FrontendCallbackURL
+		}
+		frontendOrigin := frontendCallbackBase
+		if u, perr := url.Parse(frontendCallbackBase); perr == nil {
+			frontendOrigin = u.Scheme + "://" + u.Host
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		errBridge := fmt.Sprintf(`<!doctype html>
+<html><head><meta charset="utf-8"></head><body><script>
+try { window.opener.postMessage({ type: 'oauth', status: 'error', message: %q, provider: %q }, %q); } catch(e) {}
+window.close();
+</script></body></html>`, "error at creating session", h.provider.Name(), frontendOrigin)
+		_, _ = w.Write([]byte(errBridge))
+		return
 	}
 
-	params := url.Values{}
-	params.Add("access_token", session.AccessToken)
-	params.Add("refresh_token", session.RefreshToken)
+	// Set secure HttpOnly cookies so the browser stores session tokens automatically.
+	// This avoids exposing tokens in URLs. Make sure SetCookies is called before
+	// writing the response so Set-Cookie headers are included.
+	h.sessionManager.SetCookies(w, session)
 
-	// Determine the provider-specific frontend callback URL
+	// Determine the provider-specific frontend callback URL (used only to derive origin)
 	var frontendCallbackBase string
 	switch h.provider.Name() {
 	case "github":
@@ -148,10 +182,32 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	default:
 		frontendCallbackBase = h.config.OAuth.FrontendCallbackURL
 	}
+	frontendOrigin := frontendCallbackBase
+	if u, perr := url.Parse(frontendCallbackBase); perr == nil {
+		frontendOrigin = u.Scheme + "://" + u.Host
+	}
 
-	frontendCallbackURL := fmt.Sprintf("%s?%s", frontendCallbackBase, params.Encode())
-
-	http.Redirect(w, r, frontendCallbackURL, http.StatusTemporaryRedirect)
+	// Respond with a small HTML bridge that posts a message to the opener window
+	// and then closes the popup. The SPA should listen for this message and then
+	// call /api/v1/me (with credentials) to fetch the logged-in user.
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	bridge := fmt.Sprintf(`<!doctype html>
+<html>
+  <head><meta charset="utf-8"></head>
+  <body>
+    <script>
+      (function() {
+        try {
+          var payload = { type: 'oauth', status: 'success', provider: %q };
+          window.opener.postMessage(payload, %q);
+        } catch (e) {}
+        window.close();
+      })();
+    </script>
+  </body>
+</html>`, h.provider.Name(), frontendOrigin)
+	_, _ = w.Write([]byte(bridge))
 
 	h.logger.PrintInfo(
 		"User logged in via "+h.provider.Name(),
