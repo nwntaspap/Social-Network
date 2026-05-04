@@ -1,0 +1,68 @@
+# Server Configuration
+SERVER_HOST=localhost
+SERVER_PORT=8080
+SERVER_ENVIRONMENT=development
+SERVER_API_CONTEXT_V1=/api/v1
+SERVER_READ_TIMEOUT=10
+SERVER_WRITE_TIMEOUT=0
+SERVER_IDLE_TIMEOUT=30
+# SERVER_TLS_CERT_FILE= ./certs/localhost+2.pem
+# SERVER_TLS_KEY_FILE= ./certs/localhost+2-key.pem
+
+# Client Configuration
+CLIENT_HOST=localhost
+CLIENT_PORT=3001
+CLIENT_ENVIRONMENT=development
+CLIENT_READ_HEADER_TIMEOUT=5
+CLIENT_READ_TIMEOUT=10
+CLIENT_WRITE_TIMEOUT=20
+CLIENT_IDLE_TIMEOUT=30
+# CLIENT_TLS_CERT_FILE= ./certs/localhost+2.pem
+# CLIENT_TLS_KEY_FILE= ./certs/localhost+2-key.pem
+
+# Database Configuration
+DB_DRIVER=sqlite3
+DB_PATH=db/data/forum.db
+DB_MIGRATE_ON_START=true
+DB_SEED_ON_START=true
+DB_PRAGMA=_foreign_keys=on&_journal_mode=WAL
+DB_OPEN_CONNECTION=1
+
+# Session Configuration
+SESSION_DEFAULT_EXPIRY=10
+SESSION_SECURE_COOKIE=false
+SESSION_COOKIE_NAME=session_id
+SESSION_COOKIE_PATH=/
+SESSION_COOKIE_DOMAIN=
+SESSION_HTTPONLY_COOKIE=true
+SESSION_SAMESITE=Lax
+SESSION_CLEANUP_INTERVAL=3600
+SESSION_MAX_SESSIONS_PER_USER=5
+SESSION_ID_LENGTH=32
+SESSION_ENABLE_PERSISTENCE=true
+SESSION_LOG_SESSIONS=false
+SESSION_REFRESH_TOKEN_EXPIRY=604800
+
+# Handler Timeouts Configuration
+HANDLER_TIMEOUT_REGISTER=15
+# Frontend Generic Callback for OAuth
+FRONTEND_CALLBACK_URL=https://localhost:3001/auth/callback
+# GitHub OAuth
+GITHUB_CLIENT_ID=Ov23lizCT7R78xo0wKfe
+GITHUB_CLIENT_SECRET=51b2e98e5cf88cc19e652d9bfd05f5cf24b85d4a
+GITHUB_REDIRECT_URL=https://localhost:8080/api/v1/auth/github/callback
+GITHUB_SCOPES=user,email
+FRONTEND_GITHUB_CALLBACK_URL=https://localhost:3001/auth/callback
+# Google OAuth
+GOOGLE_CLIENT_ID=1043823498574-tal1aehlb13g620kbkms32aol4e0eimq.apps.googleusercontent.com 
+GOOGLE_CLIENT_SECRET=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
+GOOGLE_REDIRECT_URL=https://localhost:8080/api/v1/auth/google/callback
+GOOGLE_SCOPES=https://www.googleapis.com/auth/userinfo.profile,https://www.googleapis.com/auth/userinfo.email
+GOOGLE_TOKEN_URL=https://oauth2.googleapis.com/token
+FRONTEND_GOOGLE_CALLBACK_URL=https://localhost:3001/auth/callback
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW_SECONDS=60
+RATE_LIMIT_CLEANUP_SECONDS=45

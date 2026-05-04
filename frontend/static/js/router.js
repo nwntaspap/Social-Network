@@ -89,6 +89,13 @@ const ROUTES = [
     title: 'Forum — Activity',
   },
   {
+    path: '/chat',
+    loader: () => import('./pages/chat.js'),
+    render: 'renderChatPage',
+    protected: true,
+    title: 'Forum — Chat',
+  },
+  {
     path: '/logout',
     loader: () => import('./pages/logout.js'),
     render: 'renderLogoutPage',
@@ -157,6 +164,7 @@ async function handleRoute(fullPath) {
   const user = getUser();
   renderNavbar(user);
   renderFooter();
+  renderChatWidget(); // Chat widget is global, so we render it on every route change
 
   // Update document title
   if (route) document.title = route.title ?? 'Forum';

@@ -14,10 +14,14 @@
  */
 
 import { initRouter } from './router.js';
+import { initChatWidget } from './chatWidget.js';
 
 async function boot() {
   // Start the router — this renders the first page.
   initRouter();
+
+  // Initialize the floating chat widget separate from the navbar.
+  initChatWidget();
 }
 
 boot();
