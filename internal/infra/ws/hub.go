@@ -64,11 +64,12 @@ func (h *Hub) Send(toUserID string, msg []byte) {
 // for this, the chat domain is imported, if we dedide we dont want that the next 2 methods should be implemented for a different struct so that the hub remains ws generic and not chat specific
 func (h *Hub) SendToUser(toUserID, requestID string, msg *chat.Message) {
 	outPayload, _ := json.Marshal(MessagePayload{
-		ID:        msg.ID,
-		ChatID:    msg.ChatID,
-		SenderID:  msg.SenderID,
-		Content:   msg.Content,
-		CreatedAt: msg.CreatedAt,
+		ID:              msg.ID,
+		ChatID:          msg.ChatID,
+		SenderID:        msg.SenderID,
+		Content:         msg.Content,
+		CreatedAt:       msg.CreatedAt,
+		ClientMessageID: msg.ClientMessageID,
 	})
 	reply, _ := json.Marshal(Envelope{
 		Type:      TypeChatMessage,

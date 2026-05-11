@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	chatqueries "github.com/arnald/forum/internal/app/chat/queries"
+	"github.com/arnald/forum/internal/domain/chat"
 	"github.com/arnald/forum/internal/infra/logger"
 	"github.com/arnald/forum/internal/infra/ws"
 )
@@ -28,6 +29,11 @@ func (h *ChatHistoryHandler) Handle(client *ws.Client, env ws.Envelope) {
 		return
 	}
 
+	if payload.ChatID == "" {
+		sendError(client, env.RequestID, "chat_id is required")
+		return
+	}
+
 	ctx := context.Background()
 
 	messages, err := h.getChatHistory.Handle(ctx, chatqueries.GetChatHistoryRequest{
@@ -36,9 +42,14 @@ func (h *ChatHistoryHandler) Handle(client *ws.Client, env ws.Envelope) {
 		Limit:           payload.Limit,
 	})
 	if err != nil {
-		sendError(client, env.RequestID, "failed to load messages")
 		h.logger.PrintError(err, nil)
+		sendError(client, env.RequestID, "failed to load messages")
 		return
+	}
+
+	// Handle nil messages and return empty array instead
+	if messages == nil {
+		messages = make([]*chat.Message, 0)
 	}
 
 	outPayload, _ := json.Marshal(messages)

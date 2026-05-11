@@ -46,11 +46,12 @@ func (h *ChatSendHandler) Handle(client *ws.Client, env ws.Envelope) {
 	}
 
 	outPayload, _ := json.Marshal(ws.MessagePayload{
-		ID:        res.Msg.ID,
-		ChatID:    res.Msg.ChatID,
-		SenderID:  res.Msg.SenderID,
-		Content:   res.Msg.Content,
-		CreatedAt: res.Msg.CreatedAt,
+		ID:              res.Msg.ID,
+		ChatID:          res.Msg.ChatID,
+		SenderID:        res.Msg.SenderID,
+		Content:         res.Msg.Content,
+		CreatedAt:       res.Msg.CreatedAt,
+		ClientMessageID: res.Msg.ClientMessageID,
 	})
 	reply, _ := json.Marshal(ws.Envelope{
 		Type:      ws.TypeChatMessage,

@@ -312,7 +312,7 @@ func (r *Repo) GetMessagesForChatBefore(ctx context.Context, chatID string, befo
 }
 
 func scanMessages(rows *sql.Rows) ([]*chat.Message, error) {
-	var messages []*chat.Message
+	messages := make([]*chat.Message, 0)
 
 	for rows.Next() {
 		var m chat.Message

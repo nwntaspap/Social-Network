@@ -112,6 +112,22 @@ export function formatMessageDate(isoString) {
   });
 }
 
+/**
+ * Formats an ISO date string to time only (HH:MM) for chat messages.
+ *
+ * @param {string} isoString
+ * @returns {string}
+ */
+export function formatMessageTime(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (isNaN(date)) return isoString;
+  return date.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
 /**

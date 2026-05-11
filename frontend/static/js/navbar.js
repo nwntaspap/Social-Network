@@ -20,6 +20,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from './api.js';
+import { initChat } from './chat.js';
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export function renderNavbar(user) {
 
   if (user) {
     initNotifications(user);
+    initChat(user);
     initActiveNavLink();
   }
 }

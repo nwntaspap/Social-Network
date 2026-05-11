@@ -244,3 +244,21 @@ export async function markAllNotificationsRead() {
 export async function fetchUserActivity() {
   return api.get('/user/activity');
 }
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches list of users available for chat, sorted by last message activity.
+ * Returns array of ChatUser objects with online status and last message time.
+ */
+export async function fetchChatUsers() {
+  return api.get('/chat/users');
+}
+
+/**
+ * Initializes or retrieves an existing chat with another user.
+ * Returns the Chat object with chat_id that should be used for messaging.
+ */
+export async function initializeChat(userId) {
+  return api.post('/chat/init', { user_id: userId });
+}
