@@ -11,11 +11,7 @@
  * Call from anywhere to open a specific chat: openChatWithUser(userId, userName)
  */
 
-import {
-  fetchChatUsers,
-  initializeChat,
-  ApiError,
-} from './api.js';
+import { fetchChatUsers, initializeChat, ApiError } from './api.js';
 import { escapeHTML, formatMessageTime } from './helpers.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -41,7 +37,8 @@ function normalizeMessage(msg) {
     sender_id: msg.SenderID !== undefined ? msg.SenderID : msg.sender_id,
     content: msg.Content !== undefined ? msg.Content : msg.content,
     created_at: msg.CreatedAt !== undefined ? msg.CreatedAt : msg.created_at,
-    client_message_id: msg.ClientMessageID !== undefined ? msg.ClientMessageID : msg.client_message_id,
+    client_message_id:
+      msg.ClientMessageID !== undefined ? msg.ClientMessageID : msg.client_message_id,
   };
 }
 
@@ -66,7 +63,6 @@ export function initChat(user) {
 
   renderChatWidget();
   connectWebSocket();
-  loadChatUsers();
 }
 
 export function cleanupChat() {
@@ -122,11 +118,11 @@ export async function openChatWithUser(userId, userName) {
     const chat = await initializeChat(userId);
     console.log('Full chat response from backend:', chat);
     console.log('Chat ID:', chat.id);
-    
+
     if (!chat.id) {
       throw new Error('Chat initialization failed: no chat ID returned');
     }
-    
+
     currentChat = chat;
     userChatMap[userId] = chat.id; // Store mapping for unread lookups
     renderChatWindow(userId, userName);
@@ -170,9 +166,9 @@ export async function sendMessage(content) {
   const trimmedContent = content.trim();
   const clientMessageId = `${currentUser.id}-${Date.now()}`;
   const chatId = currentChat.id;
-  
+
   console.log('📤 Sending message with clientMessageId:', clientMessageId);
-  
+
   // Add optimistic message to UI immediately
   const optimisticMessage = {
     id: 0,
@@ -183,7 +179,7 @@ export async function sendMessage(content) {
     client_message_id: clientMessageId,
     isOptimistic: true,
   };
-  
+
   if (!messageBuffer[chatId]) {
     messageBuffer[chatId] = [];
   }
@@ -191,10 +187,10 @@ export async function sendMessage(content) {
   console.log('📝 Added optimistic message, buffer size now:', messageBuffer[chatId].length);
   renderChatMessages();
   scrollToBottom();
-  
+
   // Send via WebSocket
   console.log('Sending message to chat:', chatId, 'with content:', trimmedContent);
-  
+
   const message = {
     type: 'chat.send',
     request_id: `msg-${Date.now()}`,
@@ -209,7 +205,12 @@ export async function sendMessage(content) {
     ws.send(JSON.stringify(message));
     console.log('Message sent:', clientMessageId);
   } else {
-    console.error('WebSocket not ready. State:', ws?.readyState, 'Connected:', ws?.readyState === WebSocket.OPEN);
+    console.error(
+      'WebSocket not ready. State:',
+      ws?.readyState,
+      'Connected:',
+      ws?.readyState === WebSocket.OPEN
+    );
     alert('Unable to send message. WebSocket is not connected. Please wait and try again.');
   }
 }
@@ -222,7 +223,7 @@ function connectWebSocket() {
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/api/v1/ws`;
-  
+
   console.log('Connecting to WebSocket:', wsUrl);
 
   try {
@@ -272,7 +273,14 @@ function handleWebSocketMessage(envelope) {
       handleChatMessage(payload);
       break;
     case 'chat.history_result':
-      console.log('Received chat.history_result, payload:', payload, 'isArray:', Array.isArray(payload), 'length:', payload?.length);
+      console.log(
+        'Received chat.history_result, payload:',
+        payload,
+        'isArray:',
+        Array.isArray(payload),
+        'length:',
+        payload?.length
+      );
       handleChatHistory(payload);
       break;
     case 'error':
@@ -289,11 +297,16 @@ function handleWebSocketMessage(envelope) {
 function handleChatMessage(message) {
   const msg = normalizeMessage(message);
   const { chat_id, sender_id, content, created_at, id } = msg;
-  const matchedUser = chatUsers.find(u => userChatMap[u.user_id] === chat_id);
-  console.log('Received message:', { id, chat_id, sender_id, client_message_id: msg.client_message_id });
+  const matchedUser = chatUsers.find((u) => userChatMap[u.user_id] === chat_id);
+  console.log('Received message:', {
+    id,
+    chat_id,
+    sender_id,
+    client_message_id: msg.client_message_id,
+  });
 
   if (!Object.values(userChatMap).includes(chat_id)) {
-    const senderUser = chatUsers.find(u => u.user_id === sender_id);
+    const senderUser = chatUsers.find((u) => u.user_id === sender_id);
     if (senderUser) {
       userChatMap[sender_id] = chat_id;
     }
@@ -306,21 +319,24 @@ function handleChatMessage(message) {
 
   // Check if message already exists (dedup by ID or client_message_id)
   const messageExists = messageBuffer[chat_id].some(
-    m => m.id === id || (msg.client_message_id && m.client_message_id === msg.client_message_id)
+    (m) => m.id === id || (msg.client_message_id && m.client_message_id === msg.client_message_id)
   );
-  
-  
+
   if (!messageExists) {
     // Remove optimistic message with same client_message_id if it exists
     if (msg.client_message_id) {
       const beforeFilter = messageBuffer[chat_id].length;
       messageBuffer[chat_id] = messageBuffer[chat_id].filter(
-        m => m.client_message_id !== msg.client_message_id
+        (m) => m.client_message_id !== msg.client_message_id
       );
       const afterFilter = messageBuffer[chat_id].length;
-      console.log('🗑️ Removed optimistic:', { removed: beforeFilter - afterFilter, before: beforeFilter, after: afterFilter });
+      console.log('🗑️ Removed optimistic:', {
+        removed: beforeFilter - afterFilter,
+        before: beforeFilter,
+        after: afterFilter,
+      });
     }
-    
+
     messageBuffer[chat_id].push({
       id,
       chat_id,
@@ -334,15 +350,13 @@ function handleChatMessage(message) {
     console.log('⏭️ Skipped duplicate message');
   }
 
-  const senderInList = chatUsers.find(u => u.user_id === sender_id);
+  const senderInList = chatUsers.find((u) => u.user_id === sender_id);
   if (senderInList) {
     userChatMap[sender_id] = chat_id;
   }
 
- 
-  const chatIsVisible = currentChat && 
-    currentChat.id === chat_id && 
-    document.getElementById('chat-messages') !== null;
+  const chatIsVisible =
+    currentChat && currentChat.id === chat_id && document.getElementById('chat-messages') !== null;
 
   if (chatIsVisible) {
     renderChatMessages();
@@ -367,7 +381,7 @@ function handleChatHistory(messages) {
   }
 
   // Normalize all messages to snake_case
-  const normalizedMessages = messages.map(msg => normalizeMessage(msg));
+  const normalizedMessages = messages.map((msg) => normalizeMessage(msg));
 
   // Store messages in reverse chronological order (newest first from server)
   if (!messageBuffer[chat_id]) {
@@ -375,14 +389,14 @@ function handleChatHistory(messages) {
   }
 
   // Merge with existing messages, avoiding duplicates
-  const existingIds = new Set(messageBuffer[chat_id].map(m => m.id));
-  const newMessages = normalizedMessages.filter(m => !existingIds.has(m.id));
+  const existingIds = new Set(messageBuffer[chat_id].map((m) => m.id));
+  const newMessages = normalizedMessages.filter((m) => !existingIds.has(m.id));
 
   messageBuffer[chat_id] = [...newMessages, ...messageBuffer[chat_id]];
 
   renderChatMessages();
   scrollToBottom();
-  markAsRead(); 
+  markAsRead();
 }
 
 // ─── Chat Window (Message Interface) ──────────────────────────────────────────
@@ -394,7 +408,7 @@ function renderChatWindow(userId, userName) {
   // Get user's initials for avatar
   const initials = (userName || 'U')
     .split(' ')
-    .map(word => word[0].toUpperCase())
+    .map((word) => word[0].toUpperCase())
     .join('')
     .slice(0, 2);
 
@@ -448,8 +462,6 @@ function renderChatWindow(userId, userName) {
     if (input) input.focus();
     markAsRead();
   }, 100);
-
- 
 }
 
 function renderChatMessages() {
@@ -460,7 +472,14 @@ function renderChatMessages() {
   if (!container) return;
 
   const messages = messageBuffer[chatId] || [];
-  console.log('renderChatMessages - chatId:', chatId, 'messages in buffer:', messages.length, 'first msg structure:', messages[0]);
+  console.log(
+    'renderChatMessages - chatId:',
+    chatId,
+    'messages in buffer:',
+    messages.length,
+    'first msg structure:',
+    messages[0]
+  );
 
   // Display messages sorted by time (oldest first for display)
   const displayMessages = [...messages].sort(
@@ -478,15 +497,15 @@ function renderChatMessages() {
   }
 
   container.innerHTML = displayMessages
-    .map(msg => {
+    .map((msg) => {
       const isOwn = msg.sender_id === currentUser.id;
-      console.log('Rendering message:', { 
-        id: msg.id, 
-        content: msg.content, 
-        created_at: msg.created_at, 
+      console.log('Rendering message:', {
+        id: msg.id,
+        content: msg.content,
+        created_at: msg.created_at,
         sender_id: msg.sender_id,
         isOwn,
-        currentUserId: currentUser.id
+        currentUserId: currentUser.id,
       });
       return `
         <div class="chat-message ${isOwn ? 'own' : ''}">
@@ -546,23 +565,19 @@ function renderChatUsersList() {
   }
 
   container.innerHTML = chatUsers
-    .map(user => {
+    .map((user) => {
       const initials = (user.nickname || 'U')
         .split(' ')
-        .map(word => word[0].toUpperCase())
+        .map((word) => word[0].toUpperCase())
         .join('')
         .slice(0, 2);
 
       // Get unread count for this user by looking up their chat_id
       const chatId = userChatMap[user.user_id];
-      const unreadCount = chatId ? (unreadCounts[chatId] || 0) : 0;
-      
-      const lastMessageTime = user.last_message_at
-        ? new Date(user.last_message_at)
-        : null;
-      const timeAgo = lastMessageTime
-        ? getTimeAgo(lastMessageTime)
-        : 'Never';
+      const unreadCount = chatId ? unreadCounts[chatId] || 0 : 0;
+
+      const lastMessageTime = user.last_message_at ? new Date(user.last_message_at) : null;
+      const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
 
       return `
         <div
@@ -597,7 +612,8 @@ function renderChatWidget() {
   const button = document.createElement('button');
   button.id = 'chat-widget-button';
   button.className = 'chat-widget-button';
-  button.innerHTML = '💬 <span class="chat-unread-badge" id="chat-unread-total" style="display:none"></span>';
+  button.innerHTML =
+    '💬 <span class="chat-unread-badge" id="chat-unread-total" style="display:none"></span>';
   button.onclick = openChatModal;
   button.title = 'Open messages';
 
@@ -693,9 +709,9 @@ async function loadChatHistory(chatId) {
     console.error('No chatId provided to loadChatHistory');
     return;
   }
-  
+
   console.log('loadChatHistory called with chatId:', chatId);
-  
+
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     console.log('WebSocket not ready for history, retrying in 500ms. State:', ws?.readyState);
     // Wait for WebSocket to be ready
@@ -726,7 +742,7 @@ function markAsRead() {
   const messages = messageBuffer[chatId] || [];
   if (messages.length === 0) return;
 
-  const lastMessageId = Math.max(...messages.map(m => m.id).filter(id => id > 0));
+  const lastMessageId = Math.max(...messages.map((m) => m.id).filter((id) => id > 0));
   if (!lastMessageId) return;
 
   const message = {
