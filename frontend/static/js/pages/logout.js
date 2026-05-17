@@ -17,6 +17,7 @@
 import { api } from '../api.js';
 import { navigate } from '../router.js';
 import { closeNotificationStream } from '../navbar.js';
+import { cleanupChat } from '../chat.js';
 
 export async function renderLogoutPage(user) {
   const root = document.getElementById('app-root');
@@ -39,6 +40,7 @@ export async function renderLogoutPage(user) {
   //the cookies are deleted from the backend response, so we just go to the home page and the middleware will get the user and render the navbar
 
   closeNotificationStream();
+  cleanupChat();
 
   navigate('/');
 }

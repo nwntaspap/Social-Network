@@ -28,6 +28,8 @@ let messageBuffer = {}; // Stores messages per chat_id
 let unreadCounts = {}; // Stores unread counts per chat_id
 let userChatMap = {}; // Maps user_id -> chat_id for quick lookup
 let isConnecting = false;
+let reconnectTimeout = null;
+let chatInitialized = false;
 
 /**
  * Normalize message properties from backend PascalCase to our snake_case format
@@ -49,10 +51,65 @@ function normalizeMessage(msg) {
  * Initialize the chat system. Call once on app startup.
  */
 export function initChat(user) {
+  if (!user?.id) return;
+
+  if (chatInitialized) {
+    console.log('Chat already initialized');
+    return;
+  }
+
+  console.log('Initializing chat for:', user.username || user.email);
+
+  chatInitialized = true;
+
   currentUser = user;
+
   renderChatWidget();
   connectWebSocket();
   loadChatUsers();
+}
+
+export function cleanupChat() {
+  console.log('Cleaning up chat');
+
+  chatInitialized = false;
+
+  // stop reconnect loop
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  // close websocket
+  if (ws) {
+    ws.onclose = null;
+    ws.close();
+    ws = null;
+  }
+
+  // reset state
+  currentUser = null;
+  currentChat = null;
+  chatUsers = [];
+  messageBuffer = {};
+  unreadCounts = {};
+  userChatMap = {};
+  isConnecting = false;
+
+  // remove widget
+  const widget = document.getElementById('chat-widget-button');
+  if (widget) {
+    widget.remove();
+  }
+
+  // remove modal
+  const modal = document.getElementById('chat-modal');
+  if (modal) {
+    modal.remove();
+  }
+
+  // remove global handlers
+  delete window.chatModule;
 }
 
 /**
@@ -198,7 +255,11 @@ function connectWebSocket() {
     console.log('✗ WebSocket disconnected', event.code, event.reason);
     isConnecting = false;
     // Attempt to reconnect after 3 seconds
-    setTimeout(() => connectWebSocket(), 3000);
+    if (chatInitialized) {
+      reconnectTimeout = setTimeout(() => {
+        connectWebSocket();
+      }, 3000);
+    }
   };
 }
 
