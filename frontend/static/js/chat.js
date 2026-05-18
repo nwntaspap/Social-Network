@@ -711,8 +711,9 @@ async function loadChatHistory(chatId) {
   console.log('loadChatHistory called with chatId:', chatId);
 
   if (!ws || ws.readyState !== WebSocket.OPEN) {
+    console.log('WebSocket not ready for history, retrying in 500ms. State:', ws?.readyState);
     // Wait for WebSocket to be ready
-    console.log('WebSocket not ready for history. Waiting for reconnect. State:', ws?.readyState);
+    setTimeout(() => loadChatHistory(chatId), 500);
     return;
   }
 

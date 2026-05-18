@@ -283,6 +283,8 @@
   word-wrap: break-word;
   font-size: 14px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .chat-message.own .chat-message-bubble {
@@ -422,9 +424,8 @@
 
   .chat-modal,
   .chat-window {
-    width: 85%;
-    max-width: 350px;
-    height: 85%;
+    width: min(400px, 95vw);
+    height: min(70vh, 600px);
     bottom: 0;
     right: 0;
     border-radius: 12px;
