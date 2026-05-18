@@ -63,6 +63,7 @@ export function initChat(user) {
 
   renderChatWidget();
   connectWebSocket();
+  loadChatUsers()
 }
 
 export function cleanupChat() {

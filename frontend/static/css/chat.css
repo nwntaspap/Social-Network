@@ -205,6 +205,10 @@
   background: #2ecc71;
 }
 
+.chat-user-status.offline::before {
+  background: #f4e32d;
+}
+
 .chat-user-unread {
   background: #ff4757;
   color: white;
@@ -277,7 +281,6 @@
 }
 
 .chat-message-bubble {
-  max-width: 75%;
   padding: 10px 14px;
   border-radius: 12px;
   word-wrap: break-word;
