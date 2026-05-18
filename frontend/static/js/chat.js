@@ -127,6 +127,12 @@ export async function openChatWithUser(userId, userName) {
     userChatMap[userId] = chat.id; // Store mapping for unread lookups
     renderChatWindow(userId, userName);
     console.log('Chat window rendered, loading history for:', chat.id);
+    // Show cached Messages before loading History for Better UX
+    const existingMessages = messageBuffer[chat.id];
+    if (existingMessages && existingMessages.length > 0) {
+      renderChatMessages();
+      scrollToBottom();
+    }
     loadChatHistory(chat.id);
   } catch (err) {
     console.error('Failed to open chat:', err);
@@ -138,10 +144,6 @@ export async function openChatWithUser(userId, userName) {
  * Close the current chat window and go back to user list.
  */
 export function closeChatWindow() {
-  // ΜΗΝ κάνεις reset το currentChat αμέσως — πρώτα αποθήκευσε το chat_id
-  if (currentChat) {
-    userChatMap[currentChat.id] = currentChat.id; // keep mapping
-  }
   currentChat = null;
   renderChatModal();
 }
@@ -297,20 +299,12 @@ function handleWebSocketMessage(envelope) {
 function handleChatMessage(message) {
   const msg = normalizeMessage(message);
   const { chat_id, sender_id, content, created_at, id } = msg;
-  const matchedUser = chatUsers.find((u) => userChatMap[u.user_id] === chat_id);
   console.log('Received message:', {
     id,
     chat_id,
     sender_id,
     client_message_id: msg.client_message_id,
   });
-
-  if (!Object.values(userChatMap).includes(chat_id)) {
-    const senderUser = chatUsers.find((u) => u.user_id === sender_id);
-    if (senderUser) {
-      userChatMap[sender_id] = chat_id;
-    }
-  }
 
   // Store message
   if (!messageBuffer[chat_id]) {
@@ -389,7 +383,8 @@ function handleChatHistory(messages) {
   }
 
   // Merge with existing messages, avoiding duplicates
-  const existingIds = new Set(messageBuffer[chat_id].map((m) => m.id));
+  const existingIds = new Set(messageBuffer[chat_id].filter((m) => m.id > 0).map((m) => m.id));
+
   const newMessages = normalizedMessages.filter((m) => !existingIds.has(m.id));
 
   messageBuffer[chat_id] = [...newMessages, ...messageBuffer[chat_id]];
@@ -672,7 +667,10 @@ function updateUnreadBadges() {
   }
 
   // Ανανέωσε και τη λίστα χρηστών αν είναι ανοιχτή
-  renderChatUsersList();
+  const usersList = document.getElementById('chat-users-list');
+  if (usersList) {
+    renderChatUsersList();
+  }
 }
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
@@ -713,9 +711,8 @@ async function loadChatHistory(chatId) {
   console.log('loadChatHistory called with chatId:', chatId);
 
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.log('WebSocket not ready for history, retrying in 500ms. State:', ws?.readyState);
     // Wait for WebSocket to be ready
-    setTimeout(() => loadChatHistory(chatId), 500);
+    console.log('WebSocket not ready for history. Waiting for reconnect. State:', ws?.readyState);
     return;
   }
 
