@@ -23,41 +23,89 @@ func NewHub() *Hub {
 // register adds a client connection for a user.
 func (h *Hub) Register(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
-	if h.clients[client.UserID] == nil {
+	becameOnline := h.clients[client.UserID] == nil
+	if becameOnline {
 		h.clients[client.UserID] = make(map[*Client]bool)
 	}
 	h.clients[client.UserID][client] = true
 
 	log.Printf("ws: user %s connected (%d connections)", client.UserID, len(h.clients[client.UserID]))
+	h.mu.Unlock()
+
+	if becameOnline {
+		h.BroadCastIsOnlineStatus(client.UserID, true)
+	}
 }
 
 func (h *Hub) Unregister(client *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	conns, ok := h.clients[client.UserID]
 	if !ok {
+		h.mu.Unlock()
 		return
 	}
 
 	delete(conns, client)
-	if len(conns) == 0 {
+	becameOffline := len(conns) == 0
+	if becameOffline {
 		delete(h.clients, client.UserID)
 	}
 
 	log.Printf("ws: user %s disconnected", client.UserID)
+	h.mu.Unlock()
+
+	if becameOffline {
+		h.BroadCastIsOnlineStatus(client.UserID, false)
+	}
 }
 
 // Send delivers a message to all connections of a specific user.
+// client.send is a channel, with a specific buffer, which can block if the channel is full
+// sending to a channel will wait for as long the channel is full
+// keeping the hubs mutex locked for this period is dangerous
+// some hub operations(register/unregister) might freeze because of the lock
+// for this a copry of the recipients is made and then sends to every recepient
 func (h *Hub) Send(toUserID string, msg []byte) {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
-
+	//these are the recepients
+	clients := make([]*Client, 0)
 	for client := range h.clients[toUserID] {
+		clients = append(clients, client)
+	}
+	h.mu.RUnlock()
+
+	//sending to every recepient
+	for _, client := range clients {
 		client.send <- msg
 	}
+}
+
+func (h *Hub) BroadCast(msg []byte) {
+	h.mu.RLock()
+	clients := make([]*Client, 0)
+	for _, conns := range h.clients {
+		for client := range conns {
+			clients = append(clients, client)
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, client := range clients {
+		client.send <- msg
+	}
+}
+func (h *Hub) BroadCastIsOnlineStatus(userID string, isOnline bool) {
+	outPayload, _ := json.Marshal(IsOnlineStatusPayload{
+		UserID:   userID,
+		IsOnline: isOnline,
+	})
+	statusToBeBroadcasted, _ := json.Marshal(Envelope{
+		Type:    TypeIsOnlineStatus,
+		Payload: outPayload,
+	})
+	h.BroadCast(statusToBeBroadcasted)
 }
 
 // this is here so that the hub ipmlement the broadcaster interface in the app
@@ -77,9 +125,12 @@ func (h *Hub) SendToUser(toUserID, requestID string, msg *chat.Message) {
 		Payload:   outPayload,
 	})
 	h.mu.RLock()
-	defer h.mu.RUnlock()
-
+	clients := make([]*Client, 0)
 	for client := range h.clients[toUserID] {
+		clients = append(clients, client)
+	}
+	h.mu.RUnlock()
+	for _, client := range clients {
 		client.send <- reply
 	}
 }

@@ -271,6 +271,10 @@ function handleWebSocketMessage(envelope) {
   const { type, request_id, payload } = envelope;
 
   switch (type) {
+    case 'isOnlineStatus.update':
+      console.log('a user activity has changed', payload);
+      handleChatUserOnlineStatus(payload.user_id, payload.isOnline);
+      break;
     case 'chat.message':
       console.log('Received chat.message:', payload);
       handleChatMessage(payload);
@@ -296,6 +300,26 @@ function handleWebSocketMessage(envelope) {
       console.warn('Unknown message type:', type);
   }
 }
+
+function handleChatUserOnlineStatus(userId, isOnline) {
+
+  const user = chatUsers.find((u) => u.user_id === userId);
+
+  if (!user) return;
+
+  user.is_online = isOnline;
+  const statusEl = document.querySelector(`[data-chat-user-status="${userId}"]`);
+  if (!statusEl) return;
+
+  const lastMessageTime = user.last_message_at ? new Date(user.last_message_at) : null;
+  const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
+
+  statusEl.className = `chat-user-status ${isOnline ? 'online' : 'offline'}`;
+  statusEl.textContent = isOnline ? 'Online' : `Last seen ${timeAgo}`;
+
+}
+
+
 
 function handleChatMessage(message) {
   const msg = normalizeMessage(message);
@@ -340,6 +364,7 @@ function handleChatMessage(message) {
       created_at,
       client_message_id: msg.client_message_id,
     });
+
     console.log('✅ Added message to buffer, size now:', messageBuffer[chat_id].length);
   } else {
     console.log('⏭️ Skipped duplicate message');
@@ -348,6 +373,12 @@ function handleChatMessage(message) {
   const senderInList = chatUsers.find((u) => u.user_id === sender_id);
   if (senderInList) {
     userChatMap[sender_id] = chat_id;
+    senderInList.last_message_at = created_at;
+    chatUsers.sort((a, b) => {
+      const timeA = a.last_message_at ? new Date(a.last_message_at) : new Date(0);
+      const timeB = b.last_message_at ? new Date(b.last_message_at) : new Date(0);
+      return timeB - timeA;
+    });
   }
 
   const chatIsVisible =
@@ -585,7 +616,7 @@ function renderChatUsersList() {
           </div>
           <div class="chat-user-info">
             <div class="chat-user-name">${escapeHTML(user.nickname)}</div>
-            <div class="chat-user-status ${user.is_online ? 'online' : 'offline'}">
+            <div class="chat-user-status ${user.is_online ? 'online' : 'offline'}" data-chat-user-status="${user.user_id}">
               ${user.is_online ? 'Online' : `Last seen ${timeAgo}`}
             </div>
           </div>
@@ -680,6 +711,14 @@ async function loadChatUsers() {
   try {
     const users = await fetchChatUsers();
     chatUsers = users || [];
+
+    chatUsers.forEach((user) => {
+      if (user.chat_id) {
+        userChatMap[user.user_id] = user.chat_id
+        unreadCounts[user.chat_id] = user.unread_count || 0
+      }
+    });
+    updateUnreadBadges();
 
     // Sort by last_message_at (most recent first)
     chatUsers.sort((a, b) => {

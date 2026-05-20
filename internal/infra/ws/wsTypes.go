@@ -15,10 +15,11 @@ const (
 
 // Outbound message types (server -> client)
 const (
-	TypeChatMessage   = "chat.message"
-	TypeHistoryResult = "chat.history_result"
-	TypeError         = "error"
-	TypePong          = "pong"
+	TypeChatMessage    = "chat.message"
+	TypeHistoryResult  = "chat.history_result"
+	TypeError          = "error"
+	TypePong           = "pong"
+	TypeIsOnlineStatus = "isOnlineStatus.update"
 )
 
 // Envelope is the wrapper for every WebSocker message.
@@ -35,6 +36,11 @@ type SendPayload struct {
 	ClientMessageID string `json:"client_message_id,omitempty"`
 }
 
+type IsOnlineStatusPayload struct {
+	UserID   string `json:"user_id"`
+	IsOnline bool   `json:"isOnline"`
+}
+
 type HistoryPayload struct {
 	ChatID          string `json:"chat_id"`
 	BeforeMessageID int    `json:"before_message_id,omitempty"`
@@ -48,12 +54,12 @@ type MarkReadPayload struct {
 
 // Payloads for outbound messages
 type MessagePayload struct {
-	ID              int        `json:"id"`
-	ChatID          string     `json:"chat_id"`
-	SenderID        string     `json:"sender_id"`
-	Content         string     `json:"content"`
-	CreatedAt       time.Time  `json:"created_at"`
-	ClientMessageID *string    `json:"client_message_id,omitempty"`
+	ID              int       `json:"id"`
+	ChatID          string    `json:"chat_id"`
+	SenderID        string    `json:"sender_id"`
+	Content         string    `json:"content"`
+	CreatedAt       time.Time `json:"created_at"`
+	ClientMessageID *string   `json:"client_message_id,omitempty"`
 }
 
 type ErrorPayload struct {

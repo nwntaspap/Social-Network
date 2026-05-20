@@ -137,13 +137,24 @@ func (r *Repo) GetChatsForUser(ctx context.Context, userID string) ([]*chat.Chat
 	}
 
 	rows, err := r.DB.QueryContext(ctx, `
-		SELECT id, user_low_id, user_high_id, created_at, updated_at, last_message_id, last_message_at
-		FROM direct_chats
-		WHERE user_low_id = ? OR user_high_id = ?
+		SELECT
+		dc.id,
+		dc.user_low_id,
+		dc.user_high_id,
+		dc.created_at, 
+		dc.updated_at,
+		dc.last_message_id,
+		dc.last_message_at,
+		COALESCE(cr.unread_count, 0) AS unread_count
+		FROM direct_chats dc
+		LEFT JOIN chat_reads cr
+		ON cr.chat_id = dc.id
+		AND cr.user_id = ?
+		WHERE dc.user_low_id = ? OR dc.user_high_id = ?
 		ORDER BY
-			CASE WHEN last_message_at IS NULL THEN 1 ELSE 0 END ASC,
-			last_message_at DESC
-	`, userID, userID)
+		CASE WHEN dc.last_message_at IS NULL THEN 1 ELSE 0 END ASC,
+		dc.last_message_at DESC
+	`, userID, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +175,7 @@ func (r *Repo) GetChatsForUser(ctx context.Context, userID string) ([]*chat.Chat
 			&c.UpdatedAt,
 			&lastMessageID,
 			&lastMessageAt,
+			&c.UnreadCount,
 		)
 		if err != nil {
 			return nil, err

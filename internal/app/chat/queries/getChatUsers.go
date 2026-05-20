@@ -19,6 +19,8 @@ type ChatUser struct {
 	Nickname      string     `json:"nickname"`
 	IsOnline      bool       `json:"is_online"`
 	LastMessageAt *time.Time `json:"last_message_at"`
+	ChatId        string     `json:"chat_id,omitempty"`
+	UnreadCount   int        `json:"unread_count"`
 }
 type GetChatUsersHandler interface {
 	Handle(ctx context.Context, req GetChatUsersRequest) ([]ChatUser, error)
@@ -49,12 +51,16 @@ func (h *getChatUsersHandler) Handle(ctx context.Context, req GetChatUsersReques
 	}
 
 	lastMsgAt := make(map[string]*time.Time)
+	users_chatId := make(map[string]string)
+	unreadCountPerUserChat := make(map[string]int)
 	for _, c := range myChats {
 		otherID := c.UserHighID
 		if otherID == req.MeID {
 			otherID = c.UserLowID
 		}
 		lastMsgAt[otherID] = c.LastMessageAt
+		users_chatId[otherID] = c.ID
+		unreadCountPerUserChat[otherID] = c.UnreadCount
 	}
 
 	var withMsg []ChatUser
@@ -71,6 +77,8 @@ func (h *getChatUsersHandler) Handle(ctx context.Context, req GetChatUsersReques
 			LastMessageAt: lastMsgAt[u.ID],
 		}
 		if cu.LastMessageAt != nil {
+			cu.ChatId = users_chatId[u.ID]
+			cu.UnreadCount = unreadCountPerUserChat[u.ID]
 			withMsg = append(withMsg, cu)
 		} else {
 			withoutMsg = append(withoutMsg, cu)
