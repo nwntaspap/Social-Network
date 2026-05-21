@@ -23,9 +23,14 @@ let chatUsers = [];
 let messageBuffer = {}; // Stores messages per chat_id
 let unreadCounts = {}; // Stores unread counts per chat_id
 let userChatMap = {}; // Maps user_id -> chat_id for quick lookup
+let historyObserver = null;
+let historyState = {}; // Stores pagination state per chat_id
+let pendingHistoryRequests = {}; // Stores in-flight history request metadata by request_id
 let isConnecting = false;
 let reconnectTimeout = null;
 let chatInitialized = false;
+const CHAT_HISTORY_PAGE_SIZE = 20;
+const CHAT_HISTORY_LOAD_DELAY_MS = 2000;
 
 /**
  * Normalize message properties from backend PascalCase to our snake_case format
@@ -40,6 +45,126 @@ function normalizeMessage(msg) {
     client_message_id:
       msg.ClientMessageID !== undefined ? msg.ClientMessageID : msg.client_message_id,
   };
+}
+
+function getHistoryState(chatId) {
+  if (!historyState[chatId]) {
+    historyState[chatId] = {
+      hasMore: true,
+      delayPending: false,
+      loadingOlder: false,
+      pendingTimeoutId: null,
+    };
+  }
+
+  return historyState[chatId];
+}
+
+function disconnectHistoryObserver() {
+  if (historyObserver) {
+    historyObserver.disconnect();
+    historyObserver = null;
+  }
+}
+
+function clearPendingHistoryLoad(chatId) {
+  const state = historyState[chatId];
+  if (!state) return;
+
+  if (state.pendingTimeoutId) {
+    clearTimeout(state.pendingTimeoutId);
+    state.pendingTimeoutId = null;
+  }
+
+  state.delayPending = false;
+}
+
+function showHistoryLoader(show) {
+  const loader = document.getElementById('chat-history-loader');
+  if (!loader) return;
+
+  loader.style.display = show ? 'flex' : 'none';
+}
+
+function clearAllPendingHistoryLoads() {
+  Object.keys(historyState).forEach((chatId) => {
+    clearPendingHistoryLoad(chatId);
+  });
+}
+
+function getOldestPersistedMessageId(chatId) {
+  const persistedMessages = (messageBuffer[chatId] || []).filter((msg) => msg.id > 0);
+
+  if (persistedMessages.length === 0) {
+    return 0;
+  }
+
+  return Math.min(...persistedMessages.map((msg) => msg.id));
+}
+
+function observeHistorySentinel() {
+  disconnectHistoryObserver();
+
+  if (!currentChat) return;
+
+  const chatId = currentChat.id;
+  const state = getHistoryState(chatId);
+  if (!state.hasMore) return;
+
+  const container = document.getElementById('chat-messages');
+  const sentinel = document.getElementById('chat-history-sentinel');
+  if (!container || !sentinel) return;
+
+  historyObserver = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return;
+      }
+
+      if (!currentChat || currentChat.id !== chatId) {
+        return;
+      }
+
+      if (state.delayPending || state.loadingOlder) {
+        return;
+      }
+
+      const oldestMessageId = getOldestPersistedMessageId(chatId);
+      if (!oldestMessageId) {
+        return;
+      }
+
+      state.delayPending = true;
+      showHistoryLoader(true);
+      state.pendingTimeoutId = setTimeout(() => {
+        state.pendingTimeoutId = null;
+        state.delayPending = false;
+
+        if (!currentChat || currentChat.id !== chatId) {
+          showHistoryLoader(false);
+          return;
+        }
+
+        loadChatHistory(chatId, oldestMessageId);
+      }, CHAT_HISTORY_LOAD_DELAY_MS);
+    },
+    {
+      root: container,
+      threshold: 0.1,
+    }
+  );
+
+  historyObserver.observe(sentinel);
+}
+
+function restoreScrollAfterPrepend(previousScrollHeight, previousScrollTop) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  requestAnimationFrame(() => {
+    container.scrollTop = container.scrollHeight - previousScrollHeight + previousScrollTop;
+    observeHistorySentinel();
+  });
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────
@@ -85,13 +210,17 @@ export function cleanupChat() {
   }
 
   // reset state
+  clearAllPendingHistoryLoads();
   currentUser = null;
   currentChat = null;
   chatUsers = [];
   messageBuffer = {};
   unreadCounts = {};
   userChatMap = {};
+  historyState = {};
+  pendingHistoryRequests = {};
   isConnecting = false;
+  disconnectHistoryObserver();
 
   // remove widget
   const widget = document.getElementById('chat-widget-button');
@@ -145,6 +274,10 @@ export async function openChatWithUser(userId, userName) {
  * Close the current chat window and go back to user list.
  */
 export function closeChatWindow() {
+  if (currentChat) {
+    clearPendingHistoryLoad(currentChat.id);
+  }
+  disconnectHistoryObserver();
   currentChat = null;
   renderChatModal();
 }
@@ -153,6 +286,10 @@ export function closeChatWindow() {
  * Close the entire chat modal.
  */
 export function closeChatModal() {
+  if (currentChat) {
+    clearPendingHistoryLoad(currentChat.id);
+  }
+  disconnectHistoryObserver();
   const modal = document.getElementById('chat-modal');
   if (modal) {
     modal.style.display = 'none';
@@ -288,7 +425,7 @@ function handleWebSocketMessage(envelope) {
         'length:',
         payload?.length
       );
-      handleChatHistory(payload);
+      handleChatHistory(payload, request_id);
       break;
     case 'error':
       console.error('Server error:', payload?.message);
@@ -336,40 +473,35 @@ function handleChatMessage(message) {
     messageBuffer[chat_id] = [];
   }
 
-  // Check if message already exists (dedup by ID or client_message_id)
-  const messageExists = messageBuffer[chat_id].some(
-    (m) => m.id === id || (msg.client_message_id && m.client_message_id === msg.client_message_id)
-  );
-
-  if (!messageExists) {
-    // Remove optimistic message with same client_message_id if it exists
-    if (msg.client_message_id) {
-      const beforeFilter = messageBuffer[chat_id].length;
-      messageBuffer[chat_id] = messageBuffer[chat_id].filter(
-        (m) => m.client_message_id !== msg.client_message_id
-      );
-      const afterFilter = messageBuffer[chat_id].length;
-      console.log('🗑️ Removed optimistic:', {
-        removed: beforeFilter - afterFilter,
-        before: beforeFilter,
-        after: afterFilter,
-      });
-    }
-
-    messageBuffer[chat_id].push({
-      id,
-      chat_id,
-      sender_id,
-      content,
-      created_at,
-      client_message_id: msg.client_message_id,
-    });
-
-    console.log('✅ Added message to buffer, size now:', messageBuffer[chat_id].length);
-  } else {
+  if (id > 0 && messageBuffer[chat_id].some((m) => m.id === id)) {
     console.log('⏭️ Skipped duplicate message');
+    return;
   }
 
+  // Replace the optimistic client copy with the persisted message.
+  if (msg.client_message_id) {
+    const beforeFilter = messageBuffer[chat_id].length;
+    messageBuffer[chat_id] = messageBuffer[chat_id].filter(
+      (m) => m.client_message_id !== msg.client_message_id
+    );
+    const afterFilter = messageBuffer[chat_id].length;
+    console.log('🗑️ Removed optimistic:', {
+      removed: beforeFilter - afterFilter,
+      before: beforeFilter,
+      after: afterFilter,
+    });
+  }
+
+  messageBuffer[chat_id].push({
+    id,
+    chat_id,
+    sender_id,
+    content,
+    created_at,
+    client_message_id: msg.client_message_id,
+  });
+
+  console.log('✅ Added message to buffer, size now:', messageBuffer[chat_id].length);
   const senderInList = chatUsers.find((u) => u.user_id === sender_id);
   if (senderInList) {
     userChatMap[sender_id] = chat_id;
@@ -394,12 +526,25 @@ function handleChatMessage(message) {
   }
 }
 
-function handleChatHistory(messages) {
-  if (!currentChat) {
+function handleChatHistory(messages, requestId) {
+  const requestMeta = requestId ? pendingHistoryRequests[requestId] : null;
+  if (requestId) {
+    delete pendingHistoryRequests[requestId];
+  }
+
+  const chat_id = requestMeta?.chatId || currentChat?.id;
+  if (!chat_id) {
     return;
   }
 
-  const chat_id = currentChat.id;
+  const state = getHistoryState(chat_id);
+  clearPendingHistoryLoad(chat_id);
+  state.loadingOlder = false;
+  showHistoryLoader(false);
+
+  if (!currentChat || currentChat.id !== chat_id) {
+    return;
+  }
 
   // Handle null/undefined messages (shouldn't happen, but be safe)
   if (!messages || !Array.isArray(messages)) {
@@ -414,14 +559,31 @@ function handleChatHistory(messages) {
     messageBuffer[chat_id] = [];
   }
 
-  // Merge with existing messages, avoiding duplicates
-  const existingIds = new Set(messageBuffer[chat_id].filter((m) => m.id > 0).map((m) => m.id));
+  const incomingClientMessageIds = new Set(
+    normalizedMessages.map((msg) => msg.client_message_id).filter(Boolean)
+  );
+
+  if (incomingClientMessageIds.size > 0) {
+    messageBuffer[chat_id] = messageBuffer[chat_id].filter(
+      (msg) => !(msg.id === 0 && msg.client_message_id && incomingClientMessageIds.has(msg.client_message_id))
+    );
+  }
+
+  // Merge with existing messages, avoiding duplicates.
+  const existingIds = new Set(messageBuffer[chat_id].filter((msg) => msg.id > 0).map((msg) => msg.id));
 
   const newMessages = normalizedMessages.filter((m) => !existingIds.has(m.id));
 
   messageBuffer[chat_id] = [...newMessages, ...messageBuffer[chat_id]];
+  state.hasMore = normalizedMessages.length === CHAT_HISTORY_PAGE_SIZE;
 
   renderChatMessages();
+
+  if (requestMeta?.beforeMessageId > 0) {
+    restoreScrollAfterPrepend(requestMeta.previousScrollHeight, requestMeta.previousScrollTop);
+    return;
+  }
+
   scrollToBottom();
   markAsRead();
 }
@@ -514,6 +676,7 @@ function renderChatMessages() {
   );
 
   if (displayMessages.length === 0) {
+    disconnectHistoryObserver();
     container.innerHTML = `
       <div class="chat-empty-state">
         <div class="chat-empty-state-icon">💬</div>
@@ -523,31 +686,37 @@ function renderChatMessages() {
     return;
   }
 
-  container.innerHTML = displayMessages
-    .map((msg) => {
-      const isOwn = msg.sender_id === currentUser.id;
-      console.log('Rendering message:', {
-        id: msg.id,
-        content: msg.content,
-        created_at: msg.created_at,
-        sender_id: msg.sender_id,
-        isOwn,
-        currentUserId: currentUser.id,
-      });
-      return `
-        <div class="chat-message ${isOwn ? 'own' : ''}">
-          <div>
-            <div class="chat-message-bubble">
-              ${escapeHTML(msg.content)}
-            </div>
-            <div class="chat-message-time">
-              ${formatMessageTime(msg.created_at)}
+  container.innerHTML = `
+    <div id="chat-history-loader" class="chat-loading" style="display: none; min-height: auto; padding: 8px 0;">
+      <div class="chat-spinner"></div>
+    </div>
+    <div id="chat-history-sentinel" style="height: 1px; width: 100%;"></div>
+    ${displayMessages
+      .map((msg) => {
+        const isOwn = msg.sender_id === currentUser.id;
+        console.log('Rendering message:', {
+          id: msg.id,
+          content: msg.content,
+          created_at: msg.created_at,
+          sender_id: msg.sender_id,
+          isOwn,
+          currentUserId: currentUser.id,
+        });
+        return `
+          <div class="chat-message ${isOwn ? 'own' : ''}">
+            <div>
+              <div class="chat-message-bubble">
+                ${escapeHTML(msg.content)}
+              </div>
+              <div class="chat-message-time">
+                ${formatMessageTime(msg.created_at)}
+              </div>
             </div>
           </div>
-        </div>
-      `;
-    })
-    .join('');
+        `;
+      })
+      .join('')}
+  `;
 }
 
 // ─── Chat Modal (User List) ──────────────────────────────────────────────────
@@ -711,11 +880,13 @@ async function loadChatUsers() {
   try {
     const users = await fetchChatUsers();
     chatUsers = users || [];
+    userChatMap = {};
+    unreadCounts = {};
 
     chatUsers.forEach((user) => {
       if (user.chat_id) {
-        userChatMap[user.user_id] = user.chat_id
-        unreadCounts[user.chat_id] = user.unread_count || 0
+        userChatMap[user.user_id] = user.chat_id;
+        unreadCounts[user.chat_id] = user.unread_count || 0;
       }
     });
     updateUnreadBadges();
@@ -742,28 +913,48 @@ async function loadChatUsers() {
   }
 }
 
-async function loadChatHistory(chatId) {
+async function loadChatHistory(chatId, beforeMessageId = 0) {
   if (!chatId) {
     console.error('No chatId provided to loadChatHistory');
     return;
   }
 
-  console.log('loadChatHistory called with chatId:', chatId);
+  const state = getHistoryState(chatId);
+  const isLoadingOlder = beforeMessageId > 0;
+  if (isLoadingOlder && (state.loadingOlder || state.delayPending || !state.hasMore)) {
+    return;
+  }
+
+  console.log('loadChatHistory called with chatId:', chatId, 'beforeMessageId:', beforeMessageId);
 
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     console.log('WebSocket not ready for history, retrying in 500ms. State:', ws?.readyState);
     // Wait for WebSocket to be ready
-    setTimeout(() => loadChatHistory(chatId), 500);
+    setTimeout(() => loadChatHistory(chatId, beforeMessageId), 500);
     return;
   }
 
+  if (isLoadingOlder) {
+    state.loadingOlder = true;
+    showHistoryLoader(true);
+  }
+
+  const requestId = `history-${Date.now()}-${beforeMessageId}`;
+  const container = document.getElementById('chat-messages');
+  pendingHistoryRequests[requestId] = {
+    chatId,
+    beforeMessageId,
+    previousScrollHeight: isLoadingOlder && container ? container.scrollHeight : 0,
+    previousScrollTop: isLoadingOlder && container ? container.scrollTop : 0,
+  };
+
   const message = {
     type: 'chat.history',
-    request_id: `history-${Date.now()}`,
+    request_id: requestId,
     payload: {
       chat_id: chatId,
-      before_message_id: 0,
-      limit: 20,
+      before_message_id: beforeMessageId,
+      limit: CHAT_HISTORY_PAGE_SIZE,
     },
   };
 
@@ -801,9 +992,10 @@ function markAsRead() {
 function scrollToBottom() {
   const container = document.getElementById('chat-messages');
   if (container) {
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       container.scrollTop = container.scrollHeight;
-    }, 0);
+      observeHistorySentinel();
+    });
   }
 }
 
