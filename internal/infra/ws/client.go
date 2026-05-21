@@ -15,10 +15,11 @@ const (
 )
 
 type Client struct {
-	UserID string
-	hub    *Hub
-	conn   *websocket.Conn
-	send   chan []byte
+	UserID     string
+	hub        *Hub
+	conn       *websocket.Conn
+	send       chan []byte
+	OpenChatId string
 }
 
 func (c *Client) Send(msg []byte) {

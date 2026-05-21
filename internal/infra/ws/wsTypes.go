@@ -11,6 +11,9 @@ const (
 	TypeChatHistory = "chat.history"
 	TypeMarkRead    = "chat.mark_read"
 	TypePing        = "ping"
+	TypeTyping      = "typing"
+	TypeChatOpen    = "chat.open"
+	TypeChatClose   = "chat.close"
 )
 
 // Outbound message types (server -> client)
@@ -35,10 +38,17 @@ type SendPayload struct {
 	Content         string `json:"content"`
 	ClientMessageID string `json:"client_message_id,omitempty"`
 }
+type ChatOpenClosePayload struct {
+	ChatID string `json:"chat_id"`
+}
 
 type IsOnlineStatusPayload struct {
 	UserID   string `json:"user_id"`
 	IsOnline bool   `json:"isOnline"`
+}
+
+type TypingPayload struct {
+	UserID string `json:"user_id"`
 }
 
 type HistoryPayload struct {

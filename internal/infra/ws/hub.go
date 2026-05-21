@@ -10,13 +10,15 @@ import (
 // Hub manages all active WebSocket Connections.
 // One Hub runs for the lifetime of the server.
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[string]map[*Client]bool //userID --> set of connections.
+	mu            sync.RWMutex
+	clients       map[string]map[*Client]bool //userID --> set of connections.
+	chatObservers map[string]map[*Client]bool
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		clients: make(map[string]map[*Client]bool),
+		clients:       make(map[string]map[*Client]bool),
+		chatObservers: make(map[string]map[*Client]bool),
 	}
 }
 
@@ -47,6 +49,12 @@ func (h *Hub) Unregister(client *Client) {
 		return
 	}
 
+	if client.OpenChatId != "" {
+		delete(h.chatObservers[client.OpenChatId], client)
+	}
+	if len(h.chatObservers[client.OpenChatId]) == 0 {
+		delete(h.chatObservers, client.OpenChatId)
+	}
 	delete(conns, client)
 	becameOffline := len(conns) == 0
 	if becameOffline {
@@ -58,6 +66,46 @@ func (h *Hub) Unregister(client *Client) {
 
 	if becameOffline {
 		h.BroadCastIsOnlineStatus(client.UserID, false)
+	}
+}
+
+func (h *Hub) OpenChat(client *Client, chatID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if client.OpenChatId == chatID {
+		return
+	}
+
+	if client.OpenChatId != "" {
+		oldChatID := client.OpenChatId
+		delete(h.chatObservers[oldChatID], client)
+		if len(h.chatObservers[oldChatID]) == 0 {
+			delete(h.chatObservers, oldChatID)
+		}
+	}
+
+	if h.chatObservers[chatID] == nil {
+		h.chatObservers[chatID] = make(map[*Client]bool)
+	}
+
+	h.chatObservers[chatID][client] = true
+	client.OpenChatId = chatID
+}
+
+func (h *Hub) CloseChat(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if client.OpenChatId == "" {
+		return
+	}
+
+	oldChatID := client.OpenChatId
+	client.OpenChatId = ""
+	delete(h.chatObservers[oldChatID], client)
+	if len(h.chatObservers[oldChatID]) == 0 {
+		delete(h.chatObservers, oldChatID)
 	}
 }
 
