@@ -12,7 +12,7 @@
  */
 
 import { fetchChatUsers, initializeChat, ApiError } from './api.js';
-import { escapeHTML, formatMessageTime } from './helpers.js';
+import { escapeHTML, formatMessageTime, throttle } from './helpers.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -23,14 +23,17 @@ let chatUsers = [];
 let messageBuffer = {}; // Stores messages per chat_id
 let unreadCounts = {}; // Stores unread counts per chat_id
 let userChatMap = {}; // Maps user_id -> chat_id for quick lookup
+let activeChatUserId = null;
 let historyObserver = null;
 let historyState = {}; // Stores pagination state per chat_id
 let pendingHistoryRequests = {}; // Stores in-flight history request metadata by request_id
+let typingTimeouts = {}; // Stores typing timeout per chat_id:user_id
 let isConnecting = false;
 let reconnectTimeout = null;
 let chatInitialized = false;
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const CHAT_HISTORY_LOAD_DELAY_MS = 2000;
+const CHAT_TYPING_THROTTLE_MS = 1000;
 
 /**
  * Normalize message properties from backend PascalCase to our snake_case format
@@ -84,6 +87,117 @@ function showHistoryLoader(show) {
   if (!loader) return;
 
   loader.style.display = show ? 'flex' : 'none';
+}
+
+function sendTypingEvent(chatId) {
+  if (!chatId || !ws || ws.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  ws.send(
+    JSON.stringify({
+      type: 'chat.typing',
+      payload: {
+        chat_id: chatId,
+      },
+    })
+  );
+}
+
+function sendChatViewEvent(type, chatId) {
+  if (!chatId || !ws || ws.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  ws.send(
+    JSON.stringify({
+      type,
+      payload: {
+        chat_id: chatId,
+      },
+    })
+  );
+}
+
+function renderChatStatus() {
+  const statusEl = document.getElementById('chat-status');
+  if (!statusEl || !activeChatUserId) return;
+
+  const activeUser = chatUsers.find((user) => user.user_id === activeChatUserId);
+  if (!activeUser) {
+    statusEl.className = 'chat-window-header-subtitle';
+    statusEl.textContent = 'Offline';
+    return;
+  }
+
+  const lastMessageTime = activeUser.last_message_at ? new Date(activeUser.last_message_at) : null;
+  const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
+  statusEl.className = 'chat-window-header-subtitle';
+  statusEl.textContent = activeUser.is_online ? 'Online' : `Last seen ${timeAgo}`;
+}
+
+function isActiveChatTyping() {
+  if (!currentChat || !activeChatUserId) {
+    return false;
+  }
+
+  return Boolean(typingTimeouts[`${currentChat.id}:${activeChatUserId}`]);
+}
+
+function ensureTypingBubble(isTyping) {
+  const container = document.getElementById('chat-messages');
+  if (!container) {
+    return;
+  }
+
+  const existingBubble = document.getElementById('chat-typing-indicator');
+  if (!isTyping) {
+    existingBubble?.remove();
+    return;
+  }
+
+  if (existingBubble) {
+    return;
+  }
+
+  const bubble = document.createElement('div');
+  bubble.id = 'chat-typing-indicator';
+  bubble.className = 'chat-message chat-message-typing';
+  bubble.innerHTML = `
+    <div>
+      <div class="chat-message-bubble chat-message-bubble-typing">
+        <span class="chat-typing-dots"><span></span><span></span><span></span></span>
+      </div>
+    </div>
+  `;
+  container.appendChild(bubble);
+}
+
+function renderActiveChatTypingState() {
+  renderChatStatus();
+
+  if (currentChat && document.getElementById('chat-messages')) {
+    ensureTypingBubble(isActiveChatTyping());
+    scrollToBottom();
+  }
+}
+
+function handleChatTypingStatus(userId, chatId) {
+  if (!currentChat || currentChat.id !== chatId || activeChatUserId !== userId) {
+    return;
+  }
+
+  const typingKey = `${chatId}:${userId}`;
+  if (typingTimeouts[typingKey]) {
+    clearTimeout(typingTimeouts[typingKey]);
+  }
+
+  typingTimeouts[typingKey] = setTimeout(() => {
+    delete typingTimeouts[typingKey];
+    renderActiveChatTypingState();
+  }, 2500);
+
+  renderActiveChatTypingState();
 }
 
 function clearAllPendingHistoryLoads() {
@@ -217,8 +331,11 @@ export function cleanupChat() {
   messageBuffer = {};
   unreadCounts = {};
   userChatMap = {};
+  activeChatUserId = null;
   historyState = {};
   pendingHistoryRequests = {};
+  Object.values(typingTimeouts).forEach((timeoutId) => clearTimeout(timeoutId));
+  typingTimeouts = {};
   isConnecting = false;
   disconnectHistoryObserver();
 
@@ -275,10 +392,19 @@ export async function openChatWithUser(userId, userName) {
  */
 export function closeChatWindow() {
   if (currentChat) {
+    sendChatViewEvent('chat.close', currentChat.id);
     clearPendingHistoryLoad(currentChat.id);
+  }
+  if (currentChat && activeChatUserId) {
+    const typingKey = `${currentChat.id}:${activeChatUserId}`;
+    if (typingTimeouts[typingKey]) {
+      clearTimeout(typingTimeouts[typingKey]);
+      delete typingTimeouts[typingKey];
+    }
   }
   disconnectHistoryObserver();
   currentChat = null;
+  activeChatUserId = null;
   renderChatModal();
 }
 
@@ -287,9 +413,18 @@ export function closeChatWindow() {
  */
 export function closeChatModal() {
   if (currentChat) {
+    sendChatViewEvent('chat.close', currentChat.id);
     clearPendingHistoryLoad(currentChat.id);
   }
+  if (currentChat && activeChatUserId) {
+    const typingKey = `${currentChat.id}:${activeChatUserId}`;
+    if (typingTimeouts[typingKey]) {
+      clearTimeout(typingTimeouts[typingKey]);
+      delete typingTimeouts[typingKey];
+    }
+  }
   disconnectHistoryObserver();
+  activeChatUserId = null;
   const modal = document.getElementById('chat-modal');
   if (modal) {
     modal.style.display = 'none';
@@ -416,6 +551,9 @@ function handleWebSocketMessage(envelope) {
       console.log('Received chat.message:', payload);
       handleChatMessage(payload);
       break;
+    case 'chat.is_typing':
+      handleChatTypingStatus(payload.user_id, payload.chat_id);
+      break;
     case 'chat.history_result':
       console.log(
         'Received chat.history_result, payload:',
@@ -446,13 +584,17 @@ function handleChatUserOnlineStatus(userId, isOnline) {
 
   user.is_online = isOnline;
   const statusEl = document.querySelector(`[data-chat-user-status="${userId}"]`);
-  if (!statusEl) return;
+  if (statusEl) {
+    const lastMessageTime = user.last_message_at ? new Date(user.last_message_at) : null;
+    const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
 
-  const lastMessageTime = user.last_message_at ? new Date(user.last_message_at) : null;
-  const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
+    statusEl.className = `chat-user-status ${isOnline ? 'online' : 'offline'}`;
+    statusEl.textContent = isOnline ? 'Online' : `Last seen ${timeAgo}`;
+  }
 
-  statusEl.className = `chat-user-status ${isOnline ? 'online' : 'offline'}`;
-  statusEl.textContent = isOnline ? 'Online' : `Last seen ${timeAgo}`;
+  if (activeChatUserId === userId) {
+    renderActiveChatTypingState();
+  }
 
 }
 
@@ -517,6 +659,13 @@ function handleChatMessage(message) {
     currentChat && currentChat.id === chat_id && document.getElementById('chat-messages') !== null;
 
   if (chatIsVisible) {
+    if (activeChatUserId === sender_id) {
+      const typingKey = `${chat_id}:${sender_id}`;
+      if (typingTimeouts[typingKey]) {
+        clearTimeout(typingTimeouts[typingKey]);
+        delete typingTimeouts[typingKey];
+      }
+    }
     renderChatMessages();
     scrollToBottom();
     markAsRead();
@@ -592,7 +741,8 @@ function handleChatHistory(messages, requestId) {
 
 function renderChatWindow(userId, userName) {
   const root = document.getElementById('chat-modal');
-  if (!root) return;
+  if (!root || !currentChat) return;
+  activeChatUserId = userId;
 
   // Get user's initials for avatar
   const initials = (userName || 'U')
@@ -645,10 +795,27 @@ function renderChatWindow(userId, userName) {
     </div>
   `;
 
+  sendChatViewEvent('chat.open', currentChat.id);
+  renderChatStatus();
+
   // Focus input
   setTimeout(() => {
     const input = document.getElementById('chat-message-input');
-    if (input) input.focus();
+    if (input) {
+      const sendTypingThrottled = throttle(() => {
+        if (!currentChat || !input.value.trim()) {
+          return;
+        }
+
+        sendTypingEvent(currentChat.id);
+      }, CHAT_TYPING_THROTTLE_MS);
+
+      input.addEventListener('input', () => {
+        sendTypingThrottled();
+      });
+
+      input.focus();
+    }
     markAsRead();
   }, 100);
 }
@@ -717,6 +884,8 @@ function renderChatMessages() {
       })
       .join('')}
   `;
+
+  ensureTypingBubble(isActiveChatTyping());
 }
 
 // ─── Chat Modal (User List) ──────────────────────────────────────────────────

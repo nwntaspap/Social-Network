@@ -109,6 +109,21 @@ func (h *Hub) CloseChat(client *Client) {
 	}
 }
 
+// returns all the client connections which have currently the chat with chatID open
+// besides the the client that is currently typing with ownUserID
+func (h *Hub) GetObserversForChat(chatID, ownUserID string) (observers []*Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for k := range h.chatObservers[chatID] {
+		if k.UserID != ownUserID {
+			observers = append(observers, k)
+		}
+	}
+
+	return observers
+}
+
 // Send delivers a message to all connections of a specific user.
 // client.send is a channel, with a specific buffer, which can block if the channel is full
 // sending to a channel will wait for as long the channel is full

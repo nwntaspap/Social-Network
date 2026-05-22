@@ -11,7 +11,7 @@ const (
 	TypeChatHistory = "chat.history"
 	TypeMarkRead    = "chat.mark_read"
 	TypePing        = "ping"
-	TypeTyping      = "typing"
+	TypeTyping      = "chat.typing"
 	TypeChatOpen    = "chat.open"
 	TypeChatClose   = "chat.close"
 )
@@ -23,6 +23,7 @@ const (
 	TypeError          = "error"
 	TypePong           = "pong"
 	TypeIsOnlineStatus = "isOnlineStatus.update"
+	TypeIsTyping       = "chat.is_typing"
 )
 
 // Envelope is the wrapper for every WebSocker message.
@@ -42,13 +43,13 @@ type ChatOpenClosePayload struct {
 	ChatID string `json:"chat_id"`
 }
 
+type ChatTypingPayload struct {
+	ChatID string `json:"chat_id"`
+}
+
 type IsOnlineStatusPayload struct {
 	UserID   string `json:"user_id"`
 	IsOnline bool   `json:"isOnline"`
-}
-
-type TypingPayload struct {
-	UserID string `json:"user_id"`
 }
 
 type HistoryPayload struct {
@@ -63,6 +64,11 @@ type MarkReadPayload struct {
 }
 
 // Payloads for outbound messages
+type ChatIsTyping struct {
+	ChatID string `json:"chat_id"`
+	UserID string `json:"user_id"`
+}
+
 type MessagePayload struct {
 	ID              int       `json:"id"`
 	ChatID          string    `json:"chat_id"`
