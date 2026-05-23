@@ -11,13 +11,15 @@ import {
   sendChatViewEvent,
   openChatWithUser,
   loadChatUsers,
-  disconnectHistoryObserver,
   isActiveChatTyping,
   getTimeAgo,
-  CHAT_HISTORY_PAGE_SIZE,
-  CHAT_HISTORY_LOAD_DELAY_MS,
   CHAT_TYPING_THROTTLE_MS,
 } from './chat.js';
+import {
+  disconnectHistoryObserver,
+  CHAT_HISTORY_PAGE_SIZE,
+  CHAT_HISTORY_LOAD_DELAY_MS,
+} from './chat.history.js';
 
 // ─── Chat Window (Message Interface) ─────────────────────────────────────────
 
