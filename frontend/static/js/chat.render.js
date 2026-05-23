@@ -11,9 +11,7 @@ import {
   sendChatViewEvent,
   openChatWithUser,
   loadChatUsers,
-  isActiveChatTyping,
   getTimeAgo,
-  CHAT_TYPING_THROTTLE_MS,
 } from './chat.js';
 import {
   disconnectHistoryObserver,
@@ -22,6 +20,7 @@ import {
 } from './chat.history.js';
 
 // ─── Chat Window (Message Interface) ─────────────────────────────────────────
+const CHAT_TYPING_THROTTLE_MS = 1000;
 
 export function renderChatWindow(userId, userName) {
   const root = document.getElementById('chat-modal');
@@ -334,4 +333,14 @@ function ensureTypingBubble(isTyping) {
     </div>
   `;
   container.appendChild(bubble);
+}
+
+function isActiveChatTyping() {
+  if (!chatState.currentChat || !chatState.activeChatUserId) {
+    return false;
+  }
+
+  return Boolean(
+    chatState.typingTimeouts[`${chatState.currentChat.id}:${chatState.activeChatUserId}`]
+  );
 }
