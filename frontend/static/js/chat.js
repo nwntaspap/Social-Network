@@ -13,27 +13,38 @@
 
 import { fetchChatUsers, initializeChat, ApiError } from './api.js';
 import { escapeHTML, formatMessageTime, throttle } from './helpers.js';
+import {
+  renderChatWindow,
+  renderChatMessages,
+  renderChatModal,
+  renderChatUsersList,
+  renderChatWidget,
+  renderChatStatus,
+  renderActiveChatTypingState,
+} from './chat.render.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-let ws = null;
-let currentUser = null;
-let currentChat = null;
-let chatUsers = [];
-let messageBuffer = {}; // Stores messages per chat_id
-let unreadCounts = {}; // Stores unread counts per chat_id
-let userChatMap = {}; // Maps user_id -> chat_id for quick lookup
-let activeChatUserId = null;
-let historyObserver = null;
-let historyState = {}; // Stores pagination state per chat_id
-let pendingHistoryRequests = {}; // Stores in-flight history request metadata by request_id
-let typingTimeouts = {}; // Stores typing timeout per chat_id:user_id
-let isConnecting = false;
-let reconnectTimeout = null;
-let chatInitialized = false;
-const CHAT_HISTORY_PAGE_SIZE = 20;
-const CHAT_HISTORY_LOAD_DELAY_MS = 2000;
-const CHAT_TYPING_THROTTLE_MS = 1000;
+export const chatState = {
+  ws: null,
+  currentUser: null,
+  currentChat: null,
+  chatUsers: [],
+  messageBuffer: {}, // Stores messages per chat_id
+  unreadCounts: {}, // Stores unread counts per chat_id
+  userChatMap: {}, // Maps user_id -> chat_id for quick lookup
+  activeChatUserId: null,
+  historyObserver: null,
+  historyState: {}, // Stores pagination state per chat_id
+  pendingHistoryRequests: {}, // Stores in-flight history request metadata by request_id
+  typingTimeouts: {}, // Stores typing timeout per chat_id:user_id
+  isConnecting: false,
+  reconnectTimeout: null,
+  chatInitialized: false,
+};
+export const CHAT_HISTORY_PAGE_SIZE = 20;
+export const CHAT_HISTORY_LOAD_DELAY_MS = 2000;
+export const CHAT_TYPING_THROTTLE_MS = 1000;
 
 /**
  * Normalize message properties from backend PascalCase to our snake_case format
@@ -51,8 +62,8 @@ function normalizeMessage(msg) {
 }
 
 function getHistoryState(chatId) {
-  if (!historyState[chatId]) {
-    historyState[chatId] = {
+  if (!chatState.historyState[chatId]) {
+    chatState.historyState[chatId] = {
       hasMore: true,
       delayPending: false,
       loadingOlder: false,
@@ -60,18 +71,18 @@ function getHistoryState(chatId) {
     };
   }
 
-  return historyState[chatId];
+  return chatState.historyState[chatId];
 }
 
-function disconnectHistoryObserver() {
-  if (historyObserver) {
-    historyObserver.disconnect();
-    historyObserver = null;
+export function disconnectHistoryObserver() {
+  if (chatState.historyObserver) {
+    chatState.historyObserver.disconnect();
+    chatState.historyObserver = null;
   }
 }
 
 function clearPendingHistoryLoad(chatId) {
-  const state = historyState[chatId];
+  const state = chatState.historyState[chatId];
   if (!state) return;
 
   if (state.pendingTimeoutId) {
@@ -89,12 +100,12 @@ function showHistoryLoader(show) {
   loader.style.display = show ? 'flex' : 'none';
 }
 
-function sendTypingEvent(chatId) {
-  if (!chatId || !ws || ws.readyState !== WebSocket.OPEN) {
+export function sendTypingEvent(chatId) {
+  if (!chatId || !chatState.ws || chatState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
 
-  ws.send(
+  chatState.ws.send(
     JSON.stringify({
       type: 'chat.typing',
       payload: {
@@ -104,12 +115,12 @@ function sendTypingEvent(chatId) {
   );
 }
 
-function sendChatViewEvent(type, chatId) {
-  if (!chatId || !ws || ws.readyState !== WebSocket.OPEN) {
+export function sendChatViewEvent(type, chatId) {
+  if (!chatId || !chatState.ws || chatState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
 
-  ws.send(
+  chatState.ws.send(
     JSON.stringify({
       type,
       payload: {
@@ -119,81 +130,32 @@ function sendChatViewEvent(type, chatId) {
   );
 }
 
-function renderChatStatus() {
-  const statusEl = document.getElementById('chat-status');
-  if (!statusEl || !activeChatUserId) return;
-
-  const activeUser = chatUsers.find((user) => user.user_id === activeChatUserId);
-  if (!activeUser) {
-    statusEl.className = 'chat-window-header-subtitle';
-    statusEl.textContent = 'Offline';
-    return;
-  }
-
-  const lastMessageTime = activeUser.last_message_at ? new Date(activeUser.last_message_at) : null;
-  const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
-  statusEl.className = 'chat-window-header-subtitle';
-  statusEl.textContent = activeUser.is_online ? 'Online' : `Last seen ${timeAgo}`;
-}
-
-function isActiveChatTyping() {
-  if (!currentChat || !activeChatUserId) {
+export function isActiveChatTyping() {
+  if (!chatState.currentChat || !chatState.activeChatUserId) {
     return false;
   }
 
-  return Boolean(typingTimeouts[`${currentChat.id}:${activeChatUserId}`]);
-}
-
-function ensureTypingBubble(isTyping) {
-  const container = document.getElementById('chat-messages');
-  if (!container) {
-    return;
-  }
-
-  const existingBubble = document.getElementById('chat-typing-indicator');
-  if (!isTyping) {
-    existingBubble?.remove();
-    return;
-  }
-
-  if (existingBubble) {
-    return;
-  }
-
-  const bubble = document.createElement('div');
-  bubble.id = 'chat-typing-indicator';
-  bubble.className = 'chat-message chat-message-typing';
-  bubble.innerHTML = `
-    <div>
-      <div class="chat-message-bubble chat-message-bubble-typing">
-        <span class="chat-typing-dots"><span></span><span></span><span></span></span>
-      </div>
-    </div>
-  `;
-  container.appendChild(bubble);
-}
-
-function renderActiveChatTypingState() {
-  renderChatStatus();
-
-  if (currentChat && document.getElementById('chat-messages')) {
-    ensureTypingBubble(isActiveChatTyping());
-    scrollToBottom();
-  }
+  return Boolean(
+    chatState.typingTimeouts[`${chatState.currentChat.id}:${chatState.activeChatUserId}`]
+  );
 }
 
 function handleChatTypingStatus(userId, chatId) {
-  if (!currentChat || currentChat.id !== chatId || activeChatUserId !== userId) {
+  if (
+    !chatState.currentChat ||
+    chatState.currentChat.id !== chatId ||
+    chatState.activeChatUserId !== userId
+  ) {
     return;
   }
 
   const typingKey = `${chatId}:${userId}`;
-  if (typingTimeouts[typingKey]) {
-    clearTimeout(typingTimeouts[typingKey]);
+  if (chatState.typingTimeouts[typingKey]) {
+    clearTimeout(chatState.typingTimeouts[typingKey]);
   }
 
-  typingTimeouts[typingKey] = setTimeout(() => {
-    delete typingTimeouts[typingKey];
+  chatState.typingTimeouts[typingKey] = setTimeout(() => {
+    delete chatState.typingTimeouts[typingKey];
     renderActiveChatTypingState();
   }, 2500);
 
@@ -201,17 +163,15 @@ function handleChatTypingStatus(userId, chatId) {
 }
 
 function clearAllPendingHistoryLoads() {
-  Object.keys(historyState).forEach((chatId) => {
+  Object.keys(chatState.historyState).forEach((chatId) => {
     clearPendingHistoryLoad(chatId);
   });
 }
 
 function getOldestPersistedMessageId(chatId) {
-  const persistedMessages = (messageBuffer[chatId] || []).filter((msg) => msg.id > 0);
+  const persistedMessages = (chatState.messageBuffer[chatId] || []).filter((msg) => msg.id > 0);
 
-  if (persistedMessages.length === 0) {
-    return 0;
-  }
+  if (persistedMessages.length === 0) return 0;
 
   return Math.min(...persistedMessages.map((msg) => msg.id));
 }
@@ -219,9 +179,9 @@ function getOldestPersistedMessageId(chatId) {
 function observeHistorySentinel() {
   disconnectHistoryObserver();
 
-  if (!currentChat) return;
+  if (!chatState.currentChat) return;
 
-  const chatId = currentChat.id;
+  const chatId = chatState.currentChat.id;
   const state = getHistoryState(chatId);
   if (!state.hasMore) return;
 
@@ -229,24 +189,16 @@ function observeHistorySentinel() {
   const sentinel = document.getElementById('chat-history-sentinel');
   if (!container || !sentinel) return;
 
-  historyObserver = new IntersectionObserver(
+  chatState.historyObserver = new IntersectionObserver(
     (entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) {
-        return;
-      }
+      if (!entries.some((entry) => entry.isIntersecting)) return;
 
-      if (!currentChat || currentChat.id !== chatId) {
-        return;
-      }
+      if (!chatState.currentChat || chatState.currentChat.id !== chatId) return;
 
-      if (state.delayPending || state.loadingOlder) {
-        return;
-      }
+      if (state.delayPending || state.loadingOlder) return;
 
       const oldestMessageId = getOldestPersistedMessageId(chatId);
-      if (!oldestMessageId) {
-        return;
-      }
+      if (!oldestMessageId) return;
 
       state.delayPending = true;
       showHistoryLoader(true);
@@ -254,7 +206,7 @@ function observeHistorySentinel() {
         state.pendingTimeoutId = null;
         state.delayPending = false;
 
-        if (!currentChat || currentChat.id !== chatId) {
+        if (!chatState.currentChat || chatState.currentChat.id !== chatId) {
           showHistoryLoader(false);
           return;
         }
@@ -268,7 +220,7 @@ function observeHistorySentinel() {
     }
   );
 
-  historyObserver.observe(sentinel);
+  chatState.historyObserver.observe(sentinel);
 }
 
 function restoreScrollAfterPrepend(previousScrollHeight, previousScrollTop) {
@@ -289,54 +241,54 @@ function restoreScrollAfterPrepend(previousScrollHeight, previousScrollTop) {
 export function initChat(user) {
   if (!user?.id) return;
 
-  if (chatInitialized) {
+  if (chatState.chatInitialized) {
     console.log('Chat already initialized');
     return;
   }
 
   console.log('Initializing chat for:', user.username || user.email);
 
-  chatInitialized = true;
+  chatState.chatInitialized = true;
 
-  currentUser = user;
+  chatState.currentUser = user;
 
   renderChatWidget();
   connectWebSocket();
-  loadChatUsers()
+  loadChatUsers();
 }
 
 export function cleanupChat() {
   console.log('Cleaning up chat');
 
-  chatInitialized = false;
+  chatState.chatInitialized = false;
 
   // stop reconnect loop
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
+  if (chatState.reconnectTimeout) {
+    clearTimeout(chatState.reconnectTimeout);
+    chatState.reconnectTimeout = null;
   }
 
   // close websocket
-  if (ws) {
-    ws.onclose = null;
-    ws.close();
-    ws = null;
+  if (chatState.ws) {
+    chatState.ws.onclose = null;
+    chatState.ws.close();
+    chatState.ws = null;
   }
 
   // reset state
   clearAllPendingHistoryLoads();
-  currentUser = null;
-  currentChat = null;
-  chatUsers = [];
-  messageBuffer = {};
-  unreadCounts = {};
-  userChatMap = {};
-  activeChatUserId = null;
-  historyState = {};
-  pendingHistoryRequests = {};
-  Object.values(typingTimeouts).forEach((timeoutId) => clearTimeout(timeoutId));
-  typingTimeouts = {};
-  isConnecting = false;
+  chatState.currentUser = null;
+  chatState.currentChat = null;
+  chatState.chatUsers = [];
+  chatState.messageBuffer = {};
+  chatState.unreadCounts = {};
+  chatState.userChatMap = {};
+  chatState.activeChatUserId = null;
+  chatState.historyState = {};
+  chatState.pendingHistoryRequests = {};
+  Object.values(chatState.typingTimeouts).forEach((timeoutId) => clearTimeout(timeoutId));
+  chatState.typingTimeouts = {};
+  chatState.isConnecting = false;
   disconnectHistoryObserver();
 
   // remove widget
@@ -361,21 +313,15 @@ export function cleanupChat() {
  */
 export async function openChatWithUser(userId, userName) {
   try {
-    console.log('Opening chat with user:', userId);
+    console.log('Opening chat with user:', userName);
     const chat = await initializeChat(userId);
-    console.log('Full chat response from backend:', chat);
-    console.log('Chat ID:', chat.id);
+    if (!chat.id) throw new Error('Chat initialization failed');
 
-    if (!chat.id) {
-      throw new Error('Chat initialization failed: no chat ID returned');
-    }
-
-    currentChat = chat;
-    userChatMap[userId] = chat.id; // Store mapping for unread lookups
+    chatState.currentChat = chat;
+    chatState.userChatMap[userId] = chat.id;
     renderChatWindow(userId, userName);
-    console.log('Chat window rendered, loading history for:', chat.id);
-    // Show cached Messages before loading History for Better UX
-    const existingMessages = messageBuffer[chat.id];
+
+    const existingMessages = chatState.messageBuffer[chat.id];
     if (existingMessages && existingMessages.length > 0) {
       renderChatMessages();
       scrollToBottom();
@@ -391,20 +337,20 @@ export async function openChatWithUser(userId, userName) {
  * Close the current chat window and go back to user list.
  */
 export function closeChatWindow() {
-  if (currentChat) {
-    sendChatViewEvent('chat.close', currentChat.id);
-    clearPendingHistoryLoad(currentChat.id);
+  if (chatState.currentChat) {
+    sendChatViewEvent('chat.close', chatState.currentChat.id);
+    clearPendingHistoryLoad(chatState.currentChat.id);
   }
-  if (currentChat && activeChatUserId) {
-    const typingKey = `${currentChat.id}:${activeChatUserId}`;
-    if (typingTimeouts[typingKey]) {
-      clearTimeout(typingTimeouts[typingKey]);
-      delete typingTimeouts[typingKey];
+  if (chatState.currentChat && chatState.activeChatUserId) {
+    const typingKey = `${chatState.currentChat.id}:${chatState.activeChatUserId}`;
+    if (chatState.typingTimeouts[typingKey]) {
+      clearTimeout(chatState.typingTimeouts[typingKey]);
+      delete chatState.typingTimeouts[typingKey];
     }
   }
   disconnectHistoryObserver();
-  currentChat = null;
-  activeChatUserId = null;
+  chatState.currentChat = null;
+  chatState.activeChatUserId = null;
   renderChatModal();
 }
 
@@ -412,19 +358,19 @@ export function closeChatWindow() {
  * Close the entire chat modal.
  */
 export function closeChatModal() {
-  if (currentChat) {
-    sendChatViewEvent('chat.close', currentChat.id);
-    clearPendingHistoryLoad(currentChat.id);
+  if (chatState.currentChat) {
+    sendChatViewEvent('chat.close', chatState.currentChat.id);
+    clearPendingHistoryLoad(chatState.currentChat.id);
   }
-  if (currentChat && activeChatUserId) {
-    const typingKey = `${currentChat.id}:${activeChatUserId}`;
-    if (typingTimeouts[typingKey]) {
-      clearTimeout(typingTimeouts[typingKey]);
-      delete typingTimeouts[typingKey];
+  if (chatState.currentChat && chatState.activeChatUserId) {
+    const typingKey = `${chatState.currentChat.id}:${chatState.activeChatUserId}`;
+    if (chatState.typingTimeouts[typingKey]) {
+      clearTimeout(chatState.typingTimeouts[typingKey]);
+      delete chatState.typingTimeouts[typingKey];
     }
   }
   disconnectHistoryObserver();
-  activeChatUserId = null;
+  chatState.activeChatUserId = null;
   const modal = document.getElementById('chat-modal');
   if (modal) {
     modal.style.display = 'none';
@@ -436,35 +382,28 @@ export function closeChatModal() {
  * Send a message in the current chat.
  */
 export async function sendMessage(content) {
-  if (!currentChat || !content.trim()) return;
+  if (!chatState.currentChat || !content.trim()) return;
 
   const trimmedContent = content.trim();
-  const clientMessageId = `${currentUser.id}-${Date.now()}`;
-  const chatId = currentChat.id;
+  const clientMessageId = `${chatState.currentUser.id}-${Date.now()}`;
+  const chatId = chatState.currentChat.id;
 
-  console.log('📤 Sending message with clientMessageId:', clientMessageId);
-
-  // Add optimistic message to UI immediately
   const optimisticMessage = {
     id: 0,
     chat_id: chatId,
-    sender_id: currentUser.id,
+    sender_id: chatState.currentUser.id,
     content: trimmedContent,
     created_at: new Date().toISOString(),
     client_message_id: clientMessageId,
     isOptimistic: true,
   };
 
-  if (!messageBuffer[chatId]) {
-    messageBuffer[chatId] = [];
+  if (!chatState.messageBuffer[chatId]) {
+    chatState.messageBuffer[chatId] = [];
   }
-  messageBuffer[chatId].push(optimisticMessage);
-  console.log('📝 Added optimistic message, buffer size now:', messageBuffer[chatId].length);
+  chatState.messageBuffer[chatId].push(optimisticMessage);
   renderChatMessages();
   scrollToBottom();
-
-  // Send via WebSocket
-  console.log('Sending message to chat:', chatId, 'with content:', trimmedContent);
 
   const message = {
     type: 'chat.send',
@@ -476,45 +415,38 @@ export async function sendMessage(content) {
     },
   };
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
-    console.log('Message sent:', clientMessageId);
+  if (chatState.ws && chatState.ws.readyState === WebSocket.OPEN) {
+    chatState.ws.send(JSON.stringify(message));
   } else {
-    console.error(
-      'WebSocket not ready. State:',
-      ws?.readyState,
-      'Connected:',
-      ws?.readyState === WebSocket.OPEN
-    );
-    alert('Unable to send message. WebSocket is not connected. Please wait and try again.');
+    console.error('WebSocket not ready');
+    alert('Unable to send message. WebSocket is not connected.');
   }
 }
 
 // ─── WebSocket Management ─────────────────────────────────────────────────────
 
 function connectWebSocket() {
-  if (isConnecting || (ws && ws.readyState === WebSocket.OPEN)) return;
-  isConnecting = true;
+  if (chatState.isConnecting || (chatState.ws && chatState.ws.readyState === WebSocket.OPEN))
+    return;
+  chatState.isConnecting = true;
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/api/v1/ws`;
 
-  console.log('Connecting to WebSocket:', wsUrl);
-
   try {
-    ws = new WebSocket(wsUrl);
+    chatState.ws = new WebSocket(wsUrl);
   } catch (err) {
     console.error('Failed to create WebSocket:', err);
-    isConnecting = false;
+    chatState.isConnecting = false;
     return;
   }
 
-  ws.onopen = () => {
+  chatState.ws.onopen = () => {
     console.log('✓ WebSocket connected');
-    isConnecting = false;
+    chatState.isConnecting = false;
   };
 
-  ws.onmessage = (event) => {
+  chatState.ws.onmessage = (event) => {
     try {
       const envelope = JSON.parse(event.data);
       handleWebSocketMessage(envelope);
@@ -523,16 +455,15 @@ function connectWebSocket() {
     }
   };
 
-  ws.onerror = (err) => {
+  chatState.ws.onerror = (err) => {
     console.error('✗ WebSocket error:', err);
   };
 
-  ws.onclose = (event) => {
+  chatState.ws.onclose = (event) => {
     console.log('✗ WebSocket disconnected', event.code, event.reason);
-    isConnecting = false;
-    // Attempt to reconnect after 3 seconds
-    if (chatInitialized) {
-      reconnectTimeout = setTimeout(() => {
+    chatState.isConnecting = false;
+    if (chatState.chatInitialized) {
+      chatState.reconnectTimeout = setTimeout(() => {
         connectWebSocket();
       }, 3000);
     }
@@ -548,21 +479,12 @@ function handleWebSocketMessage(envelope) {
       handleChatUserOnlineStatus(payload.user_id, payload.isOnline);
       break;
     case 'chat.message':
-      console.log('Received chat.message:', payload);
       handleChatMessage(payload);
       break;
     case 'chat.is_typing':
       handleChatTypingStatus(payload.user_id, payload.chat_id);
       break;
     case 'chat.history_result':
-      console.log(
-        'Received chat.history_result, payload:',
-        payload,
-        'isArray:',
-        Array.isArray(payload),
-        'length:',
-        payload?.length
-      );
       handleChatHistory(payload, request_id);
       break;
     case 'error':
@@ -577,9 +499,7 @@ function handleWebSocketMessage(envelope) {
 }
 
 function handleChatUserOnlineStatus(userId, isOnline) {
-
-  const user = chatUsers.find((u) => u.user_id === userId);
-
+  const user = chatState.chatUsers.find((u) => u.user_id === userId);
   if (!user) return;
 
   user.is_online = isOnline;
@@ -592,49 +512,34 @@ function handleChatUserOnlineStatus(userId, isOnline) {
     statusEl.textContent = isOnline ? 'Online' : `Last seen ${timeAgo}`;
   }
 
-  if (activeChatUserId === userId) {
+  if (chatState.activeChatUserId === userId) {
     renderActiveChatTypingState();
   }
-
 }
-
-
 
 function handleChatMessage(message) {
   const msg = normalizeMessage(message);
   const { chat_id, sender_id, content, created_at, id } = msg;
-  console.log('Received message:', {
-    id,
-    chat_id,
-    sender_id,
-    client_message_id: msg.client_message_id,
-  });
 
   // Store message
-  if (!messageBuffer[chat_id]) {
-    messageBuffer[chat_id] = [];
+  if (!chatState.messageBuffer[chat_id]) {
+    chatState.messageBuffer[chat_id] = [];
   }
 
-  if (id > 0 && messageBuffer[chat_id].some((m) => m.id === id)) {
+  if (id > 0 && chatState.messageBuffer[chat_id].some((m) => m.id === id)) {
     console.log('⏭️ Skipped duplicate message');
     return;
   }
 
   // Replace the optimistic client copy with the persisted message.
   if (msg.client_message_id) {
-    const beforeFilter = messageBuffer[chat_id].length;
-    messageBuffer[chat_id] = messageBuffer[chat_id].filter(
+    const beforeFilter = chatState.messageBuffer[chat_id].length;
+    chatState.messageBuffer[chat_id] = chatState.messageBuffer[chat_id].filter(
       (m) => m.client_message_id !== msg.client_message_id
     );
-    const afterFilter = messageBuffer[chat_id].length;
-    console.log('🗑️ Removed optimistic:', {
-      removed: beforeFilter - afterFilter,
-      before: beforeFilter,
-      after: afterFilter,
-    });
   }
 
-  messageBuffer[chat_id].push({
+  chatState.messageBuffer[chat_id].push({
     id,
     chat_id,
     sender_id,
@@ -643,12 +548,11 @@ function handleChatMessage(message) {
     client_message_id: msg.client_message_id,
   });
 
-  console.log('✅ Added message to buffer, size now:', messageBuffer[chat_id].length);
-  const senderInList = chatUsers.find((u) => u.user_id === sender_id);
+  const senderInList = chatState.chatUsers.find((u) => u.user_id === sender_id);
   if (senderInList) {
-    userChatMap[sender_id] = chat_id;
+    chatState.userChatMap[sender_id] = chat_id;
     senderInList.last_message_at = created_at;
-    chatUsers.sort((a, b) => {
+    chatState.chatUsers.sort((a, b) => {
       const timeA = a.last_message_at ? new Date(a.last_message_at) : new Date(0);
       const timeB = b.last_message_at ? new Date(b.last_message_at) : new Date(0);
       return timeB - timeA;
@@ -656,56 +560,49 @@ function handleChatMessage(message) {
   }
 
   const chatIsVisible =
-    currentChat && currentChat.id === chat_id && document.getElementById('chat-messages') !== null;
+    chatState.currentChat &&
+    chatState.currentChat.id === chat_id &&
+    document.getElementById('chat-messages') !== null;
 
   if (chatIsVisible) {
-    if (activeChatUserId === sender_id) {
+    if (chatState.activeChatUserId === sender_id) {
       const typingKey = `${chat_id}:${sender_id}`;
-      if (typingTimeouts[typingKey]) {
-        clearTimeout(typingTimeouts[typingKey]);
-        delete typingTimeouts[typingKey];
+      if (chatState.typingTimeouts[typingKey]) {
+        clearTimeout(chatState.typingTimeouts[typingKey]);
+        delete chatState.typingTimeouts[typingKey];
       }
     }
     renderChatMessages();
     scrollToBottom();
     markAsRead();
   } else {
-    unreadCounts[chat_id] = (unreadCounts[chat_id] || 0) + 1;
+    chatState.unreadCounts[chat_id] = (chatState.unreadCounts[chat_id] || 0) + 1;
     updateUnreadBadges();
   }
 }
 
 function handleChatHistory(messages, requestId) {
-  const requestMeta = requestId ? pendingHistoryRequests[requestId] : null;
+  const requestMeta = requestId ? chatState.pendingHistoryRequests[requestId] : null;
   if (requestId) {
-    delete pendingHistoryRequests[requestId];
+    delete chatState.pendingHistoryRequests[requestId];
   }
 
-  const chat_id = requestMeta?.chatId || currentChat?.id;
-  if (!chat_id) {
-    return;
-  }
+  const chat_id = requestMeta?.chatId || chatState.currentChat?.id;
+  if (!chat_id) return;
 
   const state = getHistoryState(chat_id);
   clearPendingHistoryLoad(chat_id);
   state.loadingOlder = false;
   showHistoryLoader(false);
 
-  if (!currentChat || currentChat.id !== chat_id) {
-    return;
-  }
+  if (!chatState.currentChat || chatState.currentChat.id !== chat_id) return;
 
-  // Handle null/undefined messages (shouldn't happen, but be safe)
-  if (!messages || !Array.isArray(messages)) {
-    messages = [];
-  }
+  if (!messages || !Array.isArray(messages)) messages = [];
 
-  // Normalize all messages to snake_case
   const normalizedMessages = messages.map((msg) => normalizeMessage(msg));
 
-  // Store messages in reverse chronological order (newest first from server)
-  if (!messageBuffer[chat_id]) {
-    messageBuffer[chat_id] = [];
+  if (!chatState.messageBuffer[chat_id]) {
+    chatState.messageBuffer[chat_id] = [];
   }
 
   const incomingClientMessageIds = new Set(
@@ -713,17 +610,22 @@ function handleChatHistory(messages, requestId) {
   );
 
   if (incomingClientMessageIds.size > 0) {
-    messageBuffer[chat_id] = messageBuffer[chat_id].filter(
-      (msg) => !(msg.id === 0 && msg.client_message_id && incomingClientMessageIds.has(msg.client_message_id))
+    chatState.messageBuffer[chat_id] = chatState.messageBuffer[chat_id].filter(
+      (msg) =>
+        !(
+          msg.id === 0 &&
+          msg.client_message_id &&
+          incomingClientMessageIds.has(msg.client_message_id)
+        )
     );
   }
 
-  // Merge with existing messages, avoiding duplicates.
-  const existingIds = new Set(messageBuffer[chat_id].filter((msg) => msg.id > 0).map((msg) => msg.id));
+  const existingIds = new Set(
+    chatState.messageBuffer[chat_id].filter((msg) => msg.id > 0).map((msg) => msg.id)
+  );
 
   const newMessages = normalizedMessages.filter((m) => !existingIds.has(m.id));
-
-  messageBuffer[chat_id] = [...newMessages, ...messageBuffer[chat_id]];
+  chatState.messageBuffer[chat_id] = [...newMessages, ...chatState.messageBuffer[chat_id]];
   state.hasMore = normalizedMessages.length === CHAT_HISTORY_PAGE_SIZE;
 
   renderChatMessages();
@@ -737,279 +639,7 @@ function handleChatHistory(messages, requestId) {
   markAsRead();
 }
 
-// ─── Chat Window (Message Interface) ──────────────────────────────────────────
-
-function renderChatWindow(userId, userName) {
-  const root = document.getElementById('chat-modal');
-  if (!root || !currentChat) return;
-  activeChatUserId = userId;
-
-  // Get user's initials for avatar
-  const initials = (userName || 'U')
-    .split(' ')
-    .map((word) => word[0].toUpperCase())
-    .join('')
-    .slice(0, 2);
-
-  root.innerHTML = `
-    <div class="chat-window">
-      <div class="chat-window-header">
-        <button class="chat-window-back" onclick="window.chatModule.closeChatWindow()">
-          ←
-        </button>
-        <div class="chat-window-header-user">
-          <div class="chat-user-avatar" style="width: 36px; height: 36px; font-size: 14px;">
-            ${escapeHTML(initials)}
-          </div>
-          <div class="chat-window-header-title">
-            <h3>${escapeHTML(userName)}</h3>
-            <div class="chat-window-header-subtitle" id="chat-status">Online</div>
-          </div>
-        </div>
-        <button class="chat-window-close" onclick="window.chatModule.closeChatModal()">
-          ✕
-        </button>
-      </div>
-      <div class="chat-messages-container" id="chat-messages">
-        <div class="chat-loading">
-          <div class="chat-spinner"></div>
-        </div>
-      </div>
-      <div class="chat-input-area">
-        <input
-          type="text"
-          class="chat-input"
-          id="chat-message-input"
-          placeholder="Type a message..."
-          onkeypress="if(event.key==='Enter') window.chatModule.sendMessageFromInput()"
-        />
-        <button
-          class="chat-send-button"
-          id="chat-send-btn"
-          onclick="window.chatModule.sendMessageFromInput()"
-          title="Send message"
-        >
-          ↗
-        </button>
-      </div>
-    </div>
-  `;
-
-  sendChatViewEvent('chat.open', currentChat.id);
-  renderChatStatus();
-
-  // Focus input
-  setTimeout(() => {
-    const input = document.getElementById('chat-message-input');
-    if (input) {
-      const sendTypingThrottled = throttle(() => {
-        if (!currentChat || !input.value.trim()) {
-          return;
-        }
-
-        sendTypingEvent(currentChat.id);
-      }, CHAT_TYPING_THROTTLE_MS);
-
-      input.addEventListener('input', () => {
-        sendTypingThrottled();
-      });
-
-      input.focus();
-    }
-    markAsRead();
-  }, 100);
-}
-
-function renderChatMessages() {
-  if (!currentChat) return;
-
-  const chatId = currentChat.id;
-  const container = document.getElementById('chat-messages');
-  if (!container) return;
-
-  const messages = messageBuffer[chatId] || [];
-  console.log(
-    'renderChatMessages - chatId:',
-    chatId,
-    'messages in buffer:',
-    messages.length,
-    'first msg structure:',
-    messages[0]
-  );
-
-  // Display messages sorted by time (oldest first for display)
-  const displayMessages = [...messages].sort(
-    (a, b) => new Date(a.created_at) - new Date(b.created_at)
-  );
-
-  if (displayMessages.length === 0) {
-    disconnectHistoryObserver();
-    container.innerHTML = `
-      <div class="chat-empty-state">
-        <div class="chat-empty-state-icon">💬</div>
-        <div class="chat-empty-state-text">No messages yet. Start the conversation!</div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div id="chat-history-loader" class="chat-loading" style="display: none; min-height: auto; padding: 8px 0;">
-      <div class="chat-spinner"></div>
-    </div>
-    <div id="chat-history-sentinel" style="height: 1px; width: 100%;"></div>
-    ${displayMessages
-      .map((msg) => {
-        const isOwn = msg.sender_id === currentUser.id;
-        console.log('Rendering message:', {
-          id: msg.id,
-          content: msg.content,
-          created_at: msg.created_at,
-          sender_id: msg.sender_id,
-          isOwn,
-          currentUserId: currentUser.id,
-        });
-        return `
-          <div class="chat-message ${isOwn ? 'own' : ''}">
-            <div>
-              <div class="chat-message-bubble">
-                ${escapeHTML(msg.content)}
-              </div>
-              <div class="chat-message-time">
-                ${formatMessageTime(msg.created_at)}
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join('')}
-  `;
-
-  ensureTypingBubble(isActiveChatTyping());
-}
-
-// ─── Chat Modal (User List) ──────────────────────────────────────────────────
-
-function renderChatModal() {
-  const root = document.getElementById('chat-modal');
-  if (!root) return;
-
-  root.innerHTML = `
-    <div class="chat-modal">
-      <div class="chat-modal-header">
-        <h2>Messages</h2>
-        <button class="chat-modal-close" onclick="window.chatModule.closeChatModal()">
-          ✕
-        </button>
-      </div>
-      <div class="chat-modal-content">
-        <div class="chat-users-list" id="chat-users-list">
-          <div class="chat-loading">
-            <div class="chat-spinner"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  loadChatUsers();
-}
-
-function renderChatUsersList() {
-  const container = document.getElementById('chat-users-list');
-  if (!container) return;
-
-  if (chatUsers.length === 0) {
-    container.innerHTML = `
-      <div class="chat-empty-state">
-        <div class="chat-empty-state-icon">👥</div>
-        <div class="chat-empty-state-text">No users online right now</div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = chatUsers
-    .map((user) => {
-      const initials = (user.nickname || 'U')
-        .split(' ')
-        .map((word) => word[0].toUpperCase())
-        .join('')
-        .slice(0, 2);
-
-      // Get unread count for this user by looking up their chat_id
-      const chatId = userChatMap[user.user_id];
-      const unreadCount = chatId ? unreadCounts[chatId] || 0 : 0;
-
-      const lastMessageTime = user.last_message_at ? new Date(user.last_message_at) : null;
-      const timeAgo = lastMessageTime ? getTimeAgo(lastMessageTime) : 'Never';
-
-      return `
-        <div
-          class="chat-user-item"
-          onclick="window.chatModule.openChatWithUser('${user.user_id}', '${escapeHTML(user.nickname)}')"
-        >
-          <div class="chat-user-avatar">
-            ${escapeHTML(initials)}
-          </div>
-          <div class="chat-user-info">
-            <div class="chat-user-name">${escapeHTML(user.nickname)}</div>
-            <div class="chat-user-status ${user.is_online ? 'online' : 'offline'}" data-chat-user-status="${user.user_id}">
-              ${user.is_online ? 'Online' : `Last seen ${timeAgo}`}
-            </div>
-          </div>
-          ${unreadCount > 0 ? `<div class="chat-user-unread">${unreadCount}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
-}
-
-// ─── Chat Widget (Button) ──────────────────────────────────────────────────────
-
-function renderChatWidget() {
-  // Check if widget already exists
-  if (document.getElementById('chat-widget-button')) {
-    return;
-  }
-
-  // Create widget button
-  const button = document.createElement('button');
-  button.id = 'chat-widget-button';
-  button.className = 'chat-widget-button';
-  button.innerHTML =
-    '💬 <span class="chat-unread-badge" id="chat-unread-total" style="display:none"></span>';
-  button.onclick = openChatModal;
-  button.title = 'Open messages';
-
-  document.body.appendChild(button);
-
-  // Create modal container
-  const modal = document.createElement('div');
-  modal.id = 'chat-modal';
-  document.body.appendChild(modal);
-
-  // Make functions available globally for onclick handlers immediately
-  window.chatModule = {
-    closeChatWindow,
-    closeChatModal,
-    sendMessage,
-    sendMessageFromInput() {
-      const input = document.getElementById('chat-message-input');
-      if (input) {
-        const content = input.value;
-        if (content.trim()) {
-          sendMessage(content);
-          input.value = '';
-          input.focus();
-        }
-      }
-    },
-    openChatWithUser,
-  };
-}
-
-function openChatModal() {
+export function openChatModal() {
   const modal = document.getElementById('chat-modal');
   if (!modal) return;
 
@@ -1024,7 +654,7 @@ function openChatModal() {
 }
 
 function updateUnreadBadges() {
-  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+  const totalUnread = Object.values(chatState.unreadCounts).reduce((a, b) => a + b, 0);
 
   const badge = document.getElementById('chat-unread-total');
   if (badge) {
@@ -1045,23 +675,23 @@ function updateUnreadBadges() {
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
 
-async function loadChatUsers() {
+export async function loadChatUsers() {
   try {
     const users = await fetchChatUsers();
-    chatUsers = users || [];
-    userChatMap = {};
-    unreadCounts = {};
+    chatState.chatUsers = users || [];
+    chatState.userChatMap = {};
+    chatState.unreadCounts = {};
 
-    chatUsers.forEach((user) => {
+    chatState.chatUsers.forEach((user) => {
       if (user.chat_id) {
-        userChatMap[user.user_id] = user.chat_id;
-        unreadCounts[user.chat_id] = user.unread_count || 0;
+        chatState.userChatMap[user.user_id] = user.chat_id;
+        chatState.unreadCounts[user.chat_id] = user.unread_count || 0;
       }
     });
     updateUnreadBadges();
 
     // Sort by last_message_at (most recent first)
-    chatUsers.sort((a, b) => {
+    chatState.chatUsers.sort((a, b) => {
       const timeA = a.last_message_at ? new Date(a.last_message_at) : new Date(0);
       const timeB = b.last_message_at ? new Date(b.last_message_at) : new Date(0);
       return timeB - timeA;
@@ -1094,11 +724,7 @@ async function loadChatHistory(chatId, beforeMessageId = 0) {
     return;
   }
 
-  console.log('loadChatHistory called with chatId:', chatId, 'beforeMessageId:', beforeMessageId);
-
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    console.log('WebSocket not ready for history, retrying in 500ms. State:', ws?.readyState);
-    // Wait for WebSocket to be ready
+  if (!chatState.ws || chatState.ws.readyState !== WebSocket.OPEN) {
     setTimeout(() => loadChatHistory(chatId, beforeMessageId), 500);
     return;
   }
@@ -1110,7 +736,7 @@ async function loadChatHistory(chatId, beforeMessageId = 0) {
 
   const requestId = `history-${Date.now()}-${beforeMessageId}`;
   const container = document.getElementById('chat-messages');
-  pendingHistoryRequests[requestId] = {
+  chatState.pendingHistoryRequests[requestId] = {
     chatId,
     beforeMessageId,
     previousScrollHeight: isLoadingOlder && container ? container.scrollHeight : 0,
@@ -1127,17 +753,14 @@ async function loadChatHistory(chatId, beforeMessageId = 0) {
     },
   };
 
-  console.log('Requesting chat history for:', chatId, 'message:', message);
-  console.log('WebSocket state before send:', ws.readyState, 'OPEN=', WebSocket.OPEN);
-  ws.send(JSON.stringify(message));
-  console.log('History request sent successfully');
+  chatState.ws.send(JSON.stringify(message));
 }
 
-function markAsRead() {
-  if (!currentChat || !ws || ws.readyState !== WebSocket.OPEN) return;
+export function markAsRead() {
+  if (!chatState.currentChat || !chatState.ws || chatState.ws.readyState !== WebSocket.OPEN) return;
 
-  const chatId = currentChat.id;
-  const messages = messageBuffer[chatId] || [];
+  const chatId = chatState.currentChat.id;
+  const messages = chatState.messageBuffer[chatId] || [];
   if (messages.length === 0) return;
 
   const lastMessageId = Math.max(...messages.map((m) => m.id).filter((id) => id > 0));
@@ -1151,14 +774,14 @@ function markAsRead() {
     },
   };
 
-  ws.send(JSON.stringify(message));
-  unreadCounts[chatId] = 0;
+  chatState.ws.send(JSON.stringify(message));
+  chatState.unreadCounts[chatId] = 0;
   updateUnreadBadges();
 }
 
 // ─── Utility Functions ─────────────────────────────────────────────────────────
 
-function scrollToBottom() {
+export function scrollToBottom() {
   const container = document.getElementById('chat-messages');
   if (container) {
     requestAnimationFrame(() => {
@@ -1168,7 +791,7 @@ function scrollToBottom() {
   }
 }
 
-function getTimeAgo(date) {
+export function getTimeAgo(date) {
   const seconds = Math.floor((new Date() - date) / 1000);
 
   if (seconds < 60) return 'just now';
