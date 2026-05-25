@@ -8,11 +8,9 @@ import {
 } from './chat.js';
 import {
   renderChatMessages,
-  renderChatUsersList,
   renderActiveChatTypingState,
 } from './chat.render.js';
 import {
-  loadChatHistory,
   getHistoryState,
   clearPendingHistoryLoad,
   restoreScrollAfterPrepend,

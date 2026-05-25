@@ -12,20 +12,13 @@
  */
 
 import { fetchChatUsers, initializeChat, ApiError } from './api.js';
-import { escapeHTML, formatMessageTime, throttle } from './helpers.js';
-import { connectWebSocket, sendTypingEvent, sendChatViewEvent } from './chat.websocket.js';
+import { connectWebSocket, sendChatViewEvent } from './chat.websocket.js';
 import {
   loadChatHistory,
-  getHistoryState,
-  showHistoryLoader,
   disconnectHistoryObserver,
   clearPendingHistoryLoad,
   clearAllPendingHistoryLoads,
-  restoreScrollAfterPrepend,
   observeHistorySentinel,
-  getOldestPersistedMessageId,
-  CHAT_HISTORY_PAGE_SIZE,
-  CHAT_HISTORY_LOAD_DELAY_MS,
 } from './chat.history.js';
 import {
   renderChatWindow,
@@ -33,8 +26,6 @@ import {
   renderChatModal,
   renderChatUsersList,
   renderChatWidget,
-  renderChatStatus,
-  renderActiveChatTypingState,
 } from './chat.render.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────

@@ -7,17 +7,14 @@ import {
   closeChatWindow,
   closeChatModal,
   sendMessage,
-  sendTypingEvent,
-  sendChatViewEvent,
   openChatWithUser,
   loadChatUsers,
   getTimeAgo,
 } from './chat.js';
 import {
   disconnectHistoryObserver,
-  CHAT_HISTORY_PAGE_SIZE,
-  CHAT_HISTORY_LOAD_DELAY_MS,
 } from './chat.history.js';
+import { sendChatViewEvent,sendTypingEvent } from './chat.websocket.js';
 
 // ─── Chat Window (Message Interface) ─────────────────────────────────────────
 const CHAT_TYPING_THROTTLE_MS = 1000;
