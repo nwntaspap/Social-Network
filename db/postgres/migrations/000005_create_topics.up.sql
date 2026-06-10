@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    image_path TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_user ON topics(user_id);
+CREATE INDEX IF NOT EXISTS idx_topics_created ON topics(created_at DESC);

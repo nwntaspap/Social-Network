@@ -4,6 +4,14 @@
 set -a          # automatically export all variables
 source .env
 set +a
+
+# Check if files already exist
+if [[ -f "$SERVER_TLS_KEY_FILE"  ||  -f "$SERVER_TLS_CERT_FILE" ]]; then
+  echo "Certificates already exist. Skipping generation."
+  exit 0
+fi
+
+
 mkdir -p certs
 openssl req -x509 \
   -newkey rsa:4096 \

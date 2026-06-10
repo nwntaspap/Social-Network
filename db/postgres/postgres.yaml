@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: forum-postgres
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+
+    ports:
+      - "${PGPORT}:5432"
+
+    volumes:
+      - $PG_VOLUME
+
+volumes:
+  postgres_data:

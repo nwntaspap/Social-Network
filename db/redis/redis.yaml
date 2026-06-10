@@ -1,0 +1,13 @@
+services:
+  redis:
+    image: redis:8
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDISCLI_AUTH}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
