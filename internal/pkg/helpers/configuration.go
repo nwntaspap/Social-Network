@@ -64,8 +64,8 @@ func GetEnv(key string, envMap map[string]string, defaultValue string) string {
 	return defaultValue
 }
 
-func GetEnvDuration(key string, envMap map[string]string, defaultSeconds int) time.Duration {
-	strValue := GetEnv(key, envMap, "")
+func GetEnvDuration(key string, defaultSeconds int) time.Duration {
+	strValue := Env(key, "")
 	if strValue == "" {
 		return time.Duration(defaultSeconds) * time.Second
 	}
@@ -77,8 +77,8 @@ func GetEnvDuration(key string, envMap map[string]string, defaultSeconds int) ti
 	return time.Duration(seconds) * time.Second
 }
 
-func GetEnvBool(key string, envMap map[string]string, defaultValue bool) bool {
-	strVal := GetEnv(key, envMap, "")
+func GetEnvBool(key string, defaultValue bool) bool {
+	strVal := Env(key, "")
 	if strVal == "" {
 		return defaultValue
 	}
@@ -88,9 +88,14 @@ func GetEnvBool(key string, envMap map[string]string, defaultValue bool) bool {
 	}
 	return b
 }
-
-func GetEnvInt(s string, envMap map[string]string, defaultValue int) int {
-	strVal := GetEnv(s, envMap, "")
+func Env(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+func GetEnvInt(s string, defaultValue int) int {
+	strVal := Env(s, "")
 	if strVal == "" {
 		return defaultValue
 	}

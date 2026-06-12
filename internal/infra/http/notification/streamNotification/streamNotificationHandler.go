@@ -7,6 +7,7 @@ import (
 	"time"
 
 	notificationcommands "github.com/arnald/forum/internal/app/notifications/commands"
+	"github.com/arnald/forum/internal/infra/logger"
 	"github.com/arnald/forum/internal/infra/middleware"
 )
 
@@ -14,10 +15,14 @@ const tickerTime = 10
 
 type Handler struct {
 	openStream notificationcommands.OpenStreamHandler
+	Logger     logger.Logger
 }
 
-func NewHandler(openStream notificationcommands.OpenStreamHandler) *Handler {
-	return &Handler{openStream: openStream}
+func NewHandler(openStream notificationcommands.OpenStreamHandler, logger logger.Logger) *Handler {
+	return &Handler{
+		openStream: openStream,
+		Logger:     logger,
+	}
 }
 
 func (h *Handler) StreamNotifications(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +55,7 @@ func (h *Handler) StreamNotifications(w http.ResponseWriter, r *http.Request) {
 	streamReq := notificationcommands.OpenStreamRequest{UserID: userID}
 	streamResp, err := h.openStream.Handle(r.Context(), streamReq)
 	if err != nil {
+		h.Logger.PrintError(err, nil)
 		http.Error(
 			w,
 			"failed to open notification stream",

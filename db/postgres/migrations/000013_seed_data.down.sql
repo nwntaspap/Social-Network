@@ -1,0 +1,10 @@
+DELETE FROM chat_reads WHERE chat_id IN ('chat_1', 'chat_2', 'chat_3');
+DELETE FROM chat_messages WHERE chat_id IN ('chat_1', 'chat_2', 'chat_3');
+DELETE FROM direct_chats WHERE id IN ('chat_1', 'chat_2', 'chat_3');
+DELETE FROM votes WHERE user_id IN ('df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131');
+DELETE FROM comments WHERE user_id IN ('df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131');
+DELETE FROM topic_categories WHERE topic_id IN (1, 2, 3);
+DELETE FROM topics WHERE user_id IN ('df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131');
+DELETE FROM categories WHERE slug IN ('get-started', 'newsroom', 'share-your-knowledge');
+DELETE FROM sessions WHERE user_id IN ('df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131');
+DELETE FROM users WHERE id IN ('df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131');

@@ -347,7 +347,7 @@ func (server *Server) AddHTTPRoutes() {
 
 	server.router.HandleFunc(apiContext+"/notifications/stream", // get
 		middlewareChain(
-			streamnotification.NewHandler(server.appServices.Commands.OpenStream).StreamNotifications,
+			streamnotification.NewHandler(server.appServices.Commands.OpenStream, server.logger).StreamNotifications,
 			server.middleware.Authorization.Required,
 		),
 	)

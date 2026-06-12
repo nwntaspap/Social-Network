@@ -2,6 +2,7 @@ package usercommands
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/arnald/forum/internal/domain/user"
@@ -58,6 +59,7 @@ func (h userRegisterRequestHandler) Handle(ctx context.Context, req UserRegister
 	}
 
 	encryptedPass, err := h.encryptionProvider.Generate(user.Password)
+	fmt.Println(user.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/arnald/forum/internal/bootstrap"
 	"github.com/arnald/forum/internal/config"
 	"github.com/arnald/forum/internal/infra/http"
-	"github.com/arnald/forum/internal/infra/storage/sqlite"
+	"github.com/arnald/forum/internal/infra/storage/postgres"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	}
 
 	// 2. Initialize DB connection
-	db, err := sqlite.InitializeDB(*cfg)
+	db, err := postgres.InitializeDB(*cfg)
 	if err != nil {
 		log.Fatalf("Database error: %v", err)
 	}

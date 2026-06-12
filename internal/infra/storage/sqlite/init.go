@@ -51,7 +51,7 @@ func InitializeDB(cfg config.ServerConfig) (*sql.DB, error) {
 }
 
 func OpenDB(cfg config.ServerConfig) (*sql.DB, *sql.DB, error) {
-	db, err := sql.Open(cfg.Database.Driver, cfg.Database.Path+"?"+cfg.Database.Pragma)
+	db, err := sql.Open(cfg.Database.Driver, cfg.Database.Path+"?"+cfg.Database.Pragma_Foreign_Keys+"&"+cfg.Database.Pragma_Journal_Mode)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -65,8 +65,8 @@ func OpenDB(cfg config.ServerConfig) (*sql.DB, *sql.DB, error) {
 func migrateDB(db *sql.DB) error {
 	resolver := path.NewResolver()
 	migrationFiles := []string{
-		resolver.GetPath("db/migrations/schema.sql"),
-		resolver.GetPath("db/migrations/indexes.sql"),
+		resolver.GetPath("db/sqlite/migrations/schema.sql"),
+		resolver.GetPath("db/sqlite/migrations/indexes.sql"),
 	}
 
 	for _, file := range migrationFiles {
@@ -139,9 +139,9 @@ func seedDB(db *sql.DB, env string) error {
 	resolver := path.NewResolver()
 	switch env {
 	case "development":
-		return execSQLFile(db, resolver.GetPath("db/seeds/dev_data.sql"))
+		return execSQLFile(db, resolver.GetPath("db/sqlite/seeds/dev_data.sql"))
 	case "staging":
-		return execSQLFile(db, resolver.GetPath("db/seeds/test.sql"))
+		return execSQLFile(db, resolver.GetPath("db/sqlite/seeds/test.sql"))
 	default:
 		return nil // No seeding in production
 	}

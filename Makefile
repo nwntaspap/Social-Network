@@ -1,4 +1,4 @@
-.PHONY: run certs migrate-up migrate-down postgres-up postgres-down postgres-delete
+.PHONY: run certs migrate-up migrate-down postgres-up postgres-down postgres-delete containers-down migrate-version redis-up redis-down redis-delete
 
 
 #first you have to export all the environment variables

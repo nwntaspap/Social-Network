@@ -14,8 +14,8 @@ import (
 	"github.com/arnald/forum/internal/infra/middleware"
 	"github.com/arnald/forum/internal/infra/realtime/notifications"
 	localstorage "github.com/arnald/forum/internal/infra/storage/local"
-	"github.com/arnald/forum/internal/infra/storage/sessionstore"
-	"github.com/arnald/forum/internal/infra/storage/sqlite"
+	"github.com/arnald/forum/internal/infra/storage/postgres"
+	"github.com/arnald/forum/internal/infra/storage/postgres/sessionstore"
 	"github.com/arnald/forum/internal/infra/ws"
 	oauth "github.com/arnald/forum/internal/pkg/oAuth"
 	"github.com/arnald/forum/internal/pkg/oAuth/githubclient"
@@ -42,7 +42,7 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 	sessionManager := sessionstore.NewSessionManager(db, cfg.SessionManager)
 	cookieManager := authcookies.NewManager(cfg.SessionManager)
 	middleware := middleware.NewMiddleware(sessionManager, cookieManager)
-	repos := sqlite.NewRepositories(db)
+	repos := postgres.NewRepositories(db)
 	fileStorage := localstorage.NewLocalStorage()
 	services := app.NewServices(repos.UserRepo, repos.CategoryRepo, repos.TopicRepo, repos.CommentRepo, repos.VoteRepo, repos.OauthRepo, repos.ActivityRepo, repos.ChatRepo, repos.NotificationRepo, notifier, hub, fileStorage)
 	oAuth := InitOAuth(cfg.OAuth)

@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -80,12 +79,13 @@ type GoogleOAuthConfig struct {
 	Scopes              []string
 }
 type DatabaseConfig struct {
-	Driver         string
-	Path           string
-	Pragma         string
-	MigrateOnStart bool
-	SeedOnStart    bool
-	OpenConn       int
+	Driver              string
+	Path                string
+	Pragma_Foreign_Keys string
+	Pragma_Journal_Mode string
+	MigrateOnStart      bool
+	SeedOnStart         bool
+	OpenConn            int
 }
 
 type SessionManagerConfig struct {
@@ -121,72 +121,72 @@ type UseCasesTimeoutsConfig struct { // Not implemented yet, but can be used for
 
 func LoadConfig() (*ServerConfig, error) {
 	resolver := path.NewResolver()
-	envFile, _ := os.ReadFile(resolver.GetPath(".env"))
-	envMap := helpers.ParseEnv(string(envFile))
 
 	cfg := &ServerConfig{
-		Host:         helpers.GetEnv("SERVER_HOST", envMap, "localhost"),
-		Port:         helpers.GetEnv("SERVER_PORT", envMap, "8080"),
-		Environment:  helpers.GetEnv("SERVER_ENVIRONMENT", envMap, "development"),
-		APIContext:   helpers.GetEnv("API_CONTEXT", envMap, "/api/v1"),
-		TLSCertFile:  helpers.GetEnv("SERVER_TLS_CERT_FILE", envMap, ""),
-		TLSKeyFile:   helpers.GetEnv("SERVER_TLS_KEY_FILE", envMap, ""),
-		ReadTimeout:  helpers.GetEnvDuration("SERVER_READ_TIMEOUT", envMap, readTimeout),
-		WriteTimeout: helpers.GetEnvDuration("SERVER_WRITE_TIMEOUT", envMap, writeTimeout),
-		IdleTimeout:  helpers.GetEnvDuration("SERVER_IDLE_TIMEOUT", envMap, idleTimeout),
+		Host:         helpers.Env("SERVER_HOST", "localhost"),
+		Port:         helpers.Env("SERVER_PORT", "8080"),
+		Environment:  helpers.Env("SERVER_ENVIRONMENT", "development"),
+		APIContext:   helpers.Env("API_CONTEXT", "/api/v1"),
+		TLSCertFile:  helpers.Env("SERVER_TLS_CERT_FILE", ""),
+		TLSKeyFile:   helpers.Env("SERVER_TLS_KEY_FILE", ""),
+		ReadTimeout:  helpers.GetEnvDuration("SERVER_READ_TIMEOUT", readTimeout),
+		WriteTimeout: helpers.GetEnvDuration("SERVER_WRITE_TIMEOUT", writeTimeout),
+		IdleTimeout:  helpers.GetEnvDuration("SERVER_IDLE_TIMEOUT", idleTimeout),
 		Database: DatabaseConfig{
-			Driver:         helpers.GetEnv("DB_DRIVER", envMap, "sqlite3"),
-			Path:           resolver.GetPath(helpers.GetEnv("DB_PATH", envMap, "data/forum.db")),
-			MigrateOnStart: helpers.GetEnvBool("DB_MIGRATE_ON_START", envMap, true),
-			SeedOnStart:    helpers.GetEnvBool("DB_SEED_ON_START", envMap, true),
-			Pragma:         helpers.GetEnv("DB_PRAGMA", envMap, "_foreign_keys=on&_journal_mode=WAL"),
-			OpenConn:       helpers.GetEnvInt("DB_OPEN_CONN", envMap, 1),
+			Driver:              helpers.Env("DB_DRIVER", "sqlite3"),
+			Path:                resolver.GetPath(helpers.Env("DB_PATH", "db/sqlite/data/forum.db")),
+			MigrateOnStart:      helpers.GetEnvBool("DB_MIGRATE_ON_START", true),
+			SeedOnStart:         helpers.GetEnvBool("DB_SEED_ON_START", true),
+			Pragma_Foreign_Keys: helpers.Env("DB_PRAGMA_FOREIGN_KEYS", "_foreign_keys=on"),
+			Pragma_Journal_Mode: helpers.Env("DB_PRAGMA_JOURNAL_MODE", "_journal_mode=WAL"),
+			// Pragma:              fmt.Sprintf("_foreign_keys=%s&_journal_mode=%s",),
+			OpenConn: helpers.GetEnvInt("DB_OPEN_CONN", 1),
 		},
 		SessionManager: SessionManagerConfig{
-			DefaultExpiry:      helpers.GetEnvDuration("SESSION_DEFAULT_EXPIRY", envMap, defaultExpiry),
-			SecureCookie:       helpers.GetEnvBool("SESSION_SECURE_COOKIE", envMap, false),
-			AccessCookieName:   helpers.GetEnv("SESSION_ACCESS_COOKIE_NAME", envMap, "access_token"),
-			RefreshCookieName:  helpers.GetEnv("SESSION_REFRESH_COOKIE_NAME", envMap, "refresh_token"),
-			CookiePath:         helpers.GetEnv("SESSION_COOKIE_PATH", envMap, "/"),
-			CookieDomain:       helpers.GetEnv("SESSION_COOKIE_DOMAIN", envMap, ""),
-			HTTPOnlyCookie:     helpers.GetEnvBool("SESSION_HTTPONLY_COOKIE", envMap, true),
-			SameSite:           helpers.GetEnv("SESSION_SAMESITE", envMap, "Lax"),
-			CleanupInterval:    helpers.GetEnvDuration("SESSION_CLEANUP_INTERVAL", envMap, cleanupInternal),
-			MaxSessionsPerUser: helpers.GetEnvInt("SESSION_MAX_SESSIONS_PER_USER", envMap, maxSessionsPerUser),
-			SessionIDLength:    helpers.GetEnvInt("SESSION_ID_LENGTH", envMap, sessionIDLenght),
-			EnablePersistence:  helpers.GetEnvBool("SESSION_ENABLE_PERSISTENCE", envMap, true),
-			LogSessions:        helpers.GetEnvBool("SESSION_LOG_SESSIONS", envMap, false),
-			RefreshTokenExpiry: helpers.GetEnvDuration("SESSION_REFRESH_TOKEN_EXPIRY", envMap, refreshTokenExpiry),
+			DefaultExpiry:      helpers.GetEnvDuration("SESSION_DEFAULT_EXPIRY", defaultExpiry),
+			SecureCookie:       helpers.GetEnvBool("SESSION_SECURE_COOKIE", false),
+			AccessCookieName:   helpers.Env("SESSION_ACCESS_COOKIE_NAME", "access_token"),
+			RefreshCookieName:  helpers.Env("SESSION_REFRESH_COOKIE_NAME", "refresh_token"),
+			CookiePath:         helpers.Env("SESSION_COOKIE_PATH", "/"),
+			CookieDomain:       helpers.Env("SESSION_COOKIE_DOMAIN", ""),
+			HTTPOnlyCookie:     helpers.GetEnvBool("SESSION_HTTPONLY_COOKIE", true),
+			SameSite:           helpers.Env("SESSION_SAMESITE", "Lax"),
+			CleanupInterval:    helpers.GetEnvDuration("SESSION_CLEANUP_INTERVAL", cleanupInternal),
+			MaxSessionsPerUser: helpers.GetEnvInt("SESSION_MAX_SESSIONS_PER_USER", maxSessionsPerUser),
+			SessionIDLength:    helpers.GetEnvInt("SESSION_ID_LENGTH", sessionIDLenght),
+			EnablePersistence:  helpers.GetEnvBool("SESSION_ENABLE_PERSISTENCE", true),
+			LogSessions:        helpers.GetEnvBool("SESSION_LOG_SESSIONS", false),
+			RefreshTokenExpiry: helpers.GetEnvDuration("SESSION_REFRESH_TOKEN_EXPIRY", refreshTokenExpiry),
 		},
 		Timeouts: TimeoutsConfig{
 			HandlerTimeouts: HandlerTimeoutsConfig{
-				UserRegister: helpers.GetEnvDuration("HANDLER_TIMEOUT_REGISTER", envMap, userRegisterTimeout),
-				UserLogin:    helpers.GetEnvDuration("HANDLER_TIMEOUT_LOGIN", envMap, userLoginTimeout),
+				UserRegister: helpers.GetEnvDuration("HANDLER_TIMEOUT_REGISTER", userRegisterTimeout),
+				UserLogin:    helpers.GetEnvDuration("HANDLER_TIMEOUT_LOGIN", userLoginTimeout),
 			},
 		},
 		OAuth: OAuthConfig{
 			GitHub: GitHubOAuthConfig{
-				ClientID:            helpers.GetEnv("GITHUB_CLIENT_ID", envMap, ""),
-				ClientSecret:        helpers.GetEnv("GITHUB_CLIENT_SECRET", envMap, ""),
-				RedirectURL:         helpers.GetEnv("GITHUB_REDIRECT_URL", envMap, "http://localhost:8080/api/v1/auth/github/callback"),
-				Scopes:              helpers.ParseList(helpers.GetEnv("GITHUB_SCOPES", envMap, "user:email")),
-				FrontendCallbackURL: helpers.GetEnv("FRONTEND_GITHUB_CALLBACK_URL", envMap, "http://localhost:3001/auth/github/callback"),
+				ClientID:            helpers.Env("GITHUB_CLIENT_ID", ""),
+				ClientSecret:        helpers.Env("GITHUB_CLIENT_SECRET", ""),
+				RedirectURL:         helpers.Env("GITHUB_REDIRECT_URL", "http://localhost:8080/api/v1/auth/github/callback"),
+				Scopes:              helpers.ParseList(helpers.Env("GITHUB_SCOPES", "user:email")),
+				FrontendCallbackURL: helpers.Env("FRONTEND_GITHUB_CALLBACK_URL", "http://localhost:3001/auth/github/callback"),
 			},
 			Google: GoogleOAuthConfig{
-				ClientID:            helpers.GetEnv("GOOGLE_CLIENT_ID", envMap, ""),
-				ClientSecret:        helpers.GetEnv("GOOGLE_CLIENT_SECRET", envMap, ""),
-				RedirectURL:         helpers.GetEnv("GOOGLE_REDIRECT_URL", envMap, "http://localhost:8080/api/v1/auth/google/callback"),
-				Scopes:              helpers.ParseList(helpers.GetEnv("GOOGLE_SCOPES", envMap, "")),
-				FrontendCallbackURL: helpers.GetEnv("FRONTEND_GOOGLE_CALLBACK_URL", envMap, "http://localhost:3001/auth/google/callback"),
-				TokenURL:            helpers.GetEnv("GOOGLE_TOKEN_URL", envMap, ""),
+				ClientID:            helpers.Env("GOOGLE_CLIENT_ID", ""),
+				ClientSecret:        helpers.Env("GOOGLE_CLIENT_SECRET", ""),
+				RedirectURL:         helpers.Env("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+				Scopes:              helpers.ParseList(helpers.Env("GOOGLE_SCOPES", "")),
+				FrontendCallbackURL: helpers.Env("FRONTEND_GOOGLE_CALLBACK_URL", "http://localhost:3001/auth/google/callback"),
+				TokenURL:            helpers.Env("GOOGLE_TOKEN_URL", ""),
 			},
-			FrontendCallbackURL: helpers.GetEnv("FRONTEND_CALLBACK_URL", envMap, ""),
+			FrontendCallbackURL: helpers.Env("FRONTEND_CALLBACK_URL", ""),
 		},
 		RateLimit: RateLimitConfig{
-			Enabled:       helpers.GetEnvBool("RATE_LIMIT_ENABLED", envMap, true),
-			RequestsLimit: helpers.GetEnvInt("RATE_LIMIT_REQUESTS", envMap, defaultRateLimitRequestCapacity),
-			WindowSeconds: int64(helpers.GetEnvInt("RATE_LIMIT_WINDOW_SECONDS", envMap, defaultRateLimitWindowSeconds)),
-			Cleanup:       helpers.GetEnvDuration("RATE_LIMIT_CLEANUP_SECONDS", envMap, defaultRateLimitCleanupSeconds),
+			Enabled:       helpers.GetEnvBool("RATE_LIMIT_ENABLED", true),
+			RequestsLimit: helpers.GetEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequestCapacity),
+			WindowSeconds: int64(helpers.GetEnvInt("RATE_LIMIT_WINDOW_SECONDS", defaultRateLimitWindowSeconds)),
+			Cleanup:       helpers.GetEnvDuration("RATE_LIMIT_CLEANUP_SECONDS", defaultRateLimitCleanupSeconds),
 		},
 	}
 
