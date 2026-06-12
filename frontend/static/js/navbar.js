@@ -424,7 +424,6 @@ function startNotificationStream() {
       try {
         const data = JSON.parse(e.data);
         updateBadge(data.count ?? 0);
-        console.log(data.count ?? 0)
       } catch {
         // malformed frame — ignore
       }
@@ -437,8 +436,7 @@ function startNotificationStream() {
       refreshUnreadCount();
     });
 
-    es.onerror = (err) => {
-      console.log(err)
+    es.onerror = () => {
       es.close();
       _notificationSSE = null;
       // Browser will NOT auto-reconnect after we call close().
