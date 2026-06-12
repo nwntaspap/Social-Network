@@ -80,6 +80,7 @@ type GoogleOAuthConfig struct {
 }
 type DatabaseConfig struct {
 	Driver              string
+	PostgresURL         string
 	Path                string
 	Pragma_Foreign_Keys string
 	Pragma_Journal_Mode string
@@ -134,6 +135,7 @@ func LoadConfig() (*ServerConfig, error) {
 		IdleTimeout:  helpers.GetEnvDuration("SERVER_IDLE_TIMEOUT", idleTimeout),
 		Database: DatabaseConfig{
 			Driver:              helpers.Env("DB_DRIVER", "sqlite3"),
+			PostgresURL:         helpers.Env("PG_URL", "postgres://forum:password@localhost:5432/forumdb?sslmode=disable"),
 			Path:                resolver.GetPath(helpers.Env("DB_PATH", "db/sqlite/data/forum.db")),
 			MigrateOnStart:      helpers.GetEnvBool("DB_MIGRATE_ON_START", true),
 			SeedOnStart:         helpers.GetEnvBool("DB_SEED_ON_START", true),

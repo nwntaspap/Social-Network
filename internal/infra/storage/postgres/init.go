@@ -18,7 +18,7 @@ func InitializeDB(cfg config.ServerConfig) (*sql.DB, error) {
 }
 
 func OpenDB(cfg config.ServerConfig) (*sql.DB, *sql.DB, error) {
-	db, err := sql.Open("postgres", "postgres://forum:password@localhost:5432/forumdb?sslmode=disable")
+	db, err := sql.Open("postgres", cfg.Database.PostgresURL)
 	if err != nil {
 		return nil, nil, err
 	}
