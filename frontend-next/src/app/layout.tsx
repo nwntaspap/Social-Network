@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { Rubik, Poppins } from 'next/font/google';
+import { AuthProvider } from '@/context/AuthContext';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import '../styles/base.css';
 import '../styles/layout.css';
 import '../styles/components.css';
@@ -45,8 +48,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${rubik.variable} ${poppins.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${rubik.variable} ${poppins.variable}`}
+      data-scroll-behavior="smooth"
+    >
+      <body>
+        {/*
+         * AuthProvider wraps everything so Navbar, Footer, and every page
+         * can read auth state via useAuth() — mirrors the module-level
+         * _currentUser pattern from auth.js.
+         */}
+        <AuthProvider>
+          {/* Sticky navbar — always rendered, content switches on auth state */}
+          <div id="navbar-root">
+            <Navbar />
+          </div>
+
+          {/* Page content injected by the router */}
+          <main id="app-root">{children}</main>
+
+          {/* Footer — always rendered */}
+          <div id="footer-root">
+            <Footer />
+          </div>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
