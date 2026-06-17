@@ -72,6 +72,8 @@
 }
 .signup-provider-btn img {
   width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 .signup-provider-btn p {
   font-size: 1rem;

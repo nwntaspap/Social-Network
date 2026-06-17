@@ -17,7 +17,8 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { fetchCurrentUser, type User } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { User } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,10 +53,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     inflightRef.current = (async () => {
       try {
-        const me = await fetchCurrentUser();
+        const me = await api.get<User>('/me');
         setUserState(me);
-      } catch {
-        setUserState(null);
+      } catch (err) {
+        if (err instanceof ApiError && err.isUnauthorized) {
+          setUserState(null);
+        } else {
+          console.warn('Could not resolve current user:', err);
+          setUserState(null);
+        }
       } finally {
         setLoading(false);
         inflightRef.current = null;

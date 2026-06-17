@@ -68,7 +68,7 @@ function HomeContent() {
 
   return (
     <>
-      <h1 className="forum-title">Welcome to Forum</h1>
+      <h1 className="forum-title">Welcome to SocialNet</h1>
       <div className="main-container">
         {/* Category details dropdown — mirrors buildCategoryDetailsHTML() */}
         <details
@@ -147,6 +147,7 @@ function CategoryList({ categories }: { categories: Category[] }) {
 
 function CategoryCard({ category: cat }: { category: Category }) {
   const imgSrc = cat.ImagePath || cat.imagePath || '/images/categories/default_category.png';
+
   const name = cat.Name || cat.name || '';
   const description = cat.Description || cat.description || '';
 

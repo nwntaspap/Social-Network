@@ -39,7 +39,7 @@ function GuestNav({ pathname }: { pathname: string }) {
               <div className="logo-icon">
                 <Image src="/images/icons/logo-icon.png" alt="Logo Icon" width={32} height={32} />
               </div>
-              <span className="logo-title">Forum</span>
+              <span className="logo-title">SocialNet</span>
             </Link>
           </div>
           <ul className="nav-links">
@@ -70,7 +70,7 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const avatarSrc = user.avatar_url || user.AvatarURL || '/images/user-avatar.png';
+  const avatarSrc = user.avatar_url || '/images/user-avatar.png';
 
   const username = user.username || '';
 
@@ -115,9 +115,9 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
           <div className="logo">
             <Link className="logo-link" href="/">
               <div className="logo-icon">
-                <Image src="/images/icons/logo-icon.png" alt="Logo Icon" />
+                <Image src="/images/icons/logo-icon.png" alt="Logo Icon" width={32} height={32} />
               </div>
-              <span className="logo-title">Forum</span>
+              <span className="logo-title">SocialNet</span>
             </Link>
           </div>
 
