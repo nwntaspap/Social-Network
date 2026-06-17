@@ -33,6 +33,14 @@ footer {
   column-gap: 1rem;
 }
 
+footer .author {
+  font-style: italic;
+}
+
+footer .project-rights {
+  font-weight: bold;
+}
+
 /* Added for future pages */
 /* .auth-container {
   max-width: 500px;

@@ -17,7 +17,9 @@
 import { useEffect, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import { fetchCategories } from '@/lib/api';
-import { prepareCategories, type Category } from '@/lib/helpers';
+import { prepareCategories, formatRelativeDate } from '@/lib/helpers';
+import type { Category, Topic } from '@/lib/types';
+import Link from 'next/link';
 
 export default function HomePage() {
   return (
@@ -31,8 +33,6 @@ function HomeContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openDetails, setOpenDetails] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -43,7 +43,7 @@ function HomeContent() {
           : ((data as Record<string, unknown>)?.categories ??
             (data as Record<string, unknown>)?.Categories ??
             []);
-        setCategories(prepareCategories(raw as Category[]));
+        setCategories(prepareCategories(raw as Record<string, unknown>[]));
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load categories');
       } finally {
@@ -55,13 +55,18 @@ function HomeContent() {
 
   // Close the category details dropdown when clicking outside
   useEffect(() => {
-    if (!openDetails) return;
-    function handleClick() {
-      setOpenDetails(false);
+    const details = document.querySelector('.category-details');
+    if (!details) return;
+
+    function handleClick(e: MouseEvent) {
+      if (!details!.contains(e.target as Node)) {
+        details!.removeAttribute('open');
+      }
     }
+
     document.addEventListener('click', handleClick, { passive: true });
     return () => document.removeEventListener('click', handleClick);
-  }, [openDetails]);
+  }, [categories]); // Re-attach when categories load
 
   if (loading) return <HomeSkeleton />;
   if (error) return <HomeError message={error} />;
@@ -70,56 +75,50 @@ function HomeContent() {
     <>
       <h1 className="forum-title">Welcome to SocialNet</h1>
       <div className="main-container">
-        {/* Category details dropdown — mirrors buildCategoryDetailsHTML() */}
-        <details
-          className="category-details"
-          open={openDetails}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <summary
-            onClick={(e) => {
-              e.preventDefault();
-              setOpenDetails((prev) => !prev);
-            }}
-          >
-            {selectedCategory ? selectedCategory.Name || selectedCategory.name : 'All Categories'}
-          </summary>
-          <div className="category-details-list">
-            <button
-              className="category-details-item"
-              onClick={() => {
-                setSelectedCategory(null);
-                setOpenDetails(false);
-              }}
-            >
-              All Categories
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id || cat.ID}
-                className="category-details-item"
-                style={{ borderLeft: `4px solid ${cat.Color}` }}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setOpenDetails(false);
-                }}
-              >
-                {cat.Name || cat.name}
-              </button>
-            ))}
-          </div>
-        </details>
+        {/* Category details dropdown + nav buttons — mirrors buildCategoryDetailsHTML() */}
+        <div className="nav-categories">
+          <details className="category-details">
+            <summary>Categories</summary>
+            <div className="details-content">
+              {categories.length > 0 ? (
+                categories.map((cat) => {
+                  const id = cat.ID ?? cat.id ?? '';
+                  const name = cat.Name ?? cat.name ?? '';
+                  const color = cat.Color ?? cat.color ?? '#00C6FF';
+                  const topicCount = cat.TopicCount ?? cat.topic_count ?? 0;
+
+                  return (
+                    <Link
+                      key={id}
+                      href={`/topics?search=&category=${id}`}
+                      className="details-category-link"
+                    >
+                      <div className="details-text-box">
+                        <span
+                          className="category-title-color"
+                          style={{ backgroundColor: color }}
+                        ></span>
+                        <span className="details-category-title">{name}</span>
+                      </div>
+                      <span className="category-count">{topicCount}</span>
+                    </Link>
+                  );
+                })
+              ) : (
+                <span className="details-category-title">No categories yet</span>
+              )}
+            </div>
+          </details>
+          <Link href="/categories" className="nav-categories-btn">
+            Categories
+          </Link>
+          <Link href="/topics" className="nav-categories-btn">
+            Topics
+          </Link>
+        </div>
 
         {/* Category cards — mirrors buildCategoriesListHTML() */}
-        <CategoryList
-          categories={
-            selectedCategory
-              ? categories.filter(
-                  (c) => (c.id || c.ID) === (selectedCategory.id || selectedCategory.ID)
-                )
-              : categories
-          }
-        />
+        <CategoryList categories={categories} />
       </div>
     </>
   );
@@ -130,8 +129,8 @@ function HomeContent() {
 function CategoryList({ categories }: { categories: Category[] }) {
   if (!categories.length) {
     return (
-      <div className="categories-container" style={{ padding: '2rem', textAlign: 'center' }}>
-        <p style={{ color: 'var(--grey-color)' }}>No categories found. Check back later!</p>
+      <div className="categories-container">
+        <p className="no-topics-message">No categories found. Check back later!</p>
       </div>
     );
   }
@@ -146,20 +145,61 @@ function CategoryList({ categories }: { categories: Category[] }) {
 }
 
 function CategoryCard({ category: cat }: { category: Category }) {
-  const imgSrc = cat.ImagePath || cat.imagePath || '/images/categories/default_category.png';
+  const id = String(cat.ID ?? cat.id ?? '');
+  const name = cat.Name ?? cat.name ?? '';
+  const description = cat.Description ?? cat.description ?? '';
+  const color = cat.Color ?? cat.color ?? '#00C6FF';
+  const imagePath = cat.ImagePath ?? cat.image_path ?? '/images/categories/default_category.png';
+  console.log(imagePath);
 
-  const name = cat.Name || cat.name || '';
-  const description = cat.Description || cat.description || '';
+  const topics = Array.isArray(cat.Topics)
+    ? cat.Topics
+    : Array.isArray(cat.topics)
+      ? cat.topics
+      : [];
 
   return (
-    <div className="category" style={{ borderTop: `4px solid ${cat.Color}` }}>
-      <div className="category-img-box">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imgSrc} alt={name} className="category-img" />
+    <div className="category">
+      <div className="category-wrapper">
+        <div className="category-img-box">
+          <Link href={`/topics?search=&category=${id}`} className="category-link">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="category-img" src={imagePath} alt={name} />
+          </Link>
+        </div>
+        <div className="category-info">
+          <div className="category-info-box">
+            <Link href={`/topics?search=&category=${id}`} className="category-link">
+              <div className="category-title-box">
+                <span className="category-title-color" style={{ backgroundColor: color }}></span>
+                <span className="category-title">{name}</span>
+              </div>
+            </Link>
+            <p className="category-description">{description}</p>
+          </div>
+        </div>
       </div>
-      <div className="category-info">
-        <h3 className="category-name">{name}</h3>
-        <p className="category-description">{description}</p>
+      <div className="category-posts">
+        {topics.length > 0 ? (
+          topics.slice(0, 3).map((topic: Topic) => {
+            const topicID = String(topic.ID ?? topic.id ?? '');
+            const topicTitle = topic.Title ?? topic.title ?? 'Untitled';
+            const topicDate = formatRelativeDate(topic.CreatedAt ?? topic.created_at ?? '');
+
+            return (
+              <div key={topicID} className="category-post">
+                <Link href={`/topic/${topicID}`} className="topic-link">
+                  <span className="category-post-title">
+                    <span className="left-arrow">&#10147;</span> {topicTitle}
+                  </span>
+                </Link>
+                <span className="category-post-date">{topicDate}</span>
+              </div>
+            );
+          })
+        ) : (
+          <span className="category-post-date">No posts yet</span>
+        )}
       </div>
     </div>
   );
@@ -186,17 +226,24 @@ function HomeSkeleton() {
             style={{ width: 80, height: 40, borderRadius: 4 }}
           />
         </div>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="category category--skeleton">
-            <div className="category-img-box">
-              <div className="skeleton skeleton-img" />
+        <div className="categories-container">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="category category--skeleton">
+              <div className="category-wrapper">
+                <div className="skeleton skeleton-img" />
+                <div className="category-info-box">
+                  <div className="skeleton skeleton-title" />
+                  <div className="skeleton skeleton-desc" />
+                </div>
+              </div>
+              <div className="category-posts">
+                <div className="skeleton skeleton-post" />
+                <div className="skeleton skeleton-post" />
+                <div className="skeleton skeleton-post" />
+              </div>
             </div>
-            <div className="category-info">
-              <div className="skeleton skeleton-title" />
-              <div className="skeleton skeleton-desc" />
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </>
   );

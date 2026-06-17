@@ -10,22 +10,43 @@ export interface User {
 }
 
 export interface Category {
-  id: number;
-  name: string;
+  // Support both camelCase (API) and PascalCase (Go backend) field names
+  id?: number;
+  ID?: number;
+  name?: string;
+  Name?: string;
   description?: string;
+  Description?: string;
+  color?: string;
+  Color?: string;
+  image_path?: string;
+  ImagePath?: string;
+  topic_count?: number;
+  TopicCount?: number;
   topics?: Topic[];
-  created_at: string;
+  Topics?: Topic[];
+  created_at?: string;
+  CreatedAt?: string;
 }
 
 export interface Topic {
-  id: number;
-  title: string;
-  content: string;
-  user_id: number;
+  // Support both camelCase and PascalCase
+  id?: number;
+  ID?: number;
+  title?: string;
+  Title?: string;
+  content?: string;
+  Content?: string;
+  user_id?: number;
+  UserID?: number;
   username?: string;
+  Username?: string;
   category_id?: number;
-  created_at: string;
+  CategoryID?: number;
+  created_at?: string;
+  CreatedAt?: string;
   updated_at?: string;
+  UpdatedAt?: string;
 }
 
 export interface Comment {

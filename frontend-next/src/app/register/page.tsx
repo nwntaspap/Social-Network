@@ -178,7 +178,7 @@ function RegisterForm() {
   return (
     <>
       <div className="page-title-box">
-        <h1>Welcome to Forum</h1>
+        <h1>Welcome to SocialNet</h1>
       </div>
 
       <div className="signup-container">

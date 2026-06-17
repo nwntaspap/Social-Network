@@ -6,18 +6,7 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface Category {
-  id?: string;
-  ID?: string;
-  name?: string;
-  Name?: string;
-  description?: string;
-  Description?: string;
-  color?: string;
-  Color?: string;
-  imagePath?: string;
-  ImagePath?: string;
-}
+import type { Category, Topic } from './types';
 
 // ─── Color helpers (mirrors helpers/color.go + helpers.js) ───────────────────
 
@@ -48,15 +37,36 @@ function isValidHexColor(s: string): boolean {
 }
 
 /**
+ * Helper to normalize a color field that might be a string
+ */
+function normalizeColorField(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  return value.startsWith('#') ? value : `#${value}`;
+}
+
+/**
  * Mirrors prepareCategories() — normalises color on each category object.
  */
-export function prepareCategories(categories: Category[]): Category[] {
-  if (!Array.isArray(categories)) return [];
-  return categories.map((cat) => ({
-    ...cat,
-    Color: normalizeColor(cat.color || cat.Color),
-    ImagePath: cat.ImagePath || cat.imagePath,
-  }));
+export function prepareCategories(raw: Record<string, unknown>[]): Category[] {
+  return raw.map((cat) => {
+    const image = cat.imagePath as string | undefined;
+
+    const image_path = image ? '/' + image.replace(/^static\//, '') : undefined;
+
+    return {
+      ...cat,
+
+      id: cat.ID ?? cat.id,
+      ID: cat.ID ?? cat.id,
+
+      color: normalizeColorField(cat.Color ?? cat.color),
+
+      topics: (cat.topics as Topic[]) || (cat.Topics as Topic[]) || [],
+      Topics: (cat.Topics as Topic[]) || (cat.topics as Topic[]) || [],
+
+      image_path,
+    };
+  }) as Category[];
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────

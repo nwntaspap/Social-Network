@@ -12,12 +12,13 @@ export default function Footer() {
         <div className="footer-container">
           <p>Made with dedication and passion by</p>
           <div className="authors">
-            <span className="author">geoikonomou,</span>
-            <span className="author">epapamic,</span>
-            <span className="author">agkiata,</span>
-            <span className="author">sos247</span>
+            <span className="author">epapamic, </span>
+            <span className="author">geoikonomou, </span>
+            <span className="author">danikots, </span>
+            <span className="author">ekaramet, </span>
+            <span className="author">smichail</span>
           </div>
-          <span>- Forum © 2025 -</span>
+          <span className="project-rights">- SocialNet © 2026 -</span>
         </div>
       </div>
     </footer>
