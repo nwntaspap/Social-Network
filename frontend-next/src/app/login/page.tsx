@@ -66,17 +66,21 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
   const nicknameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (loginType === 'username') {
+  function handleLoginTypeChange(newType: LoginType) {
+    setLoginType(newType);
+
+    // Clear the opposite field
+    if (newType === 'username') {
       setEmail('');
       setEmailError('');
-      nicknameRef.current?.focus();
+      // Use setTimeout to ensure DOM has updated before focusing
+      setTimeout(() => nicknameRef.current?.focus(), 0);
     } else {
       setNickname('');
       setNicknameError('');
-      emailRef.current?.focus();
+      setTimeout(() => emailRef.current?.focus(), 0);
     }
-  }, [loginType]);
+  }
 
   function handleReset() {
     setNickname('');
@@ -189,7 +193,7 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
                     value="username"
                     className="login-type-radio"
                     checked={loginType === 'username'}
-                    onChange={() => setLoginType('username')}
+                    onChange={() => handleLoginTypeChange('username')}
                   />
                   <span>Username</span>
                 </label>
@@ -200,7 +204,7 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
                     value="email"
                     className="login-type-radio"
                     checked={loginType === 'email'}
-                    onChange={() => setLoginType('email')}
+                    onChange={() => handleLoginTypeChange('email')}
                   />
                   <span>Email</span>
                 </label>
