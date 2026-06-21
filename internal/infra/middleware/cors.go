@@ -8,7 +8,9 @@ type corsMiddleware struct {
 
 func (c *corsMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	origin := r.Header.Get("Origin")
+
+	w.Header().Set("Access-Control-Allow-Origin", origin)
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Access-Control-Expose-Headers", "X-Total-Count")
