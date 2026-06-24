@@ -49,6 +49,26 @@ func (r *Repo) CreateCategory(ctx context.Context, category *category.Category) 
 	return nil
 }
 
+func sanitizeOrder(order string) string {
+	orderUpper := strings.ToUpper(order)
+
+	if orderUpper == "ASC" {
+		return "ASC"
+	}
+
+	return "DESC"
+}
+
+func isOrderByWhitelisted(orderBy string) bool {
+	orderByWhitelist := map[string]bool{
+		"name":       true,
+		"created_by": true,
+		"created_at": true,
+	}
+
+	return orderByWhitelist[orderBy]
+}
+
 func (r *Repo) GetAllCategories(ctx context.Context, page, size int, orderBy, order, filter string) ([]category.Category, error) {
 	query := `
 	SELECT c.id, c.name, c.description, c.slug, c.color, c.image_path, c.created_at, c.created_by, COUNT(DISTINCT tc.topic_id) as topic_count
@@ -63,6 +83,12 @@ func (r *Repo) GetAllCategories(ctx context.Context, page, size int, orderBy, or
 		filterParam := "%" + filter + "%"
 		args = append(args, filterParam, filterParam)
 	}
+
+	if !isOrderByWhitelisted(orderBy) {
+		return nil, fmt.Errorf(`not whitelisted "order by": %s`, orderBy)
+	}
+
+	order = sanitizeOrder(order)
 
 	query += " GROUP BY c.id ORDER BY c." + orderBy + " " + order + " LIMIT ? OFFSET ?"
 	offset := (page - 1) * size
