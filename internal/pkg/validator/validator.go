@@ -344,3 +344,20 @@ func validOrderBy(value any) (bool, string) {
 	}
 	return orderByWhitelist[str], "must be a valid order by field"
 }
+
+func validOrder(value any) (bool, string) {
+	orderWhiteLIST := map[string]bool{
+		"DESC": true,
+		"ASC":  true,
+	}
+
+	str, ok := value.(string)
+	if !ok {
+		return false, InvalidType
+	}
+	if str == "" {
+		return true, ""
+	}
+	upper := strings.ToUpper(str)
+	return orderWhiteLIST[upper], "must be a valid order field"
+}
