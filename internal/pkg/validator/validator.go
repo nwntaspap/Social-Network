@@ -327,12 +327,29 @@ func validImagePath(value any) (bool, string) {
 
 // ValidateCreateComment validates the create comment request
 
-func validOrderBy(value any) (bool, string) {
+func validTopicOrderBy(value any) (bool, string) {
 	orderByWhitelist := map[string]bool{
 		"created_at": true,
 		"updated_at": true,
 		"title":      true,
 		"vote_score": true,
+	}
+
+	str, ok := value.(string)
+	if !ok {
+		return false, InvalidType
+	}
+	if str == "" {
+		return true, ""
+	}
+	return orderByWhitelist[str], "must be a valid order by field"
+}
+
+func validCategoryOrderBy(value any) (bool, string) {
+	orderByWhitelist := map[string]bool{
+		"name":       true,
+		"created_by": true,
+		"created_at": true,
 	}
 
 	str, ok := value.(string)

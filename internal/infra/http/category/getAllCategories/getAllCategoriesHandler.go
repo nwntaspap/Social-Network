@@ -8,6 +8,7 @@ import (
 	"social-network/internal/domain/category"
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
+	"social-network/internal/pkg/validator"
 	"strconv"
 
 	categoryqueries "social-network/internal/app/categories/queries"
@@ -50,6 +51,26 @@ func (h *Handler) GetAllCategories(w http.ResponseWriter, r *http.Request) {
 	orderBy := params.GetQueryStringOr("order_by", "created_at")
 	order := params.GetQueryStringOr("order", "desc")
 	filter := params.GetQueryStringOr("search", "")
+
+	val := validator.New()
+
+	validator.ValidateGetAllCategories(val, &struct {
+		OrderBy string
+		Order   string
+	}{
+		OrderBy: orderBy,
+		Order:   order,
+	})
+
+	if !val.Valid() {
+		h.Logger.PrintError(logger.ErrValidationFailed, val.Errors)
+		helpers.RespondWithError(
+			w,
+			http.StatusBadRequest,
+			val.ToStringErrors(),
+		)
+		return
+	}
 
 	categories, totalCount, err := h.UserServices.Queries.GetAllCategories.Handle(ctx, categoryqueries.GetAllCategoriesRequest{
 		OrderBy: orderBy,
