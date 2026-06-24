@@ -138,7 +138,7 @@ func LoadConfig() (*ServerConfig, error) {
 			Path:           resolver.GetPath(helpers.GetEnv("DB_PATH", envMap, "data/forum.db")),
 			MigrateOnStart: helpers.GetEnvBool("DB_MIGRATE_ON_START", envMap, true),
 			SeedOnStart:    helpers.GetEnvBool("DB_SEED_ON_START", envMap, true),
-			Pragma:         helpers.GetEnv("DB_PRAGMA", envMap, "_foreign_keys=on&_journal_mode=WAL"),
+			Pragma:         helpers.GetEnv("DB_PRAGMA", envMap, "_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000"),
 			OpenConn:       helpers.GetEnvInt("DB_OPEN_CONN", envMap, 1),
 		},
 		SessionManager: SessionManagerConfig{
