@@ -115,7 +115,7 @@ func execSQLFile(db *sql.DB, path string) error {
 		}
 	}()
 
-	statements := strings.SplitSeq(string(content), ":")
+	statements := strings.SplitSeq(string(content), ";")
 	for stmt := range statements {
 		trimmed := strings.TrimSpace(stmt)
 		if trimmed == "" {
