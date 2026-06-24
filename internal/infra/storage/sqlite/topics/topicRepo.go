@@ -347,6 +347,14 @@ func (r Repo) GetTotalTopicsCount(ctx context.Context, filter string, categoryID
 	return totalCount, nil
 }
 
+func sanititizeOrder(order string) string {
+	if strings.ToUpper(order) == "DESC" {
+		return "DESC"
+	}
+
+	return "ASC"
+}
+
 func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orderBy, order, filter string, userID *string) ([]topic.Topic, error) {
 	query := `
     SELECT 
@@ -418,6 +426,8 @@ func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orde
 	if orderBy == "vote_score" {
 		orderByClause = "vote_counts.score"
 	}
+
+	order = sanititizeOrder(order)
 
 	query += " ORDER BY " + orderByClause + " " + order + " LIMIT ? OFFSET ?"
 	offset := (page - 1) * size

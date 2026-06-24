@@ -147,6 +147,12 @@ func ValidateGetAllTopics(v *Validator, data any) {
 			},
 		},
 		{
+			Field: "Order",
+			Rules: []func(any) (bool, string){
+				optional(validOrder),
+			},
+		},
+		{
 			Field: "Page",
 			Rules: []func(any) (bool, string){
 				required,
