@@ -347,11 +347,11 @@ func (r Repo) GetTotalTopicsCount(ctx context.Context, filter string, categoryID
 }
 
 func sanitizeOrder(order string) string {
-	if strings.ToUpper(order) == "DESC" {
-		return "DESC"
+	if strings.ToUpper(order) == "ASC" {
+		return "ASC"
 	}
 
-	return "ASC"
+	return "DESC"
 }
 
 func isOrderByWhitelisted(orderby string) bool {
