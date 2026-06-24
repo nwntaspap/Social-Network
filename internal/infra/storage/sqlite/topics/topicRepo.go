@@ -347,12 +347,23 @@ func (r Repo) GetTotalTopicsCount(ctx context.Context, filter string, categoryID
 	return totalCount, nil
 }
 
-func sanititizeOrder(order string) string {
+func sanitizeOrder(order string) string {
 	if strings.ToUpper(order) == "DESC" {
 		return "DESC"
 	}
 
 	return "ASC"
+}
+
+func isOrderByWhitelisted(orderby string) bool {
+	orderByWhitelist := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+		"title":      true,
+		"vote_score": true,
+	}
+
+	return orderByWhitelist[orderby]
 }
 
 func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orderBy, order, filter string, userID *string) ([]topic.Topic, error) {
@@ -421,13 +432,17 @@ func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orde
 		query += ", user_votes.reaction_type"
 	}
 
+	if !isOrderByWhitelisted(orderBy) {
+		return nil, fmt.Errorf(`not whitelisted "order by":%s`, orderBy)
+	}
+
 	orderByClause := "t." + orderBy
 
 	if orderBy == "vote_score" {
 		orderByClause = "vote_counts.score"
 	}
 
-	order = sanititizeOrder(order)
+	order = sanitizeOrder(order)
 
 	query += " ORDER BY " + orderByClause + " " + order + " LIMIT ? OFFSET ?"
 	offset := (page - 1) * size
