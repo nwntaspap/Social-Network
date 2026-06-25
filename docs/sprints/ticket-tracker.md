@@ -24,7 +24,7 @@ For step-by-step ticket instructions, see individual sprint files:
 ### BE-B (Backend B)
 
 - [x] **S0-BE-03:** Makefile + CI Pipeline
-- [ ] **S0-BE-04:** Bug Fixes (B1.3, B1.4, B1.6, B1.7, B1.8)
+- [x] **S0-BE-04:** Bug Fixes (B1.3, B1.4, B1.6, B1.7, B1.8)
 
 ### FE-A (Frontend A)
 
