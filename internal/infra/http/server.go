@@ -421,7 +421,7 @@ func (server *Server) AddHTTPRoutes() {
 	server.router.HandleFunc(
 		apiContext+"/ws",
 		middlewareChain(
-			wshttp.NewHandler(server.hub, server.wsRouter, server.logger).UpgradeConnection,
+			wshttp.NewHandler(server.hub, server.wsRouter, server.logger, server.config.AllowedOrigins).UpgradeConnection,
 			server.middleware.Authorization.Required,
 		),
 	)
