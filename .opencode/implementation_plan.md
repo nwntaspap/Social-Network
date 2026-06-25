@@ -23,7 +23,7 @@ All quality gates are implemented as standard Go code within `internal/gates/` a
 
 ### Gates Taxonomy
 
-1. **`stack`**: Verifies Go version is 1.24 and module path is `social-network`.
+1. **`stack`**: Verifies Go version is 1.25 and module path is `social-network`.
 2. **`d1-layout`**: Verifies D1 vertical slice folder layout.
 3. **`d5-boundaries`**: Invokes `golangci-lint run --enable-only=depguard` to enforce D5 boundaries, with an AST fallback that also checks feature root files.
 4. **`d6-dag`**: Checks for circular imports between features via `go-arch-lint check` or a custom DFS fallback. Blocks `notification` package imports.
@@ -36,7 +36,7 @@ All quality gates are implemented as standard Go code within `internal/gates/` a
 
 ## Makefile Targets
 
-- `make review-gates`: Runs `go run cmd/gates/main.go --all`
+- `make gates`: Runs `go run cmd/gates/main.go --all`
 - `make ci`: Runs full backend CI checks (format, lint, test)
 - `make fe-ci`: Runs frontend ESLint + Prettier/Vitest/build checks
 - `make setup-hooks`: Installs and configures Lefthook hooks

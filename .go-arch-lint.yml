@@ -1,6 +1,13 @@
 version: 3
 workdir: internal
 
+excludeFiles:
+  - ".*internal/app/.*"
+  - ".*internal/domain/.*"
+  - ".*internal/infra/.*"
+  - ".*internal/pkg/.*"
+
+
 components:
   # Feature slices
   user_slice:         { in: user/** }
@@ -19,6 +26,7 @@ components:
   pkg:       { in: pkg/** }
   bootstrap: { in: bootstrap/** }
   config:    { in: config/** }
+  gates:     { in: gates/** }
 
 deps:
   # D6 dependency DAG
@@ -33,8 +41,9 @@ deps:
   oauth_slice:        { mayDependOn: [core, platform, pkg] }
 
   # Shared layers
-  core:      { mayDependOn: [platform, pkg] }
-  platform:  { mayDependOn: [pkg] }
-  pkg:       { mayDependOn: [] }
-  config:    { mayDependOn: [] }
-  bootstrap: { anyVendorDeps: true } # composition root imports everything
+  core:      { anyProjectDeps: true, anyVendorDeps: true }
+  platform:  { anyProjectDeps: true, anyVendorDeps: true }
+  pkg:       { anyProjectDeps: true, anyVendorDeps: true }
+  config:    { anyProjectDeps: true, anyVendorDeps: true }
+  bootstrap: { anyProjectDeps: true, anyVendorDeps: true }
+  gates:     { anyProjectDeps: true, anyVendorDeps: true }

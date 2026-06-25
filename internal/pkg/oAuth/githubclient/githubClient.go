@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"social-network/internal/pkg/oAuth/httpclient"
 	"strconv"
 	"strings"
+
+	"social-network/internal/pkg/oAuth/httpclient"
 
 	oauth "social-network/internal/pkg/oAuth"
 )

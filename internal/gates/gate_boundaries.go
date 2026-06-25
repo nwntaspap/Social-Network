@@ -3,6 +3,7 @@ BoundariesGate validates D5 import boundary rules between packages.
 It uses 'golangci-lint run --enable-only=depguard' to check boundaries,
 with an AST-based parser fallback if golangci-lint is not installed.
 */
+
 package gates
 
 import (
@@ -23,22 +24,33 @@ type BoundariesGate struct {
 func (g *BoundariesGate) Name() string { return "d5-boundaries" }
 
 func (g *BoundariesGate) Run() Result {
+	what := "import boundaries between vertical slices and layers"
+	why := "to prevent modularity leaks and ensure domain logic remains decoupled from transport and store implementations"
+
 	// Try golangci-lint first (depguard rules in .golangci.yml)
 	if toolAvailable("golangci-lint") {
 		cmd := ExecCommand("golangci-lint", "run", "--enable-only=depguard", "--timeout=5m")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			// Non-zero exit = violations found
-			return Result{Gate: g.Name(), Status: "FAIL", Message: "depguard violations:\n" + string(out)}
+			return Result{
+				Gate:    g.Name(),
+				Status:  "FAIL",
+				Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - depguard violations:\n%s | debug: run 'golangci-lint run --enable-only=depguard'", what, why, string(out)),
+			}
 		}
-		return Result{Gate: g.Name(), Status: "PASS", Message: "D5 boundaries OK (golangci-lint depguard)"}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "PASS",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: OK - no forbidden imports found (verified via golangci-lint depguard)", what, why),
+		}
 	}
 
 	// Fallback: AST-based check
-	return g.runAST()
+	return g.runAST(what, why)
 }
 
-func (g *BoundariesGate) runAST() Result {
+func (g *BoundariesGate) runAST(what, why string) Result {
 	dir := g.InternalDir
 	if dir == "" {
 		dir = "internal"
@@ -46,7 +58,11 @@ func (g *BoundariesGate) runAST() Result {
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return Result{Gate: g.Name(), Status: "SKIP", Message: fmt.Sprintf("cannot read %s: %v", dir, err)}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "SKIP",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: SKIP - cannot read %s: %v", what, why, dir, err),
+		}
 	}
 
 	// Get working directory for path trimming
@@ -55,7 +71,7 @@ func (g *BoundariesGate) runAST() Result {
 	var errors []string
 
 	for _, e := range entries {
-		if !e.IsDir() || skipDirs[e.Name()] {
+		if !e.IsDir() || !isFeatureSlice(dir, e.Name()) {
 			continue
 		}
 		featureDir := filepath.Join(dir, e.Name())
@@ -77,9 +93,17 @@ func (g *BoundariesGate) runAST() Result {
 	}
 
 	if len(errors) > 0 {
-		return Result{Gate: g.Name(), Status: "FAIL", Message: strings.Join(errors, "; ")}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "FAIL",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - %s | debug: review AST boundary import violations", what, why, strings.Join(errors, "; ")),
+		}
 	}
-	return Result{Gate: g.Name(), Status: "PASS", Message: "D5 boundaries OK (AST fallback)"}
+	return Result{
+		Gate:    g.Name(),
+		Status:  "PASS",
+		Message: fmt.Sprintf("checked: %s | why: %s | status: OK - no forbidden imports found (verified via AST fallback)", what, why),
+	}
 }
 
 // checkRootImports parses Go files directly in the featureDir (not subdirectories)

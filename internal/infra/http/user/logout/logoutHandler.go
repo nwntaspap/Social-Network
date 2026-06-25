@@ -2,6 +2,7 @@ package logout
 
 import (
 	"net/http"
+
 	"social-network/internal/domain/session"
 	"social-network/internal/infra/http/authcookies"
 	"social-network/internal/infra/logger"

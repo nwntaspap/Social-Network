@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"social-network/internal/domain/comment"
 	"time"
+
+	"social-network/internal/domain/comment"
 )
 
 type Repo struct {

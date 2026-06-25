@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+
 	"social-network/internal/domain/activity"
 	"social-network/internal/domain/category"
 	"social-network/internal/domain/chat"

@@ -3,12 +3,13 @@ package getallcategories
 import (
 	"context"
 	"net/http"
+	"strconv"
+
 	"social-network/internal/app"
 	"social-network/internal/config"
 	"social-network/internal/domain/category"
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
-	"strconv"
 
 	categoryqueries "social-network/internal/app/categories/queries"
 )

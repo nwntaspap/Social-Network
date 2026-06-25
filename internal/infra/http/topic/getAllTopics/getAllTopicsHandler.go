@@ -3,6 +3,8 @@ package getalltopics
 import (
 	"context"
 	"net/http"
+	"strconv"
+
 	"social-network/internal/app"
 	"social-network/internal/config"
 	"social-network/internal/domain/category"
@@ -11,7 +13,6 @@ import (
 	"social-network/internal/infra/middleware"
 	"social-network/internal/pkg/helpers"
 	"social-network/internal/pkg/validator"
-	"strconv"
 
 	topicQueries "social-network/internal/app/topics/queries"
 )

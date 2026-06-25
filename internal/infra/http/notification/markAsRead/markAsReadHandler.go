@@ -2,8 +2,9 @@ package markasread
 
 import (
 	"net/http"
-	"social-network/internal/infra/middleware"
 	"strconv"
+
+	"social-network/internal/infra/middleware"
 
 	notificationcommands "social-network/internal/app/notifications/commands"
 )

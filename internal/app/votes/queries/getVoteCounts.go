@@ -2,6 +2,7 @@ package votequeries
 
 import (
 	"context"
+
 	"social-network/internal/domain/vote"
 )
 

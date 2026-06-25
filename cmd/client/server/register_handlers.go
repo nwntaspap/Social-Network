@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
+
 	"social-network/cmd/client/domain"
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/middleware"
-	"strings"
 
 	val "social-network/internal/pkg/validator"
 )

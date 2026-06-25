@@ -23,7 +23,7 @@
 - [ ] **Backend**: `make be-ci` — runs ci-mod → format → check-format → lint (staticcheck + golangci-lint + govulncheck) → test (race + coverage)
 
 ### ✅ Frontend Verification (`make fe-ci`)
-- [ ] **Frontend**: `make fe-ci` — runs `bun run lint` (Biome) → `bun run format:check` (Biome) → `tsc --noEmit` → `bun run test` (Vitest)
+- [ ] **Frontend**: `make fe-ci` — runs `bun run lint` (ESLint) → `bun run format:check` (Prettier) → `tsc --noEmit` → `bun run test` (Vitest)
 
 ### 📋 Feature Traceability
 | Slice | Layer Affected | Status | Evidence |

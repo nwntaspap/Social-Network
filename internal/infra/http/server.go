@@ -5,6 +5,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
+	"time"
+
 	"social-network/internal/app"
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
@@ -15,8 +18,6 @@ import (
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
 	"social-network/internal/infra/ws"
-	"strings"
-	"time"
 
 	getuseractivity "social-network/internal/infra/http/activity/getUserActivity"
 

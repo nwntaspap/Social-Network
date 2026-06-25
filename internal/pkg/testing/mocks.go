@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+
 	"social-network/internal/domain/session"
 	"social-network/internal/domain/topic"
 	"social-network/internal/domain/user"

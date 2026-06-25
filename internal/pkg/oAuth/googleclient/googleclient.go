@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"social-network/internal/pkg/oAuth/httpclient"
 	"strings"
+
+	"social-network/internal/pkg/oAuth/httpclient"
 
 	oauth "social-network/internal/pkg/oAuth"
 )

@@ -1,9 +1,10 @@
 package testhelpers
 
 import (
+	"testing"
+
 	"social-network/internal/domain/topic"
 	"social-network/internal/domain/user"
-	"testing"
 )
 
 func AssertUserMatch(t *testing.T, got, want *user.User) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
 	"social-network/internal/infra/http"

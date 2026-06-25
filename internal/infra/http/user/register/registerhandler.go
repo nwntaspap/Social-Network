@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"social-network/internal/app"
-	usercommands "social-network/internal/app/user/commands"
 	"social-network/internal/config"
 	"social-network/internal/domain/session"
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
 	"social-network/internal/pkg/validator"
+
+	usercommands "social-network/internal/app/user/commands"
 )
 
 type RegisterUserReguestModel struct {

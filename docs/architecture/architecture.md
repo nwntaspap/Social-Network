@@ -21,8 +21,12 @@ The project is structured around self-contained vertical slices inside `internal
 ```
 .
 ├── cmd/
-│   └── server/
-│       └── main.go         # Application entry point & service bootstrap configuration
+│   ├── server/
+│   │   └── main.go         # Application entry point & service bootstrap configuration
+│   ├── gates/
+│   │   └── main.go         # CLI runner for verification gates
+│   └── client/
+│       └── main.go         # CLI client for testing/ops
 ├── db/
 │   └── migrations/         # Numbered database up/down migration SQL scripts (includes optional seed data via 000009_seed_data)
 ├── internal/
@@ -49,6 +53,10 @@ The project is structured around self-contained vertical slices inside `internal
 │   │   ├── cache/          # In-memory and Redis cache interfaces
 │   │   ├── database/       # DB factory (SQLite/PostgreSQL interface)
 │   │   └── eventbus/       # Async event publishing & subscription
+│   #
+│   #
+│   # ─── Quality Gates ───
+│   ├── gates/              # Deterministic verification gates (boundaries, DAG, security, coverage, TDD, etc.)
 │   #
 │   # ─── Bootstrap & Config ───
 │   ├── bootstrap/          # Composition root (wiring slices and platform services)
@@ -79,6 +87,7 @@ internal/<feature>/
 ```
 
 **Why this layout:**
+
 - The **commands/ and queries/** layer is where complexity lives (privacy checks, event publishing, MIME validation). Splitting it per use case isolates each operation.
 - The **store** layer is thin SQL (5–15 lines per method). One file per feature keeps all queries reviewable in one place.
 - The **transport** layer is a thin HTTP adapter. One file per feature avoids handler fragmentation.
@@ -98,11 +107,11 @@ To keep vertical slices clean and decouple business logic from infrastructure de
 
 To prevent circular dependencies and tight coupling, features interact via three defined patterns:
 
-| Integration Type | Strategy | Implementation Example |
-|------------------|----------|------------------------|
-| **Data References** | ID-only mapping | A `Comment` struct contains an `AuthorID string` rather than embedding a `User` struct. |
-| **Synchronous Queries** | Consumer-defined interfaces | `internal/chat/commands/send_private_msg.go` defines a narrow local `FollowChecker` interface, which is satisfied by `internal/follow` during bootstrapping. |
-| **Asynchronous Effects** | Event Bus pub/sub | `internal/follow/commands/follow_user.go` publishes a `follow.requested` event. `internal/notification/commands/consume_events.go` subscribes to it to dispatch alerts. |
+| Integration Type         | Strategy                    | Implementation Example                                                                                                                                                  |
+| ------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Data References**      | ID-only mapping             | A `Comment` struct contains an `AuthorID string` rather than embedding a `User` struct.                                                                                 |
+| **Synchronous Queries**  | Consumer-defined interfaces | `internal/chat/commands/send_private_msg.go` defines a narrow local `FollowChecker` interface, which is satisfied by `internal/follow` during bootstrapping.            |
+| **Asynchronous Effects** | Event Bus pub/sub           | `internal/follow/commands/follow_user.go` publishes a `follow.requested` event. `internal/notification/commands/consume_events.go` subscribes to it to dispatch alerts. |
 
 ---
 
@@ -132,11 +141,13 @@ Vote logic is absorbed into `topic/` and `comment/` — there is no standalone `
 ## 6. Technology Stack & Runtime Infrastructure
 
 ### Backend (Go)
+
 - **Database Engine**: Handled via `platform/database.DB`. Defaults to SQLite with Write-Ahead Logging (`WAL`) enabled and busy timeout (`_busy_timeout=5000`) configured to prevent locking. Portability for PostgreSQL is built-in. Seed data migration (`000009_seed_data`) available as a bonus feature.
 - **WebSocket Protocol**: Built-in HTTP upgrade routing to `internal/core/realtime/` with token verification on handshake. Chat messages support Unicode/emoji via standard UTF-8 JSON encoding.
 - **Asynchronous Processing**: In-process channel-based Event Bus for localized operations. Portability for RabbitMQ is built-in.
 
 ### Frontend (Next.js)
+
 - **Architecture**: Next.js App Router providing server and client-side rendering.
 - **Component Library**: **shadcn/ui** is used for core reusable elements (buttons, inputs, dialogs, cards, dropdowns, etc.), providing accessible and customizable components.
 - **Styling**: **Tailwind CSS** coupled with Vanilla CSS overrides for the design system (glassmorphism, dark/light themes, customized HSL color palettes, and interactive transitions).
@@ -145,6 +156,7 @@ Vote logic is absorbed into `topic/` and `comment/` — there is no standalone `
 - **Full spec**: See [SDS §6](sds.md#6-frontend-specifications-nextjs-tailwind-css--shadcnui) for detailed frontend specifications.
 
 ### Docker
+
 - **Two containers**: Backend (Go, port 8080) and Frontend (Next.js, port 3000), orchestrated via `docker-compose.yml`.
 - **Build script**: Optional `scripts/docker-build.sh` convenience script for automated image building and container startup.
 
@@ -156,77 +168,95 @@ Quick-reference for all tools used across the software development lifecycle.
 
 ### Backend (Go)
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Build | `go build` | `Dockerfile` (multi-stage) |
-| Testing | `go test -race -coverprofile` | `Makefile` `test` |
-| Linting (aggregator, 30+ linters) | `golangci-lint` v2.2.1 | `.golangci.yml` |
-| Linting (static analysis) | `staticcheck` | `Makefile` `lint` |
-| Linting (official) | `go vet` | `.golangci.yml`, CLI |
-| Formatting | `gofmt -s`, `gofumpt` | `Makefile` `format`, `.golangci.yml` |
-| Imports | `goimports`, `gci` | `Makefile` `format`, `.golangci.yml` |
-| Modules | `go mod tidy` | `Makefile` `ci-mod` |
-| Benchmarking | `benchstat` | `Makefile` |
-| Profiling | `go tool pprof` | `Makefile` |
-| Vuln scanning | `govulncheck` | Manual / CI |
+| Phase                             | Tool                          | Where                                |
+| --------------------------------- | ----------------------------- | ------------------------------------ |
+| Build                             | `go build`                    | `Dockerfile` (multi-stage)           |
+| Testing                           | `go test -race -coverprofile` | `Makefile` `test`                    |
+| Linting (aggregator, 30+ linters) | `golangci-lint` v2.2.1        | `.golangci.yml`                      |
+| Linting (static analysis)         | `staticcheck`                 | `Makefile` `lint`                    |
+| Linting (official)                | `go vet`                      | `.golangci.yml`, CLI                 |
+| Formatting                        | `gofmt -s`, `gofumpt`         | `Makefile` `format`, `.golangci.yml` |
+| Imports                           | `goimports`, `gci`            | `Makefile` `format`, `.golangci.yml` |
+| Modules                           | `go mod tidy`                 | `Makefile` `ci-mod`                  |
+| Benchmarking                      | `benchstat`                   | `Makefile`                           |
+| Profiling                         | `go tool pprof`               | `Makefile`                           |
+| Vuln scanning                     | `govulncheck`                 | Manual / CI                          |
 
 ### Frontend (Bun)
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Runtime | Bun | `package.json` (scripts) |
-| Package manager | Bun | `bun.lock` |
-| Linting + formatting | ESLint + Prettier | `eslint.config.mjs` + `.prettierrc` |
-| Type checking | `tsc --noEmit` | `package.json` |
-| Unit/component tests | Vitest (planned) | `vitest.config.ts` |
-| E2E tests | Playwright (planned) | `playwright.config.ts` |
+| Phase                | Tool                 | Where                               |
+| -------------------- | -------------------- | ----------------------------------- |
+| Runtime              | Bun                  | `package.json` (scripts)            |
+| Package manager      | Bun                  | `bun.lock`                          |
+| Linting + formatting | ESLint + Prettier    | `eslint.config.mjs` + `.prettierrc` |
+| Type checking        | `tsc --noEmit`       | `package.json`                      |
+| Unit/component tests | Vitest (planned)     | `vitest.config.ts`                  |
+| E2E tests            | Playwright (planned) | `playwright.config.ts`              |
 
 ### Infrastructure & CI
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Containers | Docker (multi-stage) | `Dockerfile` |
-| Orchestration | Docker Compose v5.1.1 | `docker-compose.yml` |
-| Dev TLS | `openssl` | `scripts/makecerts.sh` |
-| CI pipeline | Makefile `ci` target | `Makefile` |
-| Pre-commit hooks | Lefthook | `lefthook.yml` |
-| Verification gates | `cmd/gates/main.go` | `Makefile` `review-gates` |
-| Go arch lint | `go-arch-lint` | `.go-arch-lint.yml` |
-| Security scan | `gosec` | `Makefile` / gates |
+| Phase              | Tool                  | Where                  |
+| ------------------ | --------------------- | ---------------------- |
+| Containers         | Docker (multi-stage)  | `Dockerfile`           |
+| Orchestration      | Docker Compose v5.1.1 | `docker-compose.yml`   |
+| Dev TLS            | `openssl`             | `scripts/makecerts.sh` |
+| CI pipeline        | Makefile `ci` target  | `Makefile`             |
+| Pre-commit hooks   | Lefthook              | `lefthook.yml`         |
+| Verification gates | `cmd/gates/main.go`   | `make gates`           |
+| Go arch lint       | `go-arch-lint`        | `.go-arch-lint.yml`    |
+| Security scan      | `gosec`               | `Makefile` / gates     |
 
-### CI Pipeline (`make ci`)
+### CI Pipeline (`make ci` / `make be-ci-new`)
 
-**`make ci`** runs the full gate: backend + frontend.
+During local development and PR verification, the CI pipeline is split into legacy blanket targets and scoped new-code targets:
 
-**Backend** (`make be-ci`):
+**New-Code Scoped CI** (`make be-ci-new`):
+
+```
+ci-mod → check-format-new → lint-new (staticcheck-new + golangci-lint-new + vet-new + vulncheck-new + gosec-new) → test-new
+```
+
+> This pipeline is scoped exclusively to `NEW_DIRS` (the vertical slices under `internal/`, bootstrap, core, config, platform, gates, etc.), avoiding failures on legacy code.
+
+**Legacy Blanket CI** (`make be-ci`):
+
 ```
 ci-mod → check-format → lint (staticcheck + golangci-lint + govulncheck) → test
 ```
-> `check-format` verifies formatting without modifying. Use `make format` to auto-format before committing.
+
+> Runs checks across the entire codebase (informational, not blocking PRs).
 
 **Frontend** (`make fe-ci`):
+
 ```
 bun run lint → bun run format:check → tsc --noEmit → bun run test
 ```
 
-### Verification Gates (`make review-gates`)
+> Automatically targets the new `frontend-next/` directory if it exists, falling back to legacy `frontend/`, or skips if not scaffolded.
 
-Go-based deterministic gates under `cmd/gates/main.go` enforce architectural and convention rules:
+### Verification Gates (`make gates`)
 
-| Gate | Tool/Fallback | What It Checks |
-|------|---------------|----------------|
-| Stack | go version / go.mod | Go ≥ 1.24, module path `social-network` |
-| Layout | os.Stat | Target directory structure exists |
-| Boundaries | golangci-lint depguard / AST | D5 — forbidden cross-slice imports |
-| DAG | go-arch-lint / DFS | D6 — dependency graph acyclicity |
-| TDD | os.Stat | Test files exist per command/query |
-| Migrations | glob / grep | Migration naming (`NNNNNN_name.up.sql`), delimiter (`";"`) |
-| Security | gosec / custom AST | SQL concat, WebSocket CheckOrigin, bcrypt cost |
-| Branch | regex | Branch naming convention `<user>/<ticket>-<detail>` |
-| Coverage | git worktree + go test | Test coverage threshold (>90%) |
-| ScopeDrift | git diff | Unplanned file changes |
+Go-based deterministic gates under `internal/gates/` enforce architectural and convention rules. `make gates` is decoupled from the legacy CI and executes:
 
-Output: JSON with exit codes. Run via `make review-gates` or `go run cmd/gates/main.go --all`.
+1. `go build ./...` — Compiles all code (legacy + new) for build safety.
+2. `go run cmd/gates/main.go --all` — Runs the Go verification gates.
+3. `make be-ci-new` — Performs the scoped CI pipeline on the new codebase.
+4. `make fe-ci` — Performs the scoped CI pipeline on the frontend.
+
+| Gate       | Tool/Fallback                | What It Checks                                                                     |
+| ---------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| Stack      | go version / go.mod          | Go ≥ 1.25, module path `social-network`                                            |
+| Layout     | os.Stat                      | Target directory structure exists                                                  |
+| Boundaries | golangci-lint depguard / AST | D5 — forbidden cross-slice imports                                                 |
+| DAG        | go-arch-lint / DFS           | D6 — dependency graph acyclicity                                                   |
+| TDD        | os.Stat                      | Test files exist per command/query                                                 |
+| Migrations | glob / grep                  | Migration naming (`NNNNNN_name.up.sql`), delimiter (`";"`)                         |
+| Security   | gosec / custom AST           | SQL concat, WebSocket CheckOrigin, bcrypt cost                                     |
+| Branch     | regex                        | Branch naming convention `<user>/<ticket>-<detail>` (includes `dev` scope support) |
+| Coverage   | git worktree + go test       | Test coverage threshold (>90%)                                                     |
+| ScopeDrift | git diff                     | Unplanned file changes                                                             |
+
+Output: JSON with exit codes. Run via `make gates` or `go run cmd/gates/main.go --all`.
 
 ### Pre-commit / Pre-push Hooks (Lefthook)
 

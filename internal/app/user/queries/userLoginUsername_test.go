@@ -3,8 +3,9 @@ package userqueries
 import (
 	"context"
 	"errors"
-	"social-network/internal/domain/user"
 	"testing"
+
+	"social-network/internal/domain/user"
 
 	testhelpers "social-network/internal/pkg/testing"
 )

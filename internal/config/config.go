@@ -3,11 +3,12 @@ package config
 import (
 	"errors"
 	"os"
-	"social-network/internal/pkg/helpers"
-	"social-network/internal/pkg/path"
 	"strconv"
 	"strings"
 	"time"
+
+	"social-network/internal/pkg/helpers"
+	"social-network/internal/pkg/path"
 )
 
 const (

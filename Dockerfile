@@ -2,7 +2,7 @@
 # Builds both backend API server and frontend client server
 
 # Stage 1: Build both binaries
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies for SQLite3 (CGO required)
 RUN apk add --no-cache gcc musl-dev sqlite-dev
