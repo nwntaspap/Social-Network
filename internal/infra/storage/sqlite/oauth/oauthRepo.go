@@ -183,7 +183,6 @@ func (r *Repo) GetOAuthProvider(ctx context.Context, userID string, provider oau
 	defer stmt.Close()
 
 	err = stmt.QueryRowContext(ctx, userID, string(provider)).Scan(
-		ctx,
 		&oauthUser.ProviderID,
 		&oauthUser.Email,
 		&oauthUser.Username,
