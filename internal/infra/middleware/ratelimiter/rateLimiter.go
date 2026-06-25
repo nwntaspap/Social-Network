@@ -21,6 +21,7 @@ type RateLimiter struct {
 	Limit           int
 	windowSize      int64
 	cleanupInterval time.Duration
+	stop            chan struct{}
 }
 
 func NewRateLimiter(limit int, windowSeconds int64, cleanup time.Duration) *RateLimiter {
@@ -29,6 +30,7 @@ func NewRateLimiter(limit int, windowSeconds int64, cleanup time.Duration) *Rate
 		Limit:           limit,
 		windowSize:      windowSeconds,
 		cleanupInterval: cleanup,
+		stop:            make(chan struct{}),
 	}
 
 	go rl.cleanup()
@@ -92,16 +94,24 @@ func (rl *RateLimiter) cleanup() {
 	ticker := time.NewTicker(rl.cleanupInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		rl.mu.Lock()
-		now := time.Now().Unix()
+	for {
+		select {
+		case <-ticker.C:
+			rl.mu.Lock()
+			now := time.Now().Unix()
 
-		for ip, client := range rl.clients {
-			if now-client.currentWindow.startTime > rl.windowSize*2 {
-				delete(rl.clients, ip)
+			for ip, client := range rl.clients {
+				if now-client.currentWindow.startTime > rl.windowSize*2 {
+					delete(rl.clients, ip)
+				}
 			}
+			rl.mu.Unlock()
+		case <-rl.stop:
+			return
 		}
-
-		rl.mu.Unlock()
 	}
+}
+
+func (rl *RateLimiter) Stop() {
+	close(rl.stop)
 }
