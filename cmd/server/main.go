@@ -25,5 +25,6 @@ func main() {
 
 	app := bootstrap.Bootstrap(db, cfg)
 	HTTPServer := http.NewServer(cfg, app)
+	defer HTTPServer.Close()
 	HTTPServer.ListenAndServe()
 }
