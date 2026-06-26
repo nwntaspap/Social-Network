@@ -42,6 +42,7 @@ func (c *Client) ReadPump(onMessage func(client *Client, msg []byte)) {
 		c.hub.Unregister(c)
 		c.conn.Close()
 	}()
+	defer recoverWS()
 
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -67,9 +68,11 @@ func (c *Client) ReadPump(onMessage func(client *Client, msg []byte)) {
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		c.hub.Unregister(c)
 		ticker.Stop()
 		c.conn.Close()
 	}()
+	defer recoverWS()
 
 	for {
 		select {
@@ -91,5 +94,11 @@ func (c *Client) WritePump() {
 				return
 			}
 		}
+	}
+}
+
+func recoverWS() {
+	if r := recover(); r != nil {
+		log.Printf("ws panic: %v", r)
 	}
 }
