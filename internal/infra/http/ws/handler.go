@@ -51,7 +51,6 @@ func (h *Handler) UpgradeConnection(w http.ResponseWriter, r *http.Request) {
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		h.logger.PrintError(err, nil)
-		http.Error(w, "could not upgrade connection", http.StatusInternalServerError)
 		return
 	}
 
