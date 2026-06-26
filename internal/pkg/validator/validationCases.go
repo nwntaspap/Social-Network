@@ -143,7 +143,13 @@ func ValidateGetAllTopics(v *Validator, data any) {
 		{
 			Field: "OrderBy",
 			Rules: []func(any) (bool, string){
-				optional(validOrderBy),
+				optional(validTopicOrderBy),
+			},
+		},
+		{
+			Field: "Order",
+			Rules: []func(any) (bool, string){
+				optional(validOrder),
 			},
 		},
 		{
@@ -187,6 +193,25 @@ func ValidateDeleteTopic(v *Validator, data any) {
 			Rules: []func(any) (bool, string){
 				required,
 				isPositiveInt,
+			},
+		},
+	}
+
+	ValidateStruct(v, data, rules)
+}
+
+func ValidateGetAllCategories(v *Validator, data any) {
+	rules := []ValidationRule{
+		{
+			Field: "OrderBy",
+			Rules: []func(any) (bool, string){
+				optional(validCategoryOrderBy),
+			},
+		},
+		{
+			Field: "Order",
+			Rules: []func(any) (bool, string){
+				optional(validOrder),
 			},
 		},
 	}

@@ -50,8 +50,19 @@ func InitializeDB(cfg config.ServerConfig) (*sql.DB, error) {
 	return db, nil
 }
 
+func buildDSN(path, pragma string) string {
+	if pragma == "" {
+		return path
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + pragma
+}
+
 func OpenDB(cfg config.ServerConfig) (*sql.DB, *sql.DB, error) {
-	db, err := sql.Open(cfg.Database.Driver, cfg.Database.Path+"?"+cfg.Database.Pragma)
+	db, err := sql.Open(cfg.Database.Driver, buildDSN(cfg.Database.Path, cfg.Database.Pragma))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,7 +126,7 @@ func execSQLFile(db *sql.DB, path string) error {
 		}
 	}()
 
-	statements := strings.SplitSeq(string(content), ":")
+	statements := strings.SplitSeq(string(content), ";")
 	for stmt := range statements {
 		trimmed := strings.TrimSpace(stmt)
 		if trimmed == "" {
