@@ -11,7 +11,6 @@ import (
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
 	"social-network/internal/pkg/validator"
-	"strconv"
 
 	categoryqueries "social-network/internal/app/categories/queries"
 )
