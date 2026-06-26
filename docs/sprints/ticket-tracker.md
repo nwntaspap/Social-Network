@@ -47,7 +47,7 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-A (Backend A)
 
-- [ ] **S1-BE-05:** Platform: DB Factory
+- [x] **S1-BE-05:** Platform: DB Factory
 - [ ] **S1-BE-06:** Custom Migration System
 - [ ] **S1-BE-07:** Core: Session Management
 - [ ] **S1-BE-08:** Core: Middlewares
