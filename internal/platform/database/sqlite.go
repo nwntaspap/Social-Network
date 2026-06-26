@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	// SQLite driver registration via init()
 	_ "github.com/mattn/go-sqlite3"
@@ -16,7 +17,11 @@ type sqliteDB struct {
 func newSQLite(cfg Config) (DB, error) {
 	dsn := cfg.Path
 	if cfg.Pragma != "" {
-		dsn += "?" + cfg.Pragma
+		sep := "?"
+		if strings.Contains(dsn, "?") {
+			sep = "&"
+		}
+		dsn += sep + cfg.Pragma
 	}
 
 	db, err := sql.Open("sqlite3", dsn)
