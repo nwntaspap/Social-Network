@@ -68,6 +68,7 @@ func (c *Client) ReadPump(onMessage func(client *Client, msg []byte)) {
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		c.hub.Unregister(c)
 		ticker.Stop()
 		c.conn.Close()
 	}()
