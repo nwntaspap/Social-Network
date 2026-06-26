@@ -15,9 +15,9 @@ type rateLimitMiddleware struct {
 	handler http.Handler
 }
 
-func NewRateLimiterMiddleware(handler http.Handler, limit int, windowSeconds int64, cleanup time.Duration) http.Handler {
+func NewRateLimiterMiddleware(handler http.Handler, limiter *ratelimiter.RateLimiter) http.Handler {
 	return &rateLimitMiddleware{
-		limiter: ratelimiter.NewRateLimiter(limit, windowSeconds, cleanup),
+		limiter: limiter,
 		handler: handler,
 	}
 }
