@@ -163,7 +163,7 @@ func (m *Migrator) find(version int) (*Migration, error) {
 		}
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("migration file for version %d not found", version)
 }
 
 func (m *Migrator) appliedVersions(ctx context.Context) (map[int]bool, error) {
@@ -189,10 +189,11 @@ func (m *Migrator) execBatch(ctx context.Context, content string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
-	statements := strings.Split(string(content), ";")
-	for _, stmt := range statements {
+	for stmt := range strings.SplitSeq(content, ";") {
 		trimmed := strings.TrimSpace(stmt)
 		if trimmed == "" {
 			continue
