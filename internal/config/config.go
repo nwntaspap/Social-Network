@@ -189,7 +189,7 @@ func LoadConfig() (*ServerConfig, error) {
 			WindowSeconds: int64(helpers.GetEnvInt("RATE_LIMIT_WINDOW_SECONDS", envMap, defaultRateLimitWindowSeconds)),
 			Cleanup:       helpers.GetEnvDuration("RATE_LIMIT_CLEANUP_SECONDS", envMap, defaultRateLimitCleanupSeconds),
 		},
-		AllowedOrigins: helpers.ParseList(helpers.GetEnv("ALLOWED_ORIGINS", envMap, "")),
+		AllowedOrigins: helpers.ParseList(helpers.GetEnv("ALLOWED_ORIGINS", envMap, "https://localhost:8080")),
 	}
 
 	if cfg.Host == "" {
