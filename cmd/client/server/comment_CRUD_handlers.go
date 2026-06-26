@@ -5,10 +5,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
+
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/middleware"
-	"strconv"
 )
 
 type createCommentRequest struct {

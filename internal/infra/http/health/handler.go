@@ -2,11 +2,12 @@ package health
 
 import (
 	"net/http"
+	"time"
+
 	"social-network/internal/app/health/queries"
 	"social-network/internal/domain/notification"
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
-	"time"
 
 	notificationcommands "social-network/internal/app/notifications/commands"
 )

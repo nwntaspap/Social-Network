@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 
-	chatqueries "social-network/internal/app/chat/queries"
 	"social-network/internal/domain/chat"
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/ws"
+
+	chatqueries "social-network/internal/app/chat/queries"
 )
 
 type ChatHistoryHandler struct {

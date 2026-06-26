@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"database/sql"
 	"os"
+	"time"
+
 	"social-network/internal/app"
 	"social-network/internal/app/topics"
 	"social-network/internal/config"
@@ -16,7 +18,6 @@ import (
 	"social-network/internal/infra/ws"
 	"social-network/internal/pkg/oAuth/githubclient"
 	"social-network/internal/pkg/oAuth/googleclient"
-	"time"
 
 	localstorage "social-network/internal/infra/storage/local"
 

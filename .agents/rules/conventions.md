@@ -9,6 +9,7 @@ description: Coding conventions for Go/SQLite/Next.js social network. Loaded by 
 Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) for detailed workflows.
 
 <!-- @section:rules-core — D1-D6, security, TDD (needed by all agents) -->
+
 ## 0. Naming Conventions
 
 - **Go struct fields**: use `username` in domain structs.
@@ -18,7 +19,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 
 ## 1. Stack
 
-- **Go 1.24**, stdlib preferred, `slog` logging, `kin-openapi` validation.
+- **Go 1.25**, stdlib preferred, `slog` logging, `kin-openapi` validation.
 - **Module path**: `social-network`. **Entry point**: `cmd/server/main.go`.
 - **SQLite**: WAL mode, busy timeout, `db.SetMaxOpenConns(1)`. Tests use in-memory instances.
 - **Frontend**: Next.js, TailwindCSS, `shadcn/ui`, ESLint + Prettier. Vitest (planned) + React Testing Library + Playwright (planned).
@@ -50,6 +51,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 5. Monitor for regressions.
 6. Delete OLD code only after full verification. No partial deletion — old code stays until ALL its features are migrated.
 7. Delete contract tests after old code removed.
+
 - **Route prefixes**: new = `/api/`, legacy = `/api/v1/`. Both coexist during migration.
 
 ## 4. TDD & Go Style
@@ -83,6 +85,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 <!-- @section:rules-core:end -->
 
 <!-- @section:rules-fe — Frontend standards (needed by FE agents) -->
+
 ## 7. Frontend
 
 - **Structure**: `src/app/`, `src/components/ui/`, `src/components/features/`, `src/lib/`, `src/styles/`.
@@ -97,35 +100,39 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 <!-- @section:rules-fe:end -->
 
 <!-- @section:rules-ci — CI gates, build commands (needed by gate-running agents) -->
+
 ## 8. CI & Verification
 
-- **`make be-ci`**: `ci-mod → check-format → lint (staticcheck + golangci-lint + govulncheck) → test`. (Use `make format` to auto-format.)
-- **`make fe-ci`**: `bun run lint → bun run format:check → tsc --noEmit → bun run test`.
-- **`make review-gates`**: Go verification gates — `go run cmd/gates/main.go --all`.
+- **`make install`**: Install ALL project dependencies (Go modules, root JS tooling, `.env`, SSL certs, Go dev tools, git hooks, frontend deps). One command for new devs.
+- **`make setup`**: Install Go development tools + git hooks only (subset of `make install`).
+- **`make be-ci`**: Legacy blanket check: `ci-mod → check-format → lint (staticcheck + golangci-lint + govulncheck) → test`. (Use `make format` to auto-format.)
+- **`make be-ci-new`**: Scoped check for new vertical slices and new code: `ci-mod → check-format-new → lint-new (staticcheck-new + golangci-lint-new + vet-new + vulncheck-new + gosec-new) → test-new`.
+- **`make fe-ci`**: Frontend CI target. Scopes to `frontend-next/` (if it exists) or falls back to legacy `frontend/` or skips if neither exists. Runs: `bun run lint → bun run format:check → tsc --noEmit → bun run test`.
+- **`make gates`**: Decoupled from legacy CI. Gating pipeline: compiles all code (`go build ./...` for sanity), runs Go verification gates (`go run cmd/gates/main.go --all`), and executes new-code scoped checks (`be-ci-new` and `fe-ci`).
 - **`make setup-hooks`**: Install lefthook pre-commit/pre-push hooks.
 - **Standalone commands** (when not using `make`):
   ```
-  go vet ./...
+  go vet $(NEW_PKGS)
   go build ./...
-  go test -race -coverprofile=coverage.out ./...
-  golangci-lint run
-  govulncheck ./...
+  go test -race -coverprofile=coverage.out $(NEW_PKGS)
+  golangci-lint run --timeout=5m $(addsuffix /..., $(NEW_DIRS))
+  govulncheck $(NEW_PKGS)
   go run cmd/gates/main.go --all
   ```
 - **Pre-commit hooks** (lefthook, staged files only):
   - Backend: `gofumpt -l {staged_files} | xargs -r gofumpt -w` + `goimports -w -local social-network {staged_files}` (`stage_fixed: true`).
   - Frontend: `prettier --write` + `eslint`.
 - **Pre-push hooks** (lefthook):
-  - Backend: `go vet ./...`, `go test -short ./...`, `go build ./...`, `go-arch-lint check`.
+  - Backend: `go vet $(NEW_PKGS)`, `go test -short $(NEW_PKGS)`, `go build ./...`, `go-arch-lint check`.
   - Frontend: `tsc --noEmit`, `bun run lint`, `bun run test`.
 - **D5 boundary check**:
   ```
   grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | grep -v 'platform/' | grep -v 'pkg/' | grep -v 'infra/'
   ```
-- **Go verification gates** (`cmd/gates/main.go`):
+- **Go verification gates** (`cmd/gates/main.go`). See [README](../../internal/gates/README.md) for full catalog, file map, and architecture:
   | Gate | Check | Tool/Fallback |
   |------|-------|---------------|
-  | Stack | Go version ≥ 1.24, module path | go version / go.mod |
+  | Stack | Go version ≥ 1.25, module path | go version / go.mod |
   | Layout | target directory structure | os.Stat |
   | Boundaries | D5 forbidden imports | golangci-lint depguard / AST |
   | DAG | D6 acyclic dependencies | go-arch-lint / DFS |
@@ -141,6 +148,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 <!-- @section:rules-ci:end -->
 
 <!-- @section:rules-git — Branch naming, commits, PRs (needed by publish) -->
+
 ## 9. Git & PRs
 
 - **Trunk-based**: feature branches ≤ 3 days. Squash merge into `main`.
@@ -154,11 +162,12 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
     - `ekaramet/S1-BE-05-db-factory`
     - `dkotsi/S3-FE-14-follow-button`
     - `smichail/42-oauth-scan-fix`
-- **Commits**: Conventional Commits. Scopes: `user`, `topic`, `follow`, `group`, `event`, `chat`, `notification`, `oauth`, `core`, `platform`, `comment`. (`vote` absorbed into `topic/` and `comment/`.)
+- **Commits**: Conventional Commits. Scopes: `user`, `topic`, `follow`, `group`, `event`, `chat`, `notification`, `oauth`, `core`, `platform`, `comment`, `dev`, `gates`. (`vote` absorbed into `topic/` and `comment/`.)
 - **PR template**: copy `.github/PULL_REQUEST_TEMPLATE.md` → `.git/PR_DESCRIPTION.md`, fill in.
 <!-- @section:rules-git:end -->
 
 <!-- @section:rules-dod — Definition of Done checklist (needed by review agents) -->
+
 ## 10. Definition of Done
 
 - [ ] D5 boundary rules pass (no cross-slice transport/store imports).
@@ -167,7 +176,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - [ ] SQLite: WAL + busy timeout + `SetMaxOpenConns(1)`.
 - [ ] Tests written and passing (Go test for BE, Vitest for FE).
 - [ ] `go vet` / `tsc --noEmit` clean.
-- [ ] `make ci` / ESLint + Prettier gates pass.
+- [ ] `make gates` passes successfully.
 - [ ] Branch named correctly, conventional commits.
 - [ ] No dead code from your changes (unused imports/vars/functions removed).
 - [ ] PR description template filled.

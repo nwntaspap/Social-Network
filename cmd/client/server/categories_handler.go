@@ -4,12 +4,13 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
+	"text/template"
+
 	"social-network/cmd/client/domain"
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/middleware"
-	"strconv"
-	"text/template"
 )
 
 const defaltPageSize = 12

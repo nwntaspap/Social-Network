@@ -2,6 +2,7 @@ package chatqueries
 
 import (
 	"context"
+
 	"social-network/internal/domain/chat"
 )
 

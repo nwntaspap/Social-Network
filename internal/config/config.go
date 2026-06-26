@@ -3,11 +3,12 @@ package config
 import (
 	"errors"
 	"os"
-	"social-network/internal/pkg/helpers"
-	"social-network/internal/pkg/path"
 	"strconv"
 	"strings"
 	"time"
+
+	"social-network/internal/pkg/helpers"
+	"social-network/internal/pkg/path"
 )
 
 const (
@@ -47,6 +48,7 @@ type ServerConfig struct {
 	WriteTimeout   time.Duration
 	IdleTimeout    time.Duration
 	RateLimit      RateLimitConfig
+	AllowedOrigins []string
 }
 
 type RateLimitConfig struct {
@@ -187,6 +189,7 @@ func LoadConfig() (*ServerConfig, error) {
 			WindowSeconds: int64(helpers.GetEnvInt("RATE_LIMIT_WINDOW_SECONDS", envMap, defaultRateLimitWindowSeconds)),
 			Cleanup:       helpers.GetEnvDuration("RATE_LIMIT_CLEANUP_SECONDS", envMap, defaultRateLimitCleanupSeconds),
 		},
+		AllowedOrigins: helpers.ParseList(helpers.GetEnv("ALLOWED_ORIGINS", envMap, "https://localhost:8080")),
 	}
 
 	if cfg.Host == "" {

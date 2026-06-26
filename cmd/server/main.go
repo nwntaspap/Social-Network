@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
 	"social-network/internal/infra/http"
@@ -24,5 +25,6 @@ func main() {
 
 	app := bootstrap.Bootstrap(db, cfg)
 	HTTPServer := http.NewServer(cfg, app)
+	defer HTTPServer.Close()
 	HTTPServer.ListenAndServe()
 }

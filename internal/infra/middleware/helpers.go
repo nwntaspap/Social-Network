@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"net/http"
+	"time"
+
 	"social-network/internal/domain/session"
 	"social-network/internal/domain/user"
-	"time"
 )
 
 type Key string

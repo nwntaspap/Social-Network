@@ -1,8 +1,9 @@
 package notifications
 
 import (
-	"social-network/internal/domain/notification"
 	"sync"
+
+	"social-network/internal/domain/notification"
 )
 
 const ChannelCapacity int = 10

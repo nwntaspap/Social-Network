@@ -3,9 +3,10 @@ package usercommands
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"social-network/internal/domain/user"
 	"social-network/internal/pkg/helpers"
-	"testing"
 
 	testhelpers "social-network/internal/pkg/testing"
 )

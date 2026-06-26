@@ -2,6 +2,7 @@ package infra
 
 import (
 	"database/sql"
+
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
 	"social-network/internal/infra/http"

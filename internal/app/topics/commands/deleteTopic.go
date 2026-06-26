@@ -2,10 +2,11 @@ package topiccommands
 
 import (
 	"context"
+	"strings"
+
 	"social-network/internal/app/topics"
 	"social-network/internal/domain/topic"
 	"social-network/internal/domain/user"
-	"strings"
 )
 
 type DeleteTopicRequest struct {

@@ -3,6 +3,7 @@ Git provides shared helper functions for Git repository interaction,
 including retrieving the current branch name, finding the merge base,
 fetching the commit log, and identifying changed files.
 */
+
 package gates
 
 import (
@@ -40,6 +41,16 @@ func GitBranch() string {
 	out, err := cmd.Output()
 	if err != nil {
 		return "unknown"
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// GitRepoRoot returns the absolute path to the root of the git repository.
+func GitRepoRoot() string {
+	cmd := ExecCommand("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
 	}
 	return strings.TrimSpace(string(out))
 }

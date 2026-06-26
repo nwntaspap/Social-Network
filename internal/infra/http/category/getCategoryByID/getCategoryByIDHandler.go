@@ -3,12 +3,13 @@ package getcategorybyid
 import (
 	"context"
 	"net/http"
+	"strconv"
+
 	"social-network/internal/app"
 	"social-network/internal/config"
 	"social-network/internal/infra/logger"
 	"social-network/internal/pkg/helpers"
 	"social-network/internal/pkg/validator"
-	"strconv"
 
 	categoryqueries "social-network/internal/app/categories/queries"
 )

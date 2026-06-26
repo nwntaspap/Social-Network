@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
 	"social-network/cmd/client/domain"
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/middleware"
-	"strconv"
-	"strings"
 
 	"github.com/google/uuid"
 )

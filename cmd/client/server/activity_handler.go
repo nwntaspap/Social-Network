@@ -4,11 +4,12 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"text/template"
+
 	"social-network/cmd/client/domain"
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/middleware"
-	"text/template"
 )
 
 // ActivityPage handles requests to the activity page.

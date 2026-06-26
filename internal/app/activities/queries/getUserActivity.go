@@ -2,6 +2,7 @@ package activityqueries
 
 import (
 	"context"
+
 	"social-network/internal/domain/activity"
 )
 

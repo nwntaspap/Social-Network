@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
+	"time"
+
 	"social-network/cmd/client/domain"
 	"social-network/cmd/client/helpers"
 	"social-network/cmd/client/helpers/templates"
 	"social-network/cmd/client/helpers/validation"
 	"social-network/cmd/client/middleware"
-	"strings"
-	"time"
 )
 
 const (

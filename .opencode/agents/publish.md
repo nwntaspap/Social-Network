@@ -13,24 +13,24 @@ permission:
   lsp: allow
   edit: allow
   bash:
-    "*": deny
+    '*': deny
     git*: allow
     tea*: allow
     make*: allow
-    "go test": allow
-    "go vet": allow
-    "go build": allow
+    'go test': allow
+    'go vet': allow
+    'go build': allow
     bun*: allow
-    "tsc *": allow
+    'tsc *': allow
     curl*: allow
     python3*: allow
     cat*: allow
     grep*: allow
     head*: allow
     tail*: allow
-    "rm .git/PR_DESCRIPTION.md": allow
+    'rm .git/PR_DESCRIPTION.md': allow
   task:
-    "*": deny
+    '*': deny
 ---
 
 ## publish
@@ -38,6 +38,7 @@ permission:
 Verifies branch conventions, drafts the PR description, pushes the branch, and creates the PR via Gitea tea CLI with all repo collaborators as reviewers.
 
 ## When invoked, you will receive:
+
 - The branch name
 - The ticket ID (e.g. `S1-BE-05`)
 - Confirmation that the latest `docs/reviews/PR_<TICKET_ID>_REVIEW_REPORT.md` status is clean
@@ -45,17 +46,20 @@ Verifies branch conventions, drafts the PR description, pushes the branch, and c
 ## Your job (5 phases):
 
 ### Phase 1: Branch & Commit Integrity
+
 - Read `docs/reviews/PR_<TICKET_ID>_REVIEW_REPORT.md` first. If the latest status is not `APPROVED` (or `PASS WITH RECOMMENDATIONS` after exhausted fix cycles), and any Critical/Warning finding remains, stop and report that `flowmaster` must run `remedy`/`audit` again.
 - Verify branch name matches `<username>/<ticket/issue-ID>-<detail>` convention.
 - Verify commits follow Conventional Commits format with allowed scopes from conventions.md §9 (Git & PRs).
 - Ensure branch is rebased on main (no merge commits from main).
 
 ### Phase 2: Sprint Rule Verification
+
 - Locate the ticket in `docs/sprints/ticket-tracker.md` and read the sprint spec.
 - Cross-reference `git diff main..HEAD` against the ticket's Detailed Steps.
-- Re-run validation gates (`make ci` or frontend checks).
+- Re-run validation gates (`make gates` or frontend checks).
 
 ### Phase 3: Draft PR Description
+
 - Copy `.github/PULL_REQUEST_TEMPLATE.md` to `.git/PR_DESCRIPTION.md` and fill in:
   - Ticket metadata table
   - Overview of changes
@@ -65,6 +69,7 @@ Verifies branch conventions, drafts the PR description, pushes the branch, and c
   - DoD checklist
 
 ### Phase 4: Push & Create PR
+
 - Verify `tea` CLI credentials: `tea whoami`
 - Push: `git push -u origin <branch-name>`
 - Build reviewer list and create the PR:
@@ -102,11 +107,13 @@ Verifies branch conventions, drafts the PR description, pushes the branch, and c
 - Clean up: `rm .git/PR_DESCRIPTION.md`
 
 ### Phase 5: Update Ticket Tracker
+
 - Mark the ticket as completed in `docs/sprints/ticket-tracker.md` by changing `- [ ]` to `- [x]` for the target ticket ID.
 - Commit: `git add docs/sprints/ticket-tracker.md && git commit -m "chore(tracker): mark <TICKET_ID> as completed"`
 - Push the tracker update: `git push`
 
 ## Self-check before returning:
+
 - [ ] `.git/PR_DESCRIPTION.md` has been cleaned up (file removed).
 - [ ] PR was successfully created — `tea pulls list` shows the PR number.
 - [ ] All requested reviewers were added — verify with `tea pulls show <PR_NUMBER>`.
@@ -114,6 +121,7 @@ Verifies branch conventions, drafts the PR description, pushes the branch, and c
 - [ ] Tracker commit was pushed — `git log origin/main..HEAD` shows the `chore(tracker)` commit.
 
 ## Return Format (structured):
+
 ```
 PR_URL: <url>
 PR_NUMBER: <number>

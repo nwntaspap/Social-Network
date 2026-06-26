@@ -1,4 +1,4 @@
-# Optimized Architecture Plan — Vertical Slices with Plug-in Infrastructure Services 
+# Optimized Architecture Plan — Vertical Slices with Plug-in Infrastructure Services
 
 ## Guiding Principle
 
@@ -8,15 +8,15 @@
 
 ## Current Codebase: Quantified Pain Points
 
-| Metric | Actual | Target (Vertical Slices) |
-|--------|--------|-----------------------------|
-| Handler packages | **32 directories** | **10 (one per feature)** |
-| Aliased imports in `server.go` | **38 aliases** | **0-4 (one per route group)** |
-| CQRS command/query packages | **27 directories** | **20 (10 commands + 10 queries)** |
-| Total Go files in `internal/` | **182** | **~140** (fewer files due to no handler subdirs) |
-| Domain packages | **10** (each in its own subdir) | **0** (merged into feature roots) |
-| Storage repo packages | **9 subdirs** | **0** (merged into `store/sqlite.go`) |
-| Overhead/Logic Ratio | **~3:1** | **~1.5:1** |
+| Metric                         | Actual                          | Target (Vertical Slices)                         |
+| ------------------------------ | ------------------------------- | ------------------------------------------------ |
+| Handler packages               | **32 directories**              | **10 (one per feature)**                         |
+| Aliased imports in `server.go` | **38 aliases**                  | **0-4 (one per route group)**                    |
+| CQRS command/query packages    | **27 directories**              | **20 (10 commands + 10 queries)**                |
+| Total Go files in `internal/`  | **182**                         | **~140** (fewer files due to no handler subdirs) |
+| Domain packages                | **10** (each in its own subdir) | **0** (merged into feature roots)                |
+| Storage repo packages          | **9 subdirs**                   | **0** (merged into `store/sqlite.go`)            |
+| Overhead/Logic Ratio           | **~3:1**                        | **~1.5:1**                                       |
 
 > **Core Problem:** The current codebase has **32 handler packages** and **27 CQRS directories** for ~10 entities. The ratio of packaging overhead to business logic is roughly 3:1. This results in excessive file nesting, deeply indented import paths (e.g., `internal/infra/http/user/profile/`), and cognitive overload when navigating the codebase.
 
@@ -51,6 +51,7 @@
 **Backend (Go)** — HTTP server on port 8080. Entry point for all API requests. Organized as **vertical feature slices** under `internal/<feature>/`, each encapsulating domain entities, CQRS commands/queries, HTTP transport handlers, and a SQLite store implementation. Cross-cutting concerns (auth, sessions, WebSocket hub, middleware) live in `internal/core/`. Platform abstractions (database factory, event bus, cache) live in `internal/platform/`.
 
 **Infrastructure Services** — Pluggable behind interfaces in `internal/platform/`:
+
 - **SQLite** (required): Primary storage with Write-Ahead Logging (`_journal_mode=WAL`) and busy timeout (`_busy_timeout=5000`).
 - **PostgreSQL** (optional): Demonstrates database portability via the factory pattern — swap implementations without touching feature code.
 - **Redis** (optional): In-memory cache, session store, rate limiter backend, and real-time pub/sub.
@@ -60,18 +61,18 @@ The backend starts with in-memory infrastructure (channels, maps) and swaps to R
 
 ### Feature Overview
 
-| Feature | Description | New/Migrated |
-|---------|-------------|--------------|
-| User | Registration, login, profile, privacy toggle, avatar | Migrate from old layers |
-| Topic | Posts with visibility (public/almost_private/private), images | Migrate from old layers |
-| Comment | Comments on posts with optional images | Migrate from old layers |
-| Vote | Upvote/downvote on posts and comments | Migrate from old layers |
-| Follow | Public follow, private follow request/accept/decline | Greenfield |
-| Group | Create, invite, request join, group chat, group posts | Greenfield |
-| Event | Create event with title/description/day-time, RSVP (going/not going) | Greenfield |
-| Chat | 1-on-1 direct messaging via WebSocket, follow-gated | Migrate from old layers |
+| Feature      | Description                                                                                     | New/Migrated            |
+| ------------ | ----------------------------------------------------------------------------------------------- | ----------------------- |
+| User         | Registration, login, profile, privacy toggle, avatar                                            | Migrate from old layers |
+| Topic        | Posts with visibility (public/almost_private/private), images                                   | Migrate from old layers |
+| Comment      | Comments on posts with optional images                                                          | Migrate from old layers |
+| Vote         | Upvote/downvote on posts and comments                                                           | Migrate from old layers |
+| Follow       | Public follow, private follow request/accept/decline                                            | Greenfield              |
+| Group        | Create, invite, request join, group chat, group posts                                           | Greenfield              |
+| Event        | Create event with title/description/day-time, RSVP (going/not going)                            | Greenfield              |
+| Chat         | 1-on-1 direct messaging via WebSocket, follow-gated                                             | Migrate from old layers |
 | Notification | Event bus subscriber: follow-request, follow-accepted, group-invite, group-join, event-creation | Migrate from old layers |
-| OAuth | GitHub and Google third-party authentication | Migrate from old layers |
+| OAuth        | GitHub and Google third-party authentication                                                    | Migrate from old layers |
 
 ---
 
@@ -81,62 +82,66 @@ Quick-reference for all tools across the software development lifecycle.
 
 ### Languages & Runtimes
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Go 1.24 |
-| Frontend | TypeScript / JavaScript (Next.js App Router, Bun runtime) |
-| Database | SQL (SQLite / PostgreSQL) |
-| Infrastructure | Docker Compose v5.1.1 |
+| Layer          | Technology                                                |
+| -------------- | --------------------------------------------------------- |
+| Backend        | Go 1.25                                                   |
+| Frontend       | TypeScript / JavaScript (Next.js App Router, Bun runtime) |
+| Database       | SQL (SQLite / PostgreSQL)                                 |
+| Infrastructure | Docker Compose v5.1.1                                     |
 
 ### Backend (Go)
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Build | `go build` | `Dockerfile` (multi-stage) |
-| Unit/Integration tests | `go test -race -coverprofile` | `Makefile` `test` |
-| Linting (aggregator) | `golangci-lint` v2.2.1 (30+ linters) | `.golangci.yml` |
-| Linting (static analysis) | `staticcheck` | `Makefile` `lint` |
-| Linting (official) | `go vet` | `.golangci.yml` + CLI |
-| Formatting | `gofmt -s`, `gofumpt` | `Makefile` `format`, `.golangci.yml` |
-| Imports | `goimports`, `gci` | `Makefile` `format`, `.golangci.yml` |
-| Module hygiene | `go mod tidy` | `Makefile` `ci-mod` |
-| Benchmarking | `benchstat` | `Makefile` |
-| Profiling | `go tool pprof` (+ Graphviz) | `Makefile` |
-| Vulnerability scan | `govulncheck` | Manual / CI |
+| Phase                     | Tool                                 | Where                                |
+| ------------------------- | ------------------------------------ | ------------------------------------ |
+| Build                     | `go build`                           | `Dockerfile` (multi-stage)           |
+| Unit/Integration tests    | `go test -race -coverprofile`        | `Makefile` `test`                    |
+| Linting (aggregator)      | `golangci-lint` v2.2.1 (30+ linters) | `.golangci.yml`                      |
+| Linting (static analysis) | `staticcheck`                        | `Makefile` `lint`                    |
+| Linting (official)        | `go vet`                             | `.golangci.yml` + CLI                |
+| Formatting                | `gofmt -s`, `gofumpt`                | `Makefile` `format`, `.golangci.yml` |
+| Imports                   | `goimports`, `gci`                   | `Makefile` `format`, `.golangci.yml` |
+| Module hygiene            | `go mod tidy`                        | `Makefile` `ci-mod`                  |
+| Benchmarking              | `benchstat`                          | `Makefile`                           |
+| Profiling                 | `go tool pprof` (+ Graphviz)         | `Makefile`                           |
+| Vulnerability scan        | `govulncheck`                        | Manual / CI                          |
 
 ### Frontend (Next.js, Bun)
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Runtime | Bun | `package.json` (scripts) |
-| Package manager | Bun | `bun.lock` |
+| Phase                | Tool              | Where                               |
+| -------------------- | ----------------- | ----------------------------------- |
+| Runtime              | Bun               | `package.json` (scripts)            |
+| Package manager      | Bun               | `bun.lock`                          |
 | Linting + formatting | ESLint + Prettier | `eslint.config.mjs` + `.prettierrc` |
-| Type checking | `tsc --noEmit` | `package.json` |
-| Unit/component tests | Vitest | `vitest.config.ts` |
-| E2E tests | Playwright | `playwright.config.ts` |
+| Type checking        | `tsc --noEmit`    | `package.json`                      |
+| Unit/component tests | Vitest            | `vitest.config.ts`                  |
+| E2E tests            | Playwright        | `playwright.config.ts`              |
 
 ### Infrastructure
 
-| Phase | Tool | Where |
-|-------|------|-------|
-| Container build | Docker (multi-stage) | `Dockerfile` |
-| Orchestration | Docker Compose v5.1.1 | `docker-compose.yml` |
-| Dev TLS certs | `openssl` | `scripts/makecerts.sh` |
-| Task runner / CI pipeline | Makefile | `Makefile` `ci` target |
+| Phase                     | Tool                  | Where                  |
+| ------------------------- | --------------------- | ---------------------- |
+| Container build           | Docker (multi-stage)  | `Dockerfile`           |
+| Orchestration             | Docker Compose v5.1.1 | `docker-compose.yml`   |
+| Dev TLS certs             | `openssl`             | `scripts/makecerts.sh` |
+| Task runner / CI pipeline | Makefile              | `Makefile` `ci` target |
 
-### CI Pipeline (`make ci`)
+### CI Pipeline (`make gates` / `make be-ci-new`)
 
-**`make ci`** runs the full gate: backend + frontend.
+Local development and PR verification run the decoupled quality gate pipeline:
 
-**Backend** (`make be-ci`):
-```
-ci-mod → check-format → lint (staticcheck + golangci-lint + govulncheck) → test
+```bash
+make gates
 ```
 
-**Frontend** (`make fe-ci`):
-```
-bun run lint → bun run format:check → tsc --noEmit → bun run test
-```
+This performs:
+
+1. `go build ./...` — Compiles all code (legacy + new) for build safety.
+2. `go run cmd/gates/main.go --all` — Runs the custom Go verification gates.
+3. `make be-ci-new` — Runs new-code scoped check:
+   `ci-mod → check-format-new → lint-new (staticcheck-new + golangci-lint-new + vet-new + vulncheck-new + gosec-new) → test-new`
+4. `make fe-ci` — Runs frontend CI check (scoped to `frontend-next/` if it exists).
+
+_Note: Legacy blanket checks can be run via `make ci` (runs `make be-ci` + `make fe-ci`), which checks all legacy files and is informational._
 
 ---
 
@@ -165,6 +170,7 @@ internal/<feature>/
 ```
 
 **Why this layout:**
+
 - The **logic layer** is where complexity lives (privacy checks, event publishing, MIME validation). Splitting it per use case isolates each operation.
 - The **store layer** is thin SQL (5–15 lines per method). One file per feature keeps all queries reviewable in one place.
 - The **transport layer** is a thin HTTP adapter. One file per feature avoids handler fragmentation.
@@ -212,11 +218,11 @@ sendMsgH := chat.NewSendPrivateMsgHandler(chatRepo, followSvc)  // followSvc sat
 
 ### D3: Cross-Slice Communication — Three Strategies, Consistently Applied
 
-| When | Strategy | How |
-|------|----------|-----|
-| **Data references** | ID-only | `Comment` has `AuthorID string`, never `Author user.User` |
-| **Sync behavior checks** | Consumer-defined interface | `chat` defines `FollowChecker`, `follow` implements it |
-| **Mutation side-effects** | Event bus publish | `follow` publishes `follow.requested`, `notification` subscribes |
+| When                      | Strategy                   | How                                                              |
+| ------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| **Data references**       | ID-only                    | `Comment` has `AuthorID string`, never `Author user.User`        |
+| **Sync behavior checks**  | Consumer-defined interface | `chat` defines `FollowChecker`, `follow` implements it           |
+| **Mutation side-effects** | Event bus publish          | `follow` publishes `follow.requested`, `notification` subscribes |
 
 The event bus starts as an **in-process Go implementation** (channels). Later, we swap it for RabbitMQ by implementing the same interface. The feature code never changes.
 
@@ -303,6 +309,10 @@ Vote logic is absorbed into `topic/` and `comment/` — there is no standalone `
 cmd/
   server/
     main.go                              # Application entry point
+  gates/
+    main.go                              # CLI runner for verification gates
+  client/
+    main.go                              # CLI client for testing/ops
 
 internal/
   # ─── Feature Slices (all follow D1 layout) ───
@@ -448,6 +458,9 @@ internal/
     eventbus/       # EventBus interface + in-process impl (RabbitMQ later)
     cache/          # Cache interface + in-memory map (Redis later)
 
+  # ─── Quality Gates ───
+  gates/                                # Deterministic verification gates (boundaries, DAG, security, coverage, TDD)
+
   # ─── Shared Utilities ───
   pkg/
     bcrypt/         # Password hashing
@@ -465,18 +478,18 @@ internal/
 
 ## Phase 1: Critical Bug Fixes
 
-*Fix bugs that cause crashes or security holes. No structural changes.*
+_Fix bugs that cause crashes or security holes. No structural changes._
 
-| # | Bug | File (current path) | Fix |
-|---|-----|---------------------|-----|
-| 1.1 | Migration delimiter | `internal/infra/storage/sqlite/init.go` | `":"` → `";"` |
-| 1.2 | SQLite DSN missing WAL/timeout | `internal/infra/storage/sqlite/init.go`, `.env` | Add `_journal_mode=WAL&_busy_timeout=5000` |
-| 1.3 | OAuth `Scan()` with `ctx` arg | `internal/infra/storage/sqlite/oauth/oauthRepo.go` | Remove `ctx` from `Scan()` params |
-| 1.4 | WebSocket `CheckOrigin` returns `true` | `internal/infra/http/ws/handler.go` | Validate against configured origin |
-| 1.5 | SQL injection in ORDER BY | `internal/infra/storage/sqlite/topics/topicRepo.go`, `internal/infra/storage/sqlite/categories/categoryRepo.go` | Whitelist `["ASC", "DESC"]` |
-| 1.6 | Prepared stmt uses `db.Exec` | `internal/infra/storage/sqlite/users/userRepo.go` | Use `stmt.ExecContext` |
-| 1.7 | WS goroutine panic recovery | `internal/infra/ws/client.go` | Add `defer recover()` to ReadPump/WritePump |
-| 1.8 | RateLimiter ticker leak | `internal/infra/middleware/ratelimiter/rateLimiter.go` | Add `stop chan struct{}` |
+| #   | Bug                                    | File (current path)                                                                                             | Fix                                         |
+| --- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1.1 | Migration delimiter                    | `internal/infra/storage/sqlite/init.go`                                                                         | `":"` → `";"`                               |
+| 1.2 | SQLite DSN missing WAL/timeout         | `internal/infra/storage/sqlite/init.go`, `.env`                                                                 | Add `_journal_mode=WAL&_busy_timeout=5000`  |
+| 1.3 | OAuth `Scan()` with `ctx` arg          | `internal/infra/storage/sqlite/oauth/oauthRepo.go`                                                              | Remove `ctx` from `Scan()` params           |
+| 1.4 | WebSocket `CheckOrigin` returns `true` | `internal/infra/http/ws/handler.go`                                                                             | Validate against configured origin          |
+| 1.5 | SQL injection in ORDER BY              | `internal/infra/storage/sqlite/topics/topicRepo.go`, `internal/infra/storage/sqlite/categories/categoryRepo.go` | Whitelist `["ASC", "DESC"]`                 |
+| 1.6 | Prepared stmt uses `db.Exec`           | `internal/infra/storage/sqlite/users/userRepo.go`                                                               | Use `stmt.ExecContext`                      |
+| 1.7 | WS goroutine panic recovery            | `internal/infra/ws/client.go`                                                                                   | Add `defer recover()` to ReadPump/WritePump |
+| 1.8 | RateLimiter ticker leak                | `internal/infra/middleware/ratelimiter/rateLimiter.go`                                                          | Add `stop chan struct{}`                    |
 
 **Verify**: `go vet ./...` + `go test -race ./...`
 
@@ -484,7 +497,7 @@ internal/
 
 ## Phase 2: Platform Foundation + Migration System
 
-*Set up the platform abstractions that all features will use. Still SQLite only, but behind interfaces.*
+_Set up the platform abstractions that all features will use. Still SQLite only, but behind interfaces._
 
 ### 2.1 Database Factory (`internal/platform/database/`)
 
@@ -532,7 +545,7 @@ Create numbered migration scripts:
 
 ## Phase 3: Cross-Cutting Core
 
-*Move existing cross-cutting concerns into their target locations.*
+_Move existing cross-cutting concerns into their target locations._
 
 ### 3.1 Session (`internal/core/session/`)
 
@@ -571,66 +584,69 @@ Create numbered migration scripts:
 
 ## Phase 4: Greenfield Feature Slices
 
-*Build new features that don't exist yet. Vertical slices from scratch. No migration needed.*
+_Build new features that don't exist yet. Vertical slices from scratch. No migration needed._
 
 ### 4.1 Follow (`internal/follow/`)
 
-| File | Contents |
-|------|----------|
-| `follow.go` | `Follow`, `FollowRequest` entities, `Repository` interface |
-| `commands/follow_user.go` | Auto-follow (public) or create request (private), publish event |
-| `commands/unfollow_user.go` | Remove follow relationship |
-| `commands/accept_request.go` | Accept request → insert follow + publish `follow.accepted` |
-| `commands/decline_request.go` | Decline request |
-| `queries/get_followers.go` | List followers of a user |
-| `queries/get_following.go` | List users followed by a user |
-| `queries/get_pending_requests.go` | List pending follow requests for current user |
-| `queries/are_connected.go` | Check follow relationship (implements `FollowChecker` for cross-slice) |
-| `transport/http.go` | HTTP handlers |
-| `store/sqlite.go` | SQLite implementation |
+| File                              | Contents                                                               |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `follow.go`                       | `Follow`, `FollowRequest` entities, `Repository` interface             |
+| `commands/follow_user.go`         | Auto-follow (public) or create request (private), publish event        |
+| `commands/unfollow_user.go`       | Remove follow relationship                                             |
+| `commands/accept_request.go`      | Accept request → insert follow + publish `follow.accepted`             |
+| `commands/decline_request.go`     | Decline request                                                        |
+| `queries/get_followers.go`        | List followers of a user                                               |
+| `queries/get_following.go`        | List users followed by a user                                          |
+| `queries/get_pending_requests.go` | List pending follow requests for current user                          |
+| `queries/are_connected.go`        | Check follow relationship (implements `FollowChecker` for cross-slice) |
+| `transport/http.go`               | HTTP handlers                                                          |
+| `store/sqlite.go`                 | SQLite implementation                                                  |
 
 **Key behavior**:
+
 - Public profile → instant follow, publish `follow.accepted` to eventbus
 - Private profile → creates follow request, publish `follow.requested` to eventbus
 - `notification` subscribes to both events and creates appropriate notifications
 
 ### 4.2 Group (`internal/group/`)
 
-| File | Contents |
-|------|----------|
-| `group.go` | `Group`, `GroupMember`, `Invitation`, `JoinRequest` entities, `Repository` interface |
-| `commands/create_group.go` | Create group + auto-add creator as owner |
-| `commands/invite_member.go` | Any member invites a follower, publish `group.invited` |
-| `commands/respond_invite.go` | Invitee accepts/declines invitation |
-| `commands/request_join.go` | User requests to join group, publish `group.join_requested` |
-| `commands/respond_join.go` | Owner accepts/declines join request |
-| `commands/create_group_post.go` | Post inside group (membership check) |
-| `commands/send_group_message.go` | Group chat message (membership check) |
-| `queries/list_groups.go` | Browse all groups |
-| `queries/get_group.go` | Group detail + membership info |
-| `queries/get_group_feed.go` | Group posts (membership check) |
-| `queries/get_group_chat.go` | Group chat history |
-| `transport/http.go` | REST handlers |
-| `transport/ws.go` | Group chat WebSocket handlers |
-| `store/sqlite.go` | SQLite implementation |
+| File                             | Contents                                                                             |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| `group.go`                       | `Group`, `GroupMember`, `Invitation`, `JoinRequest` entities, `Repository` interface |
+| `commands/create_group.go`       | Create group + auto-add creator as owner                                             |
+| `commands/invite_member.go`      | Any member invites a follower, publish `group.invited`                               |
+| `commands/respond_invite.go`     | Invitee accepts/declines invitation                                                  |
+| `commands/request_join.go`       | User requests to join group, publish `group.join_requested`                          |
+| `commands/respond_join.go`       | Owner accepts/declines join request                                                  |
+| `commands/create_group_post.go`  | Post inside group (membership check)                                                 |
+| `commands/send_group_message.go` | Group chat message (membership check)                                                |
+| `queries/list_groups.go`         | Browse all groups                                                                    |
+| `queries/get_group.go`           | Group detail + membership info                                                       |
+| `queries/get_group_feed.go`      | Group posts (membership check)                                                       |
+| `queries/get_group_chat.go`      | Group chat history                                                                   |
+| `transport/http.go`              | REST handlers                                                                        |
+| `transport/ws.go`                | Group chat WebSocket handlers                                                        |
+| `store/sqlite.go`                | SQLite implementation                                                                |
 
 **Key behavior**:
+
 - Invite/join request → publish `group.invited` / `group.join_requested` to eventbus
 - Group chat uses WebSocket hub for real-time message delivery
 - Any group member can invite others, only creator can accept/decline join requests
 
 ### 4.3 Event (`internal/event/`)
 
-| File | Contents |
-|------|----------|
-| `event.go` | `Event`, `EventRSVP`, `Option` entities, `Repository` interface |
-| `commands/create_event.go` | Validate ≥2 options (going/not going at minimum) + membership check + publish `event.created` |
-| `commands/rsvp.go` | User votes going/not going on an event |
-| `queries/list_group_events.go` | Events for a group + options + vote counts |
-| `transport/http.go` | HTTP handlers |
-| `store/sqlite.go` | SQLite implementation |
+| File                           | Contents                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| `event.go`                     | `Event`, `EventRSVP`, `Option` entities, `Repository` interface                               |
+| `commands/create_event.go`     | Validate ≥2 options (going/not going at minimum) + membership check + publish `event.created` |
+| `commands/rsvp.go`             | User votes going/not going on an event                                                        |
+| `queries/list_group_events.go` | Events for a group + options + vote counts                                                    |
+| `transport/http.go`            | HTTP handlers                                                                                 |
+| `store/sqlite.go`              | SQLite implementation                                                                         |
 
 **Key behavior**:
+
 - Event creation → publish `event.created` to eventbus (fans out to all group members)
 - Requires `GroupMemberChecker` interface (defined locally, satisfied by group store)
 - Event fields: title, description, day/time, at least 2 options (going, not going)
@@ -641,7 +657,7 @@ Create numbered migration scripts:
 
 ## Phase 5: Migrate Existing Features to Vertical Slices
 
-*Move existing code from `internal/domain/` → `internal/app/` → `internal/infra/` into vertical slices. One feature at a time.*
+_Move existing code from `internal/domain/` → `internal/app/` → `internal/infra/` into vertical slices. One feature at a time._
 
 ### Per-Feature Migration Steps
 
@@ -660,6 +676,7 @@ For each feature (user, topic, comment, chat, notification, oauth):
 ### Special Merge Notes
 
 **`user/` — absorbs `activity/`**
+
 - `internal/domain/user/user.go` + `internal/domain/activity/` → `internal/user/user.go`
 - Add `DateOfBirth`, `AboutMe`, `IsPrivate` fields (drop `Age`)
 - Split into: `commands/register.go`, `commands/login.go`, `commands/logout.go`, `commands/update_profile.go`, `commands/toggle_privacy.go`
@@ -667,6 +684,7 @@ For each feature (user, topic, comment, chat, notification, oauth):
 - All handlers → `user/transport/http.go`
 
 **`topic/` — absorbs `category/` and `vote/`**
+
 - `internal/domain/topic/` + `internal/domain/category/` + `internal/domain/vote/` → `internal/topic/topic.go`
 - Add `Visibility` enum (`public`, `almost_private`, `private`), `AllowedUser` entity, `Vote` entity
 - Split into: `commands/create_topic.go`, `commands/cast_vote.go`
@@ -674,15 +692,18 @@ For each feature (user, topic, comment, chat, notification, oauth):
 - Add `http.DetectContentType` for upload MIME validation (uses `pkg/imgutil/`)
 
 **`comment/`**
+
 - Split into: `commands/create_comment.go` (with MIME validation for image/GIF)
 - Split into: `queries/get_comments.go`
 
 **`chat/` — gets `transport/ws.go`**
+
 - Move WS message handlers from `internal/infra/ws/handlers/` → `chat/transport/ws.go`
 - Split into: `commands/send_private_msg.go` (requires follow relationship via `FollowChecker` interface)
 - Split into: `queries/get_chat_history.go`, `queries/list_conversations.go`
 
 **`notification/` — becomes event consumer**
+
 - Wire eventbus subscriptions in `bootstrap.go`
 - Split into: `commands/consume_events.go` (subscribes to all events), `commands/mark_read.go`
 - Split into: `queries/list_notifications.go`
@@ -690,11 +711,13 @@ For each feature (user, topic, comment, chat, notification, oauth):
 - Notifications displayed via dedicated UI panel, visually distinct from chat messages (separate icon, sidebar panel, unread count)
 
 **`oauth/`**
+
 - Split into: `commands/initiate.go`, `commands/callback.go`
 
 ### Cleanup
 
 After all features migrated:
+
 - Delete `internal/domain/`
 - Delete `internal/app/`
 - Delete `internal/infra/`
@@ -746,16 +769,16 @@ After all features migrated:
 services:
   backend:
     build: .
-    ports: ["8080:8080"]
-    volumes: ["./data:/app/data"]  # SQLite persistence
+    ports: ['8080:8080']
+    volumes: ['./data:/app/data'] # SQLite persistence
     environment:
       DB_DRIVER: sqlite3
       DB_PATH: /app/data/forum.db
-      DB_PRAGMA: "_foreign_keys=on&_journal_mode=WAL"
+      DB_PRAGMA: '_foreign_keys=on&_journal_mode=WAL'
 
   frontend:
     build: ./frontend
-    ports: ["3000:3000"]
+    ports: ['3000:3000']
     environment:
       NEXT_PUBLIC_API_URL: http://backend:8080
 ```
@@ -768,7 +791,7 @@ services:
 
 ## Phase 8: PostgreSQL Support (Optional — Learning)
 
-*Goal: understand database portability and the factory pattern in practice.*
+_Goal: understand database portability and the factory pattern in practice._
 
 ### 8.1 Add PostgreSQL Driver
 
@@ -797,7 +820,7 @@ Add `postgres` service. Backend switches to PostgreSQL by changing `DATABASE_DRI
 
 ## Phase 9: Redis (Optional — Learning)
 
-*Goal: understand caching, distributed rate limiting, and pub/sub.*
+_Goal: understand caching, distributed rate limiting, and pub/sub._
 
 ### 9.1 Redis Cache (`internal/platform/cache/`)
 
@@ -827,7 +850,7 @@ Add `redis` service.
 
 ## Phase 10: RabbitMQ (Optional — Learning)
 
-*Goal: understand message brokers, exchanges, queues, dead-letter handling.*
+_Goal: understand message brokers, exchanges, queues, dead-letter handling._
 
 ### 10.1 RabbitMQ Client (`internal/platform/rabbitmq/`)
 
@@ -852,13 +875,13 @@ Feature code (follow, group, event, notification) doesn't change — they all us
 
 ### 10.3 Exchange/Queue Topology
 
-| Exchange | Routing Key | Queue | Consumer |
-|----------|-------------|-------|----------|
-| `social.events` | `follow.requested` | `notifications.follow` | notification service |
-| `social.events` | `follow.accepted` | `notifications.follow` | notification service |
-| `social.events` | `group.invited` | `notifications.group` | notification service |
-| `social.events` | `group.join_requested` | `notifications.group` | notification service |
-| `social.events` | `event.created` | `notifications.event` | notification service |
+| Exchange        | Routing Key            | Queue                  | Consumer             |
+| --------------- | ---------------------- | ---------------------- | -------------------- |
+| `social.events` | `follow.requested`     | `notifications.follow` | notification service |
+| `social.events` | `follow.accepted`      | `notifications.follow` | notification service |
+| `social.events` | `group.invited`        | `notifications.group`  | notification service |
+| `social.events` | `group.join_requested` | `notifications.group`  | notification service |
+| `social.events` | `event.created`        | `notifications.event`  | notification service |
 
 Dead-letter exchange for failed messages with configurable retry.
 
@@ -873,28 +896,36 @@ Add `rabbitmq` service. Final compose has 4-5 services.
 The optimized architecture is designed to support the seamless promotion of modules into standalone **Microservices** and the physical scaling of **Commands** and **Queries** independently. By keeping slices logically segregated and minimizing cross-slice references, this transition is treated as a routing and infrastructure concern rather than a code-rewrite task.
 
 ### 1. Promotion to Microservices (Requirement)
+
 Any feature slice (e.g., `user/`, `group/`, `notification/`) must be ready for promotion to an independent microservice:
+
 - **No Shared Storage:** Slices access only their own database tables. Cross-slice joins are forbidden.
-- **Strict Boundary Import Rules:** Slices interact only through whitelisted domain interfaces or clean APIs. 
+- **Strict Boundary Import Rules:** Slices interact only through whitelisted domain interfaces or clean APIs.
 - **Transition Path:** To extract a slice (e.g., `notification`) into its own microservice:
   1. Move the `internal/notification/` directory to a new Go service repository.
   2. Implement an HTTP/gRPC transport layer for its endpoints.
   3. Replace in-memory service calls in other slices with HTTP/gRPC API client calls.
 
 ### 2. Kubernetes Readiness (App Alignment)
+
 To ensure the application deploys reliably on Kubernetes and handles orchestrator lifecycle events:
+
 - **Liveness & Readiness Probes:** The HTTP server exposes `/healthz` (always returns `200 OK`) and `/readyz` (dynamically verifies active SQLite/Postgres connections, Redis connectivity, and RabbitMQ health). Traffic is routed only when `/readyz` is healthy.
 - **Graceful Shutdown (`SIGTERM` handling):** The Go binary traps orchestrator `SIGTERM`/`SIGINT` signals, halts the HTTP/WS listener, drains in-flight requests, gracefully closes RabbitMQ consumer channels, and releases database connection pools to prevent active connection dropouts.
 - **12-Factor Config:** Configuration is populated strictly via environment variables, aligning with Kubernetes `ConfigMaps` and `Secrets` injection.
 
 ### 3. Message Broker Swappability (RabbitMQ to Kafka)
+
 To prevent cloud-provider/vendor lock-in to RabbitMQ and allow dropping in Kafka or NATS in the future:
+
 - **Abstracted Event Bus:** Feature commands publish events strictly via a generic `EventBus` interface defined in `internal/platform/eventbus/`.
 - **Decoupled Business Logic:** Slices have zero import dependencies on RabbitMQ (`amqp`) libraries.
 - **Interchangeable Implementations:** The concrete RabbitMQ client resides in `platform/rabbitmq`. If you migrate to Kafka, you only need to create `platform/kafka`, implement the same `EventBus` interface, and update the wiring in `bootstrap/bootstrap.go`.
 
 ### 4. Path to Independent CQRS Scaling
+
 If read traffic heavily outweighs write traffic, the unified binary can be scaled asymmetrically in Kubernetes (e.g., running 10 replicas of Queries and 2 replicas of Commands) using these steps:
+
 - **Separate Entrypoints:** Create separate binaries under `cmd/commands/main.go` and `cmd/queries/main.go` using the same underlying code but wiring only the necessary controllers.
 - **Asymmetric Routing:** Configure Kubernetes Ingress, Nginx, or an API Gateway to forward read requests (`GET`) to query replicas and write requests (`POST`, `PUT`, `DELETE`) to command replicas.
 - **Database Replication:** Update the `platform/database` factory to accept write and read connection strings (DSNs), supplying the primary database to commands and read-replicas to queries.
@@ -906,6 +937,7 @@ If read traffic heavily outweighs write traffic, the unified binary can be scale
 ### Automated Verification (run after every phase)
 
 #### Backend (Go)
+
 ```bash
 go vet ./...
 go build ./...
@@ -915,6 +947,7 @@ govulncheck ./...
 ```
 
 #### Frontend (Next.js)
+
 ```bash
 # Lint and Format checks (ESLint + Prettier)
 npx eslint src/
@@ -940,11 +973,13 @@ grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | g
 ### Manual Test Scenarios
 
 **A: Registration & Login**
+
 1. Register under-13 → rejected
 2. Register without nickname/about → succeeds
 3. Upload non-image as avatar → rejected (magic bytes)
 
 **B: Follow & Privacy**
+
 1. Set User B private
 2. A follows B → follow request + notification to B
 3. B declines → no relationship
@@ -953,6 +988,7 @@ grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | g
 6. A unfollows → confirmation popup, relationship severed
 
 **C: Post Privacy**
+
 1. A creates "almost_private" post
    - B (follower of A) → visible
    - C (not a follower) → invisible
@@ -961,6 +997,7 @@ grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | g
    - D (follower of A, but not selected) → invisible
 
 **D: Group & Event**
+
 1. A creates group
 2. A invites B → B gets notification, accepts, joins chat
 3. C requests join → A gets notification, accepts

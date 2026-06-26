@@ -3,9 +3,10 @@ package topiccommands
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"social-network/internal/domain/topic"
 	"social-network/internal/domain/user"
-	"testing"
 
 	testhelpers "social-network/internal/pkg/testing"
 )

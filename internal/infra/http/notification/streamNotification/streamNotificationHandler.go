@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"social-network/internal/infra/middleware"
 	"time"
+
+	"social-network/internal/infra/middleware"
 
 	notificationcommands "social-network/internal/app/notifications/commands"
 )

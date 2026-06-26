@@ -1,5 +1,5 @@
 /*
-Runner handles registration and orchestration of gate checks.
+Package gates handles registration and orchestration of gate checks.
 It defines the main interfaces, structures, and helper functions for executing
 the validation pipeline and formatting the report output into structured JSON.
 */
@@ -45,7 +45,8 @@ type Report struct {
 
 // Runner holds registered gates and executes them.
 type Runner struct {
-	gates []Gate
+	gates    []Gate
+	OnResult func(Result)
 }
 
 // NewRunner creates a runner with all gates registered.
@@ -67,6 +68,9 @@ func (r *Runner) RunAll() Report {
 			report.Overall = "FAIL"
 		}
 		report.Gates = append(report.Gates, result)
+		if r.OnResult != nil {
+			r.OnResult(result)
+		}
 	}
 	return report
 }

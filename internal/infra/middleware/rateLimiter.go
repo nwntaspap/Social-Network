@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"net/http"
-	"social-network/internal/infra/middleware/ratelimiter"
-	"social-network/internal/pkg/helpers"
 	"strconv"
 	"strings"
 	"time"
+
+	"social-network/internal/infra/middleware/ratelimiter"
+	"social-network/internal/pkg/helpers"
 )
 
 type rateLimitMiddleware struct {
@@ -14,9 +15,9 @@ type rateLimitMiddleware struct {
 	handler http.Handler
 }
 
-func NewRateLimiterMiddleware(handler http.Handler, limit int, windowSeconds int64, cleanup time.Duration) http.Handler {
+func NewRateLimiterMiddleware(handler http.Handler, limiter *ratelimiter.RateLimiter) http.Handler {
 	return &rateLimitMiddleware{
-		limiter: ratelimiter.NewRateLimiter(limit, windowSeconds, cleanup),
+		limiter: limiter,
 		handler: handler,
 	}
 }

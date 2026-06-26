@@ -2,6 +2,7 @@ package notificationcommands
 
 import (
 	"context"
+
 	"social-network/internal/app/notifications"
 	"social-network/internal/domain/notification"
 )

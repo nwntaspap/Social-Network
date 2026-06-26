@@ -2,6 +2,7 @@ package initchat
 
 import (
 	"net/http"
+
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
 	"social-network/internal/pkg/helpers"

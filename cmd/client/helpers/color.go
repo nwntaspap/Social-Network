@@ -2,9 +2,10 @@ package helpers
 
 import (
 	"log"
-	"social-network/cmd/client/domain"
 	"strconv"
 	"strings"
+
+	"social-network/cmd/client/domain"
 )
 
 const (

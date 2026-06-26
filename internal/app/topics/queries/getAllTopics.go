@@ -2,6 +2,7 @@ package topicqueries
 
 import (
 	"context"
+
 	"social-network/internal/domain/category"
 	"social-network/internal/domain/topic"
 )

@@ -7,26 +7,26 @@
 
 ## Meta
 
-| Field | Value |
-|-------|-------|
-| Team | 5 devs (**SD-QA**, **BE-A**, **BE-B**, **FE-A**, **FE-B**) |
-| Sprint length | 2 weeks |
-| Total duration | ~14 weeks (7 sprints) |
-| Methodology | TDD (Red → Green → Refactor), Strangler Fig, Trunk-Based Development |
-| Branch naming | `username/<ticketID>-detail` (e.g. `geoikonomou/S1-BE-05-db-factory`) |
-| Ticket format | **ID** — component, priority, dependency, assignee, story points, acceptance criteria |
+| Field          | Value                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Team           | 5 devs (**SD-QA**, **BE-A**, **BE-B**, **FE-A**, **FE-B**)                            |
+| Sprint length  | 2 weeks                                                                               |
+| Total duration | ~14 weeks (7 sprints)                                                                 |
+| Methodology    | TDD (Red → Green → Refactor), Strangler Fig, Trunk-Based Development                  |
+| Branch naming  | `username/<ticketID>-detail` (e.g. `geoikonomou/S1-BE-05-db-factory`)                 |
+| Ticket format  | **ID** — component, priority, dependency, assignee, story points, acceptance criteria |
 
 ### Architecture Phase ↔ Sprint Mapping
 
-| Architecture Phase | Sprint Mapping |
-|-------------------|----------------|
-| **Phase 1**: Critical Bug Fixes | Sprint 0 |
-| **Phase 2**: Platform Foundation | Sprint 1 |
-| **Phase 3**: Cross-Cutting Core | Sprint 1 |
-| **Phase 4**: Greenfield Slices (Follow, Group, Event) | Sprints 3–4 |
-| **Phase 5**: Migrate Features (User, Topic, Comment, Chat, Notification, OAuth) | Sprints 2, 3, 5 |
-| **Phase 6**: Next.js Frontend | Across all sprints |
-| **Phase 7**: Docker Compose (2 Services) | Sprint 0 setup, Sprint 6 finalization |
+| Architecture Phase                                                              | Sprint Mapping                        |
+| ------------------------------------------------------------------------------- | ------------------------------------- |
+| **Phase 1**: Critical Bug Fixes                                                 | Sprint 0                              |
+| **Phase 2**: Platform Foundation                                                | Sprint 1                              |
+| **Phase 3**: Cross-Cutting Core                                                 | Sprint 1                              |
+| **Phase 4**: Greenfield Slices (Follow, Group, Event)                           | Sprints 3–4                           |
+| **Phase 5**: Migrate Features (User, Topic, Comment, Chat, Notification, OAuth) | Sprints 2, 3, 5                       |
+| **Phase 6**: Next.js Frontend                                                   | Across all sprints                    |
+| **Phase 7**: Docker Compose (2 Services)                                        | Sprint 0 setup, Sprint 6 finalization |
 
 ---
 
@@ -61,7 +61,7 @@ graph TD
 1. **Pick a Ticket**: Claim open `BE-*` / `FE-*` / `SD-QA-*` items from `docs/sprints/ticket-tracker.md`. Verify dependencies.
 2. **Set Up Branch**: Standard `username/<ticketID>-detail` naming (e.g. `geoikonomou/S1-BE-05-db-factory`).
 3. **Development Cycle (TDD)**: Test first (Vitest for FE, `_test.go` for BE), minimal implementation, refactor, and formatting checks.
-4. **PR Guidelines**: Squash merge, run all validation gates (`make ci`), and draft description using the PR template.
+4. **PR Guidelines**: Squash merge, run all validation gates (`make gates`), and draft description using the PR template.
 
 ### PR Description Template
 
@@ -107,10 +107,11 @@ For each use case (one command/query file):
 3. REFACTOR: Clean up
    - Extract helpers if duplicated 3+ times
    - Ensure boundary rules (D5) are intact
-   - Run full CI: `make ci`
+   - Run all verification gates: `make gates`
 ```
 
 **Test file convention:**
+
 ```go
 // commands/register_test.go
 func TestRegisterHandler_ValidInput(t *testing.T) { ... }
@@ -121,6 +122,7 @@ func TestRegisterHandler_SQLiteError(t *testing.T) { ... }
 ```
 
 **Contract test pattern (for migration verification):**
+
 ```go
 // internal/user/store/sqlite_migration_test.go
 // Tests that new store produces identical results to old sqlite/users/userRepo.go
@@ -156,11 +158,12 @@ main ← (protected, requires CI green + review)
 ### R5: Code Review Checklist
 
 Every PR must pass:
+
 - [ ] **Boundary rules** (D5): no cross-slice transport/store imports
 - [ ] **Interface rules** (D2): within slice = full interface, across = narrow consumer-defined
 - [ ] **Cross-slice communication** (D3): ID-only refs, consumer interfaces, event bus for mutations
 - [ ] **Tests present**: unit tests for each command/query, store tests with real in-memory SQLite
-- [ ] **Format + lint + test**: `make ci` green
+- [ ] **Format + lint + test**: `make gates` green
 - [ ] **No dead code**: removed imports/variables introduced by the change
 
 ---
@@ -170,6 +173,7 @@ Every PR must pass:
 ### F1: Frontend Feature-to-Audit Mapping (REQUIRED)
 
 Maps each audit checklist item to a frontend component/page:
+
 - `/register`: [RegisterForm](file://frontend/src/components/features/auth/RegisterForm.tsx) (Email, Password, First Name, Last Name, Date of Birth required; Avatar/Image, Nickname, About Me optional).
 - `/login`: [LoginForm](file://frontend/src/components/features/auth/LoginForm.tsx) (email/username + password, Google & GitHub OAuth buttons).
 - `/profile/[id]`: [ProfileCard](file://frontend/src/components/features/profile/ProfileCard.tsx) + [ProfilePosts](file://frontend/src/components/features/profile/ProfilePosts.tsx) + [FollowersList](file://frontend/src/components/features/profile/FollowersList.tsx) + [FollowingList](file://frontend/src/components/features/profile/FollowingList.tsx) (displays all registration data except password, user posts, and followers/following counts).
@@ -207,11 +211,12 @@ Maps each audit checklist item to a frontend component/page:
 ### F5: Frontend Project Structure (REQUIRED)
 
 Define the directory mapping:
-- `frontend/src/app/` (routes)
-- `frontend/src/components/ui/` (shadcn primitives)
-- `frontend/src/components/features/` (domain-specific composables: `auth`, `profile`, `post`, `group`, `chat`, `notification`)
-- `frontend/src/lib/` (API client, session cookies helper, WS coordinator)
-- `frontend/src/styles/` (Tailwind globals)
+
+- `frontend-next/src/app/` (routes)
+- `frontend-next/src/components/ui/` (shadcn primitives)
+- `frontend-next/src/components/features/` (domain-specific composables: `auth`, `profile`, `post`, `group`, `chat`, `notification`)
+- `frontend-next/src/lib/` (API client, session cookies helper, WS coordinator)
+- `frontend-next/src/styles/` (Tailwind globals)
 
 ### F6: Frontend Build & Deploy (REQUIRED)
 
@@ -231,37 +236,39 @@ Define the directory mapping:
 
 ### Q1: Bug Fix First (Phase 1)
 
-| ID | Bug | Current Location | BE Assignee |
-|----|-----|------------------|-------------|
-| B1.1 | Migration delimiter `":"` → `";"` | `internal/infra/storage/sqlite/init.go` | BE-A |
-| B1.2 | SQLite DSN missing WAL/busy timeout | `internal/infra/storage/sqlite/init.go`, `.env` | BE-A |
-| B1.3 | OAuth `Scan()` with `ctx` arg | `internal/infra/storage/sqlite/oauth/oauthRepo.go` | BE-B |
-| B1.4 | WebSocket CheckOrigin returns true | `internal/infra/http/ws/handler.go` | BE-B |
-| B1.5 | SQL injection in ORDER BY | `internal/infra/storage/sqlite/topics/topicRepo.go`, `internal/infra/storage/sqlite/categories/categoryRepo.go` | BE-A |
-| B1.6 | Prepared stmt uses `db.Exec` | `internal/infra/storage/sqlite/users/userRepo.go` | BE-B |
-| B1.7 | WS goroutine panic recovery | `internal/infra/ws/client.go` | BE-B |
-| B1.8 | RateLimiter ticker leak (core GCRA, not HTTP wrapper) | `internal/infra/middleware/ratelimiter/rateLimiter.go` | BE-B |
+| ID   | Bug                                                   | Current Location                                                                                                | BE Assignee |
+| ---- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| B1.1 | Migration delimiter `":"` → `";"`                     | `internal/infra/storage/sqlite/init.go`                                                                         | BE-A        |
+| B1.2 | SQLite DSN missing WAL/busy timeout                   | `internal/infra/storage/sqlite/init.go`, `.env`                                                                 | BE-A        |
+| B1.3 | OAuth `Scan()` with `ctx` arg                         | `internal/infra/storage/sqlite/oauth/oauthRepo.go`                                                              | BE-B        |
+| B1.4 | WebSocket CheckOrigin returns true                    | `internal/infra/http/ws/handler.go`                                                                             | BE-B        |
+| B1.5 | SQL injection in ORDER BY                             | `internal/infra/storage/sqlite/topics/topicRepo.go`, `internal/infra/storage/sqlite/categories/categoryRepo.go` | BE-A        |
+| B1.6 | Prepared stmt uses `db.Exec`                          | `internal/infra/storage/sqlite/users/userRepo.go`                                                               | BE-B        |
+| B1.7 | WS goroutine panic recovery                           | `internal/infra/ws/client.go`                                                                                   | BE-B        |
+| B1.8 | RateLimiter ticker leak (core GCRA, not HTTP wrapper) | `internal/infra/middleware/ratelimiter/rateLimiter.go`                                                          | BE-B        |
 
 **Process:**
+
 1. Write reproducer test (failing) for each bug
 2. Apply fix
 3. Verify test passes
-4. Run `make ci`
+4. Run `make gates`
 
 ### Q2: Verification Gates (per sprint)
 
 **Mandatory:** After every sprint, before marking complete, run:
 
 ```bash
-# Full CI gate (BE + FE)
-make ci
+# Full CI and verification gates
+make gates
 
 # Or individually:
-make be-ci   # Backend only
-make fe-ci   # Frontend only
+make be-ci   # Legacy blanket check
+make be-ci-new   # Scoped new-code CI
+make fe-ci   # Frontend CI (scoped to frontend-next/ if it exists)
 
 # Go verification gates (architecture, security, conventions)
-make review-gates
+make gates
 # Equivalent: go run cmd/gates/main.go --all
 
 # Boundary check (D5)
@@ -269,34 +276,43 @@ grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | g
 ```
 
 Equivalent standalone commands if running without `make`:
+
 ```bash
-go vet ./...
+go vet $(NEW_PKGS)
 go build ./...
-go test -race -coverprofile=coverage.out ./...
-golangci-lint run
-govulncheck ./...
+go test -race -coverprofile=coverage.out $(NEW_PKGS)
+golangci-lint run --timeout=5m $(addsuffix /..., $(NEW_DIRS))
+govulncheck $(NEW_PKGS)
 go run cmd/gates/main.go --all
 ```
+
+Scoped CI targets (`make be-ci-new`) execute:
+
+```bash
+ci-mod → check-format-new → lint-new (staticcheck-new + golangci-lint-new + vet-new + vulncheck-new + gosec-new) → test-new
+```
+
+`NEW_DIRS` and `NEW_PKGS` are defined in the Makefile and list all new vertical-slice packages under `internal/`: `internal/user`, `internal/follow`, `internal/topic`, `internal/comment`, `internal/group`, `internal/event`, `internal/chat`, `internal/notification`, `internal/oauth`, `internal/core`, `internal/platform`, `internal/bootstrap`, `internal/config`, `internal/gates`, `cmd/gates`, `cmd/server`.
 
 ### Q3: Manual Smoke Test Scenarios
 
 Run these after each feature migration to catch regression:
 
-| Test | Steps | Expected |
-|------|-------|----------|
-| A1 | Register under-13 user | Rejected (age validation) |
-| A2 | Register without nickname/about | Succeeds |
-| A3 | Upload non-image as avatar | Rejected (magic bytes) |
-| A4 | Upload valid image as avatar | Accepted |
-| B1 | Set user B private → A follows | Follow request + notification |
-| B2 | A views B's profile (not accepted) | "Private" lock screen |
-| B3 | B accepts → A views profile | Full profile visible |
-| B4 | A unfollows | Confirmation popup, relationship severed |
-| C1 | Create "almost_private" post | Visible to followers, hidden from non-followers |
-| C2 | Create "private" post for specific user | Visible to selected user only |
-| D1 | Create group → invite member | Member gets notification, joins |
-| D2 | Create event in group | All members notified |
-| D3 | RSVP going/not going | Count updates in real-time |
+| Test | Steps                                   | Expected                                        |
+| ---- | --------------------------------------- | ----------------------------------------------- |
+| A1   | Register under-13 user                  | Rejected (age validation)                       |
+| A2   | Register without nickname/about         | Succeeds                                        |
+| A3   | Upload non-image as avatar              | Rejected (magic bytes)                          |
+| A4   | Upload valid image as avatar            | Accepted                                        |
+| B1   | Set user B private → A follows          | Follow request + notification                   |
+| B2   | A views B's profile (not accepted)      | "Private" lock screen                           |
+| B3   | B accepts → A views profile             | Full profile visible                            |
+| B4   | A unfollows                             | Confirmation popup, relationship severed        |
+| C1   | Create "almost_private" post            | Visible to followers, hidden from non-followers |
+| C2   | Create "private" post for specific user | Visible to selected user only                   |
+| D1   | Create group → invite member            | Member gets notification, joins                 |
+| D2   | Create event in group                   | All members notified                            |
+| D3   | RSVP going/not going                    | Count updates in real-time                      |
 
 ### Q4: Contract Testing (BE ↔ FE)
 
@@ -332,10 +348,11 @@ Run these after each feature migration to catch regression:
 type(scope)[<ID>]: description
 
 type: feat, fix, refactor, test, chore, docs
-scope: feature name (user, topic, follow, group, event, chat, notification, oauth, core, platform)
+scope: feature name (user, topic, follow, group, event, chat, notification, oauth, core, platform, comment, dev)
 ```
 
 Examples:
+
 - `feat(user)[S2-BE-17]: add register command with age validation`
 - `fix(core)[42]: recover from WebSocket goroutine panic`
 - `refactor(topic)[S2-BE-26]: migrate topic store to vertical slice`
@@ -360,20 +377,21 @@ if config.Features.Follow {
 
 ### A5: Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
-| Old code breaks during migration | Contract tests verify old API → new API behavior match |
-| Migration takes too long per feature | Strangler Fig — ship one feature at a time, old code still runs |
-| Breaking API change for FE | OpenAPI spec defined before BE implementation; FE mocks from spec |
-| Database migration fails in production | Every migration has `.down.sql`; tested in CI |
-| Performance regression | `make ci-bench` every sprint; flag > 10% degradation |
-| Dev blocked waiting for other dev | Independent slices per BE dev; FE mocks BE APIs |
+| Risk                                   | Mitigation                                                        |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| Old code breaks during migration       | Contract tests verify old API → new API behavior match            |
+| Migration takes too long per feature   | Strangler Fig — ship one feature at a time, old code still runs   |
+| Breaking API change for FE             | OpenAPI spec defined before BE implementation; FE mocks from spec |
+| Database migration fails in production | Every migration has `.down.sql`; tested in CI                     |
+| Performance regression                 | `make ci-bench` every sprint; flag > 10% degradation              |
+| Dev blocked waiting for other dev      | Independent slices per BE dev; FE mocks BE APIs                   |
 
 ### A6: Definition of Done
 
 A ticket is DONE when:
+
 - [ ] Code written (TDD: tests first, then implementation)
-- [ ] All tests pass: `make ci`
+- [ ] All tests and verification gates pass: `make gates`
 - [ ] Boundary rules verified (no cross-slice transport/store imports)
 - [ ] PR reviewed by other dev in same discipline (BE reviews BE, FE reviews FE)
 - [ ] Merged to main via squash merge
@@ -420,13 +438,13 @@ Sprint 6:  Cleanup + Integration + Docker ────┘
 
 ## Appendix C: Ticket Count Summary
 
-| Sprint | BE Tickets | FE Tickets | DevOps | Total |
-|--------|-----------|-----------|--------|-------|
-| Sprint 0 | 4 | 2 | 4 | 10 |
-| Sprint 1 | 9 | 3 | 2 | 14 |
-| Sprint 2 | 23 | 8 | 0 | 31 |
-| Sprint 3 | 25 | 7 | 5 | 37 |
-| Sprint 4 | 22 | 8 | 0 | 30 |
-| Sprint 5 | 17 | 7 | 0 | 24 |
-| Sprint 6 | 8 | 7 | 5 | 20 |
-| **Total** | **108** | **42** | **16** | **166** |
+| Sprint    | BE Tickets | FE Tickets | DevOps | Total   |
+| --------- | ---------- | ---------- | ------ | ------- |
+| Sprint 0  | 4          | 2          | 4      | 10      |
+| Sprint 1  | 9          | 3          | 2      | 14      |
+| Sprint 2  | 23         | 8          | 0      | 31      |
+| Sprint 3  | 25         | 7          | 5      | 37      |
+| Sprint 4  | 22         | 8          | 0      | 30      |
+| Sprint 5  | 17         | 7          | 0      | 24      |
+| Sprint 6  | 8          | 7          | 5      | 20      |
+| **Total** | **108**    | **42**     | **16** | **166** |

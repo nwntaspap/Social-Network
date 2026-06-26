@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"social-network/internal/domain/category"
-	"social-network/internal/domain/topic"
 	"strings"
 	"time"
+
+	"social-network/internal/domain/category"
+	"social-network/internal/domain/topic"
 )
 
 type Repo struct {

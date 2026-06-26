@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"social-network/internal/domain/user"
 )
 
@@ -72,9 +73,8 @@ func (r Repo) UserRegister(ctx context.Context, user *user.User) error {
 	}
 	defer stmt.Close()
 
-	_, err = r.DB.ExecContext(
+	_, err = stmt.ExecContext(
 		ctx,
-		query,
 		user.Nickname,
 		user.Password,
 		user.Email,

@@ -3,6 +3,7 @@ MigrationsGate validates database schema migration files under the db/migrations
 It verifies that every '.up.sql' file has a matching '.down.sql' file, and parses SQL
 content to check for invalid delimiters (e.g., statements ending with ':' instead of ';').
 */
+
 package gates
 
 import (
@@ -26,13 +27,24 @@ func (g *MigrationsGate) Run() Result {
 		dir = "db/migrations"
 	}
 
+	what := "database migrations naming integrity (matching up/down scripts) and statement delimiter syntax"
+	why := "to guarantee database schema changes are fully reversible and use semicolon separators instead of invalid colons"
+
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return Result{Gate: g.Name(), Status: "PASS", Message: "no migration directory"}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "PASS",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: OK - no migration directory exists (pre-migration or dynamic storage only)", what, why),
+		}
 	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return Result{Gate: g.Name(), Status: "FAIL", Message: fmt.Sprintf("cannot read %s: %v", dir, err)}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "FAIL",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - cannot read %s: %v | debug: verify migration path and directory permissions", what, why, dir, err),
+		}
 	}
 
 	var errors []string
@@ -69,7 +81,15 @@ func (g *MigrationsGate) Run() Result {
 	}
 
 	if len(errors) > 0 {
-		return Result{Gate: g.Name(), Status: "FAIL", Message: strings.Join(errors, "; ")}
+		return Result{
+			Gate:    g.Name(),
+			Status:  "FAIL",
+			Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - %s | debug: run 'ls %s/' and check delimiter style inside scripts", what, why, strings.Join(errors, "; "), dir),
+		}
 	}
-	return Result{Gate: g.Name(), Status: "PASS", Message: "migrations OK"}
+	return Result{
+		Gate:    g.Name(),
+		Status:  "PASS",
+		Message: fmt.Sprintf("checked: %s | why: %s | status: OK - all migrations are paired with down scripts and use valid semicolon delimiters", what, why),
+	}
 }

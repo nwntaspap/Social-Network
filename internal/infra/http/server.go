@@ -5,6 +5,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
+	"time"
+
 	"social-network/internal/app"
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
@@ -14,9 +17,8 @@ import (
 	"social-network/internal/infra/http/user/logout"
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
+	"social-network/internal/infra/middleware/ratelimiter"
 	"social-network/internal/infra/ws"
-	"strings"
-	"time"
 
 	getuseractivity "social-network/internal/infra/http/activity/getUserActivity"
 
@@ -75,9 +77,10 @@ type Server struct {
 	oauth          *oauth.OAuth
 	middleware     *middleware.Middleware
 	//lint:ignore U1000 pre-existing dead code, do not delete
-	db     *sql.DB
-	logger logger.Logger
-	hub    *ws.Hub
+	db          *sql.DB
+	logger      logger.Logger
+	hub         *ws.Hub
+	ratelimiter *ratelimiter.RateLimiter
 }
 
 func NewServer(cfg *config.ServerConfig, app *bootstrap.App) *Server {
@@ -420,7 +423,7 @@ func (server *Server) AddHTTPRoutes() {
 	server.router.HandleFunc(
 		apiContext+"/ws",
 		middlewareChain(
-			wshttp.NewHandler(server.hub, server.wsRouter, server.logger).UpgradeConnection,
+			wshttp.NewHandler(server.hub, server.wsRouter, server.logger, server.config.AllowedOrigins).UpgradeConnection,
 			server.middleware.Authorization.Required,
 		),
 	)
@@ -446,11 +449,16 @@ func (server *Server) ListenAndServe() {
 	wrappedRouter := middleware.NewCorsMiddleware(server.router)
 
 	if server.config.RateLimit.Enabled {
-		wrappedRouter = middleware.NewRateLimiterMiddleware(
-			wrappedRouter,
+		limiter := ratelimiter.NewRateLimiter(
 			server.config.RateLimit.RequestsLimit,
 			server.config.RateLimit.WindowSeconds,
 			server.config.RateLimit.Cleanup,
+		)
+		server.ratelimiter = limiter
+
+		wrappedRouter = middleware.NewRateLimiterMiddleware(
+			wrappedRouter,
+			limiter,
 		)
 		server.logger.PrintInfo("Rate Limit wrapped", nil)
 		log.Printf("  2. Rate Limit middleware (limit: %d req/%ds cleanup: %s)",
@@ -502,5 +510,11 @@ func spaHandler(indexPath string) http.HandlerFunc {
 
 		// For all other routes (including root and client-side routes), serve index.html
 		http.ServeFile(w, r, indexPath)
+	}
+}
+
+func (server *Server) Close() {
+	if server.ratelimiter != nil {
+		server.ratelimiter.Stop()
 	}
 }
