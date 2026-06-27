@@ -49,7 +49,7 @@ For step-by-step ticket instructions, see individual sprint files:
 
 - [x] **S1-BE-05:** Platform: DB Factory
 - [ ] **S1-BE-06:** Custom Migration System
-- [ ] **S1-BE-07:** Core: Session Management
+- [x] **S1-BE-07:** Core: Session Management
 - [ ] **S1-BE-08:** Core: Middlewares
 - [ ] **S1-BE-09:** Shared: Image Type Verification Utility
 
