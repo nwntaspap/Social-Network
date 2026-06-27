@@ -74,3 +74,7 @@ func (s *sqliteDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, e
 func (s *sqliteDB) Close() error {
 	return s.db.Close()
 }
+
+func (s *sqliteDB) PingContext(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
