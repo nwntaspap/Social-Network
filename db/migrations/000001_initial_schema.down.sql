@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS chat_reads;
+DROP TABLE IF EXISTS chat_messages;
+DROP TABLE IF EXISTS direct_chats;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS votes;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS topic_categories;
+DROP TABLE IF EXISTS topics;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS oauth_providers;
+DROP TABLE IF EXISTS users;
