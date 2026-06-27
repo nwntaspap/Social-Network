@@ -72,3 +72,15 @@ func TestSQLite_MaxOpenConns(t *testing.T) {
 		t.Errorf("MaxOpenConnections = %d, want 1", stats.MaxOpenConnections)
 	}
 }
+
+func TestSQLite_Ping(t *testing.T) {
+	db, err := NewDB(Config{Driver: "sqlite3", Path: ":memory:"})
+	if err != nil {
+		t.Fatalf("NewDB() error = %v", err)
+	}
+	defer db.Close()
+
+	if err := db.PingContext(t.Context()); err != nil {
+		t.Fatalf("PingContext() error = %v", err)
+	}
+}
