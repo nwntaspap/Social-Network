@@ -1,16 +1,22 @@
-import { Category, Topic, Comment, ChatUser, Chat } from './types';
 /**
  * lib/api.ts
  *
  * Centralised API client for the Next.js frontend.
  * Every fetch to the backend goes through here.
- *
- * The backend always wraps successful responses as:
- *   { "data": { ...payload... } }
- *
- * On error the backend returns:
- *   { "error": "message" }  (with a non-2xx status)
  */
+
+import type {
+  User,
+  Post,
+  Comment,
+  Group,
+  Event,
+  Chat,
+  ChatMessage,
+  Notification,
+  FollowRequest,
+  PaginatedResponse,
+} from './types';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -91,7 +97,6 @@ async function apiFetch<T = unknown>(path: string, options: RequestOptions = {})
     throw new ApiError(response.status, 'Failed to parse server response');
   }
 
-  // Unwrap the { data: ... } envelope
   if (body && typeof body === 'object' && 'data' in body) {
     return (body as { data: T }).data;
   }
@@ -152,147 +157,254 @@ export const api = {
   },
 };
 
-// ─── Categories ───────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
-interface FetchCategoriesParams {
-  order_by?: string;
-  order?: string;
-  search?: string;
-  page?: number;
-  page_size?: number;
+export async function loginEmail(email: string, password: string): Promise<User> {
+  return api.post<User>('/login/email', { email, password });
 }
 
-export async function fetchCategories(params: FetchCategoriesParams = {}): Promise<Category[]> {
-  const defaults: FetchCategoriesParams = {
-    order_by: 'created_at',
-    order: 'desc',
-    search: '',
-    page: 1,
-    page_size: 20,
-  };
-  return api.get<Category[]>('/categories/all', { ...defaults, ...params });
+export async function loginUsername(username: string, password: string): Promise<User> {
+  return api.post<User>('/login/username', { username, password });
 }
 
-// ─── Topics ───────────────────────────────────────────────────────────────────
-
-export async function fetchTopics(params?: QueryParams): Promise<Topic[]> {
-  return api.get<Topic[]>('/topics/all', params);
+export async function register(body: Record<string, unknown>): Promise<void> {
+  return api.post<void>('/register', body);
 }
 
-export async function fetchTopic(id: number): Promise<Topic> {
-  return api.get<Topic>('/topic', { id });
+export async function logout(): Promise<void> {
+  return api.post<void>('/logout');
 }
 
-export async function createTopic(body: Partial<Topic>): Promise<Topic> {
-  return api.post<Topic>('/topics/create', body);
+export async function getCurrentUser(): Promise<User> {
+  return api.get<User>('/auth/me');
 }
 
-export async function updateTopic(body: Partial<Topic> & { id: number }): Promise<Topic> {
-  return api.post<Topic>('/topics/update', body);
+// ─── Users / Profiles ─────────────────────────────────────────────────────────
+
+export async function getUserProfile(userId: string): Promise<User> {
+  return api.get<User>(`/users/${userId}`);
 }
 
-export async function deleteTopic(body: { id: number }): Promise<void> {
-  return api.post<void>('/topics/delete', body);
+export async function updateProfile(body: Partial<User>): Promise<User> {
+  return api.put<User>('/profile', body);
+}
+
+export async function toggleProfilePrivacy(): Promise<User> {
+  return api.put<User>('/profile/privacy');
+}
+
+export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>('/users/search', { query, page });
+}
+
+// ─── Follow ───────────────────────────────────────────────────────────────────
+
+export async function sendFollowRequest(userId: string): Promise<FollowRequest> {
+  return api.post<FollowRequest>(`/follow/request/${userId}`);
+}
+
+export async function handleFollowRequest(
+  requestId: string,
+  action: 'accept' | 'decline'
+): Promise<void> {
+  return api.put<void>(`/follow/request/${requestId}`, { action });
+}
+
+export async function unfollowUser(userId: string): Promise<void> {
+  return api.delete<void>(`/follow/${userId}`);
+}
+
+export async function getFollowers(userId: string, page = 1): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>(`/users/${userId}/followers`, { page });
+}
+
+export async function getFollowing(userId: string, page = 1): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>(`/users/${userId}/following`, { page });
+}
+
+export async function getPendingFollowRequests(): Promise<FollowRequest[]> {
+  return api.get<FollowRequest[]>('/follow/requests/pending');
+}
+
+// ─── Posts ────────────────────────────────────────────────────────────────────
+
+export async function createPost(formData: FormData): Promise<Post> {
+  const url = API_BASE + '/posts';
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    const err = text ? JSON.parse(text) : {};
+    throw new ApiError(response.status, err.error || err.message || 'Failed to create post');
+  }
+
+  const body = JSON.parse(text);
+  return body.data;
+}
+
+export async function getFeed(page = 1): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>('/posts/feed', { page });
+}
+
+export async function getUserPosts(userId: string, page = 1): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>(`/users/${userId}/posts`, { page });
+}
+
+export async function getPost(postId: string): Promise<Post> {
+  return api.get<Post>(`/posts/${postId}`);
+}
+
+export async function deletePost(postId: string): Promise<void> {
+  return api.delete<void>(`/posts/${postId}`);
+}
+
+export async function likePost(postId: string): Promise<void> {
+  return api.post<void>(`/posts/${postId}/like`);
+}
+
+export async function unlikePost(postId: string): Promise<void> {
+  return api.delete<void>(`/posts/${postId}/like`);
 }
 
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
-export async function fetchComment(id: number): Promise<Comment> {
-  return api.get<Comment>('/comments/get', { id });
+export async function createComment(
+  postId: string,
+  content: string,
+  image?: File
+): Promise<Comment> {
+  if (image) {
+    const formData = new FormData();
+    formData.append('content', content);
+    formData.append('image', image);
+
+    const url = API_BASE + `/posts/${postId}/comments`;
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      const err = text ? JSON.parse(text) : {};
+      throw new ApiError(response.status, err.error || err.message || 'Failed to create comment');
+    }
+
+    const body = JSON.parse(text);
+    return body.data;
+  }
+
+  return api.post<Comment>(`/posts/${postId}/comments`, { content });
 }
 
-export async function fetchCommentsByTopic(topicId: number): Promise<Comment[]> {
-  return api.get<Comment[]>('/comments/topic', { topic_id: topicId });
+export async function getComments(postId: string, page = 1): Promise<PaginatedResponse<Comment>> {
+  return api.get<PaginatedResponse<Comment>>(`/posts/${postId}/comments`, { page });
 }
 
-export async function createComment(body: Partial<Comment>): Promise<Comment> {
-  return api.post<Comment>('/comments/create', body);
+export async function deleteComment(commentId: string): Promise<void> {
+  return api.delete<void>(`/comments/${commentId}`);
 }
 
-export async function updateComment(body: Partial<Comment> & { id: number }): Promise<Comment> {
-  return api.post<Comment>('/comments/update', body);
+// ─── Groups ───────────────────────────────────────────────────────────────────
+
+export async function createGroup(title: string, description: string): Promise<Group> {
+  return api.post<Group>('/groups', { title, description });
 }
 
-export async function deleteComment(body: { id: number }): Promise<void> {
-  return api.post<void>('/comments/delete', body);
+export async function getGroup(groupId: string): Promise<Group> {
+  return api.get<Group>(`/groups/${groupId}`);
 }
 
-// ─── Votes ────────────────────────────────────────────────────────────────────
-
-interface VoteBody {
-  target_type: 'topic' | 'comment';
-  target_id: number;
-  vote_type: 'up' | 'down';
+export async function browseGroups(query?: string, page = 1): Promise<PaginatedResponse<Group>> {
+  return api.get<PaginatedResponse<Group>>('/groups', { query, page });
 }
 
-type VoteCountsParams = {
-  target_type: 'topic' | 'comment';
-  target_ids: number[];
-};
-
-interface VoteCountResult {
-  target_id: number;
-  upvotes: number;
-  downvotes: number;
+export async function inviteToGroup(groupId: string, userId: string): Promise<void> {
+  return api.post<void>(`/groups/${groupId}/invite`, { userId });
 }
 
-export async function castVote(body: VoteBody): Promise<void> {
-  return api.post<void>('/vote/cast', body);
+export async function requestToJoinGroup(groupId: string): Promise<void> {
+  return api.post<void>(`/groups/${groupId}/request`);
 }
 
-export async function deleteVote(body: { target_type: string; target_id: number }): Promise<void> {
-  return api.delete<void>('/vote/delete', body);
+export async function handleJoinRequest(
+  requestId: string,
+  action: 'accept' | 'decline'
+): Promise<void> {
+  return api.put<void>(`/groups/requests/${requestId}`, { action });
 }
 
-export async function fetchVoteCounts(params: VoteCountsParams): Promise<VoteCountResult[]> {
-  return api.get<VoteCountResult[]>('/vote/counts', params);
+export async function leaveGroup(groupId: string): Promise<void> {
+  return api.delete<void>(`/groups/${groupId}/leave`);
 }
 
-// ─── Notifications ────────────────────────────────────────────────────────────
-
-export interface Notification {
-  id: number;
-  type: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
+export async function getGroupMembers(groupId: string, page = 1): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>(`/groups/${groupId}/members`, { page });
 }
 
-export async function fetchNotifications(): Promise<Notification[]> {
-  return api.get<Notification[]>('/notifications');
+// ─── Events ───────────────────────────────────────────────────────────────────
+
+export async function createEvent(
+  groupId: string,
+  data: { title: string; description: string; eventDate: string }
+): Promise<Event> {
+  return api.post<Event>(`/groups/${groupId}/events`, data);
 }
 
-export async function fetchUnreadCount(): Promise<{ count: number }> {
-  return api.get<{ count: number }>('/notifications/unread-count');
+export async function getGroupEvents(groupId: string): Promise<Event[]> {
+  return api.get<Event[]>(`/groups/${groupId}/events`);
 }
 
-export async function markNotificationRead(id: number): Promise<void> {
-  return api.post<void>(`/notifications/mark-read?id=${id}`);
-}
-
-export async function markAllNotificationsRead(): Promise<void> {
-  return api.post<void>('/notifications/mark-all-read');
-}
-
-// ─── Activity ─────────────────────────────────────────────────────────────────
-
-export interface ActivityItem {
-  id: number;
-  type: string;
-  description: string;
-  created_at: string;
-}
-
-export async function fetchUserActivity(): Promise<ActivityItem[]> {
-  return api.get<ActivityItem[]>('/user/activity');
+export async function respondToEvent(
+  eventId: string,
+  response: 'going' | 'notGoing'
+): Promise<void> {
+  return api.post<void>(`/events/${eventId}/respond`, { response });
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
-export async function fetchChatUsers(): Promise<ChatUser[]> {
-  return api.get<ChatUser[]>('/chat/users');
+export async function getChats(): Promise<Chat[]> {
+  return api.get<Chat[]>('/chats');
 }
 
-export async function initializeChat(userId: number): Promise<Chat> {
-  return api.post<Chat>('/chat/init', { user_id: userId });
+export async function getChatMessages(
+  chatId: string,
+  page = 1
+): Promise<PaginatedResponse<ChatMessage>> {
+  return api.get<PaginatedResponse<ChatMessage>>(`/chats/${chatId}/messages`, { page });
+}
+
+export async function sendPrivateMessage(
+  receiverId: string,
+  content: string
+): Promise<ChatMessage> {
+  return api.post<ChatMessage>(`/chats/private/${receiverId}`, { content });
+}
+
+export async function sendGroupMessage(groupId: string, content: string): Promise<ChatMessage> {
+  return api.post<ChatMessage>(`/chats/group/${groupId}`, { content });
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export async function getNotifications(page = 1): Promise<PaginatedResponse<Notification>> {
+  return api.get<PaginatedResponse<Notification>>('/notifications', { page });
+}
+
+export async function getUnreadNotificationCount(): Promise<{ count: number }> {
+  return api.get<{ count: number }>('/notifications/unread-count');
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  return api.put<void>(`/notifications/${notificationId}/read`);
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  return api.put<void>('/notifications/read-all');
 }
