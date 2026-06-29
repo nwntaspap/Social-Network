@@ -1,75 +1,28 @@
 /**
  * lib/helpers.ts
- *
- * JS equivalents of the Go BFF helper functions — mirrors helpers.js.
+ * Utility functions for the social network frontend.
  */
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import type { User } from './types';
 
-import type { Category, Topic } from './types';
+// ─── User Display ─────────────────────────────────────────────────────────────
 
-// ─── Color helpers (mirrors helpers/color.go + helpers.js) ───────────────────
+export function getFullName(firstName: string, lastName: string): string {
+  return `${firstName} ${lastName}`;
+}
 
-const HEX_FALLBACK = '#00C6FF';
-
-/**
- * Normalises a raw hex color string from the backend.
- * Adds a leading '#' if missing, validates the format, uppercases.
- */
-export function normalizeColor(color?: string): string {
-  if (!color) return HEX_FALLBACK;
-
-  let c = color.trim();
-  if (!c.startsWith('#')) c = '#' + c;
-
-  if (!isValidHexColor(c)) {
-    console.warn(`Invalid color format: ${c}, using fallback`);
-    return HEX_FALLBACK;
+export function getDisplayName(user: Partial<User>): string {
+  if (user.firstName && user.lastName) {
+    return getFullName(user.firstName, user.lastName);
   }
-
-  return c.toUpperCase();
+  return `@${user.username || user.nickname || 'unknown'}`;
 }
 
-function isValidHexColor(s: string): boolean {
-  if (s.length !== 4 && s.length !== 7) return false;
-  if (s[0] !== '#') return false;
-  return /^[0-9A-Fa-f]+$/.test(s.slice(1));
+export function getInitials(firstName: string, lastName: string): string {
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-/**
- * Helper to normalize a color field that might be a string
- */
-function normalizeColorField(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  return value.startsWith('#') ? value : `#${value}`;
-}
-
-/**
- * Mirrors prepareCategories() — normalises color on each category object.
- */
-export function prepareCategories(raw: Record<string, unknown>[]): Category[] {
-  return raw.map((cat) => {
-    const image = cat.imagePath as string | undefined;
-
-    const image_path = image ? '/' + image.replace(/^static\//, '') : undefined;
-
-    return {
-      ...cat,
-
-      id: cat.ID ?? cat.id,
-      ID: cat.ID ?? cat.id,
-
-      color: normalizeColorField(cat.Color ?? cat.color),
-
-      topics: (cat.topics as Topic[]) || (cat.Topics as Topic[]) || [],
-      Topics: (cat.Topics as Topic[]) || (cat.topics as Topic[]) || [],
-
-      image_path,
-    };
-  }) as Category[];
-}
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+// ─── Date Formatting ──────────────────────────────────────────────────────────
 
 export function formatRelativeDate(isoString?: string): string {
   if (!isoString) return '';
@@ -77,8 +30,7 @@ export function formatRelativeDate(isoString?: string): string {
   if (isNaN(date.getTime())) return isoString;
 
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
@@ -92,19 +44,6 @@ export function formatRelativeDate(isoString?: string): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  });
-}
-
-export function formatMessageDate(isoString?: string): string {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  if (isNaN(date.getTime())) return isoString;
-  return date.toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
 }
 
@@ -127,46 +66,61 @@ export function formatNotificationTime(isoString?: string): string {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// ─── String helpers ───────────────────────────────────────────────────────────
+export function formatEventDate(isoString?: string): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return isoString;
+  return date.toLocaleString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
-/**
- * Escapes a string for safe insertion into HTML.
- * In React we rarely need this (JSX handles it), but it's here for
- * parity with helpers.js and for any dangerouslySetInnerHTML cases.
- */
-export function escapeHTML(str?: string): string {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+// ─── String ───────────────────────────────────────────────────────────────────
+
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+}
+
+// ─── Image/File ───────────────────────────────────────────────────────────────
+
+export function getFileUrl(path: string | undefined): string {
+  if (!path) return '/images/user-avatar.png';
+  if (path.startsWith('http')) return path;
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 // ─── Function helpers ─────────────────────────────────────────────────────────
 
-export function throttle<T extends (...args: unknown[]) => unknown>(
-  fn: T,
-  limitMs: number
-): (...args: Parameters<T>) => void {
-  let lastCall = 0;
-  return function (this: unknown, ...args: Parameters<T>) {
-    const now = Date.now();
-    if (now - lastCall >= limitMs) {
-      lastCall = now;
-      fn.apply(this, args);
-    }
-  };
-}
-
-export function debounce<T extends (...args: unknown[]) => unknown>(
+export function debounce<T extends (...args: never[]) => unknown>(
   fn: T,
   delayMs: number
 ): (...args: Parameters<T>) => void {
   let timer: ReturnType<typeof setTimeout>;
-  return function (this: unknown, ...args: Parameters<T>) {
+
+  return (...args: Parameters<T>) => {
     clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), delayMs);
+    timer = setTimeout(() => fn(...args), delayMs);
+  };
+}
+
+export function throttle<T extends (...args: never[]) => unknown>(
+  fn: T,
+  limitMs: number
+): (...args: Parameters<T>) => void {
+  let lastCall = 0;
+
+  return (...args: Parameters<T>) => {
+    const now = Date.now();
+
+    if (now - lastCall >= limitMs) {
+      lastCall = now;
+      fn(...args);
+    }
   };
 }
