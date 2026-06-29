@@ -33,7 +33,19 @@ function HomeContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  import SearchBar from '@/components/features/home/SearchBar';
+  import SuggestedUsers from '@/components/features/home/SuggestedUsers';
+  import Feed from '@/components/features/home/Feed';
 
+  function HomeContent() {
+    return (
+      <div className="home-container">
+        <SearchBar />
+        <SuggestedUsers />
+        <Feed />
+      </div>
+    );
+  }
   useEffect(() => {
     async function load() {
       try {
