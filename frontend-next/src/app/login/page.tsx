@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { api, ApiError, loginEmail, loginUsername } from '@/lib/api';
+import { ApiError, loginEmail, loginUsername } from '@/lib/api';
 import { User } from '@/lib/types';
 
 type LoginType = 'username' | 'email';

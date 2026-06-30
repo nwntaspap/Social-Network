@@ -70,7 +70,7 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const avatarSrc = user.avatar_url || '/images/user-avatar.png';
+  const avatarSrc = user.avatarUrl || '/images/user-avatar.png';
 
   const username = user.username || '';
 
