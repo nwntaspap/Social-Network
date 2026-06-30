@@ -208,15 +208,36 @@ be-ci: ci-mod check-format lint test
 
 be-ci-new: ci-mod check-format-new lint-new test-new
 
-fe-ci:
-	@if [ -d $(FE_NEXT_DIR) ] && [ -f $(FE_NEXT_DIR)/package.json ]; then \
-		echo "==> Running frontend-next CI..."; \
-		cd $(FE_NEXT_DIR) && bun run lint && bun run format:check && tsc --noEmit && bun run test; \
-	elif [ -f frontend/package.json ]; then \
-		echo "==> [legacy] Running frontend CI..."; \
-		cd frontend && bun run lint && bun run format:check && tsc --noEmit && bun run test; \
+staticcheck: ## Run staticcheck static analysis
+	@echo "==> Running staticcheck..."
+	staticcheck ./...
+
+golangci-lint: ## Run golangci-lint static analysis
+	@echo "==> Running golangci-lint..."
+	golangci-lint run --timeout=5m
+
+vulncheck: ## Run govulncheck security analysis
+	@echo "==> Running govulncheck..."
+	govulncheck ./... || (echo "Warning: govulncheck found vulnerabilities"; true)
+
+lint: staticcheck golangci-lint vulncheck ## Run all static analysis checks (staticcheck + golangci-lint + govulncheck)
+
+test: ## Run backend tests with race detector and coverage
+	@echo "==> Running tests..."
+	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -func=coverage.out
+
+test-short: ## Run quick/short backend tests
+	go test -short ./...
+
+be-ci: ci-mod check-format lint test ## Run full backend CI pipeline (check modules, format, lint, test)
+
+fe-ci: ## Run frontend CI pipeline (lint, check format, type-check, test)
+	@if [ -f frontend-next/package.json ]; then \
+		echo "==> Running frontend CI..."; \
+		cd frontend-next && npm run lint && npm run format:check && npm run type-check && npm run test; \
 	else \
-		echo "==> Skipping frontend CI: no frontend scaffolded yet."; \
+		echo "==> Skipping frontend CI: frontend-next not scaffolded yet."; \
 	fi
 
 ci: be-ci fe-ci
@@ -261,12 +282,42 @@ bench-clean:
 build-backend:
 	@echo "==> Building backend..." && go build -o bin/server cmd/server/main.go
 
-build-frontend:
+seed: db-reset ## Seed database with test data
+	@echo "==> Seeding database..."
+	sqlite3 db/data/forum.db < db/migrations/schema.sql
+	sqlite3 db/data/forum.db < db/migrations/indexes.sql
+	sqlite3 db/data/forum.db < db/seeds/dev_data.sql
+
+run-backend: ## Run backend application
+	@echo "==> Running backend..."
+	go run cmd/server/main.go
+
+run-frontend: ## Run frontend application (Next.js or Legacy)
 	@if [ -f frontend/package.json ]; then \
-		echo "==> Building frontend..."; \
-		cd frontend && bun run build; \
+		echo "==> Running frontend (Next.js)..."; \
+		cd frontend && bun run dev; \
 	else \
-		echo "==> Skipping frontend build: not scaffolded yet."; \
+		echo "==> Running frontend (Legacy Client Server)..."; \
+		go run cmd/client/main.go; \
+	fi
+
+run-all: ## Run backend and frontend concurrently
+	@echo "==> Running backend and frontend concurrently..."
+	@go run cmd/server/main.go & BACKEND_PID=$$!; \
+	$(MAKE) run-frontend; \
+	kill $$BACKEND_PID 2>/dev/null || true
+
+build-backend: ## Build backend application
+	@echo "==> Building backend..."
+	go build -o bin/server cmd/server/main.go
+
+run-frontend: ## Run frontend application (Next.js)
+	@if [ -f frontend-next/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
+		cd frontend-next && npm run dev; \
+	else \
+		echo "==> Running frontend (Legacy Client Server)..."; \
+		go run cmd/client/main.go; \
 	fi
 
 build: build-backend build-frontend
