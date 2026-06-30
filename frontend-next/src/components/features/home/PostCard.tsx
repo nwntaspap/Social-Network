@@ -82,7 +82,7 @@ export default function PostCard({ post }: { post: Post }) {
       <div className="post-actions">
         <button className="post-action-btn" onClick={handleLike}>
           <Image
-            src="/images/icons/icon-like.png"
+            src="/images/icons/heart.png"
             alt={liked ? 'Unlike' : 'Like'}
             width={20}
             height={20}

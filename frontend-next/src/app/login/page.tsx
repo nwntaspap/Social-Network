@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, loginEmail, loginUsername } from '@/lib/api';
 import { User } from '@/lib/types';
 
 type LoginType = 'username' | 'email';
@@ -118,10 +118,10 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
     try {
       let me: User;
       if (loginType === 'email') {
-        me = await api.post<User>('/login/email', { email, password });
+        me = await loginEmail(email, password);
       } else {
         // Backend reads field "username" — mirrors the old api.post call
-        me = await api.post<User>('/login/username', { username: nickname, password });
+        me = await loginUsername(nickname, password);
       }
 
       // Update auth context so Navbar re-renders immediately

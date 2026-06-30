@@ -5,6 +5,7 @@
  * Every fetch to the backend goes through here.
  */
 
+import { RegisterBody } from '@/app/register/page';
 import type {
   User,
   Post,
@@ -167,7 +168,7 @@ export async function loginUsername(username: string, password: string): Promise
   return api.post<User>('/login/username', { username, password });
 }
 
-export async function register(body: Record<string, unknown>): Promise<void> {
+export async function register(body: RegisterBody): Promise<void> {
   return api.post<void>('/register', body);
 }
 

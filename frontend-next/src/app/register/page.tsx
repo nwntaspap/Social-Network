@@ -14,11 +14,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, register } from '@/lib/api';
 
 type Gender = '' | 'male' | 'female' | 'other' | 'prefer_not_to_say';
 
-interface RegisterBody {
+export interface RegisterBody {
   nickname: string;
   firstname: string;
   lastname: string;
@@ -164,7 +164,7 @@ function RegisterForm() {
 
     setSubmitting(true);
     try {
-      await api.post('/register', body);
+      await register(body);
       // Success → go to login, same as the old JS
       router.push('/login');
     } catch (err) {

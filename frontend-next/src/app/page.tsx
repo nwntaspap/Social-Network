@@ -1,13 +1,10 @@
-import SearchBar from '@/components/features/home/SearchBar';
-import SuggestedUsers from '@/components/features/home/SuggestedUsers';
-import Feed from '@/components/features/home/Feed';
+import AuthGuard from '@/components/AuthGuard';
+import HomeContent from '@/components/features/home/HomeContent';
 
-export default function HomeContent() {
+export default function HomePage() {
   return (
-    <div className="home-container">
-      <SearchBar />
-      <SuggestedUsers />
-      <Feed />
-    </div>
+    <AuthGuard>
+      <HomeContent />
+    </AuthGuard>
   );
 }
