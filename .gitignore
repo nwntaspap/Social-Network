@@ -11,6 +11,8 @@ build/
 dist/
 /server
 /gates
+internal/platform/database/:memmory
+internal/platform/database/:memmory:
 
 
 # ──────────────────────────────────────────────────────────────────────
