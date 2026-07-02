@@ -1,8 +1,129 @@
 # 🌐 Social Network — Vertical Slices with CQRS
 
-A premium, high-performance social networking platform built with a **Go 1.25 Backend API** organized around Feature-Based Vertical Slices, and a modern **Next.js App Router Frontend** powered by Bun, Tailwind CSS, and shadcn/ui.
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white)]()
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)]()
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]()
+[![CI](https://img.shields.io/github/actions/workflow/status/ertval/social-network/ci.yml?style=flat-square&logo=github&logoColor=white)]()
 
-The project features decoupled infrastructure abstractions (SQLite, PostgreSQL, Redis, and RabbitMQ), an asynchronous in-process channel-based Event Bus, strict boundary rules, secure WebSocket/SSE real-time features, and a responsive glassmorphic design.
+A full-stack social networking reference architecture demonstrating clean vertical-slice design in Go 1.25 with a Next.js glassmorphic frontend. Decoupled infrastructure (SQLite/PostgreSQL, Redis, RabbitMQ) behind abstract interfaces enables zero-code platform swaps.
+
+> A premium, high-performance social networking platform built with a **Go 1.25 Backend API** organized around Feature-Based Vertical Slices, and a modern **Next.js App Router Frontend** powered by Bun, Tailwind CSS, and shadcn/ui.
+
+---
+
+## 🚀 Getting Started
+
+### 📋 Prerequisites & Installation Guide
+
+To configure your local environment for development and testing, install the following runtimes and tools:
+
+1. **Go 1.25+**: Install the standard library runtime from [go.dev/dl](https://go.dev/dl/).
+2. **Bun**: The fast JavaScript package manager and runtime. Install via:
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   ```
+3. **Docker & Docker Compose**: Essential for orchestrating backend/frontend services in a containerized environment.
+4. **Install All Project Dependencies**: Run the single unified install command:
+
+   ```bash
+   make install
+   ```
+
+   This installs everything: Go modules, root JS tooling, `.env` config, SSL certs, Go development tools (`gofumpt`, `goimports`, `staticcheck`, `golangci-lint`, `govulncheck`, `gosec`, `go-arch-lint`, lefthook), git hooks, and frontend dependencies.
+
+   > If you only need Go tools (without frontend/certs/env), use `make setup`.
+
+---
+
+### 🐳 Running with Docker (Recommended)
+
+1. **Configure Environment Variables**  
+   Create a `.env` file at the root:
+
+   ```env
+   SERVER_PORT=8080
+   CLIENT_PORT=3000
+   DATABASE_DRIVER=sqlite
+   DATABASE_DSN=db/data/forum.db?_journal_mode=WAL&_busy_timeout=5000
+   DB_SEED_ON_START=true
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   ```
+
+2. **Boot the Platform**  
+   Build and start both the backend API and Next.js frontend services:
+
+   ```bash
+   make docker-up
+   ```
+
+   _To run the development setup with code mounting and hot reload:_
+
+   ```bash
+   make docker-dev
+   # Or use the alias:
+   make dev
+   ```
+
+3. **Access points**
+   - **Frontend web App**: [http://localhost:3000](http://localhost:3000)
+   - **Backend REST API**: [http://localhost:8080/api/v1](http://localhost:8080/api/v1)
+
+4. **Shutdown and Clean**  
+   Stop the services:
+   ```bash
+   make docker-down
+   ```
+   Purge volumes, cache, and DB files:
+   ```bash
+   make docker-clean
+   ```
+
+---
+
+### 💻 Running Locally
+
+#### 1. Setup Backend
+
+Run the database migrations and boot the Go API Server:
+
+```bash
+# Run server (database is initialized automatically via migrations runner)
+go run cmd/server/main.go
+```
+
+The local SQLite file is generated at `db/data/forum.db` (or as configured per `DB_PATH` in `.env`).
+
+#### 2. Setup Frontend
+
+Install dependencies and run the Next.js development server:
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
+---
+
+## 📖 Table of Contents
+
+- [Getting Started](#-getting-started)
+- [System Architecture](#-system-architecture)
+- [Core Features (Finished Product)](#-core-features-finished-product)
+- [Core Design Decisions](#-core-design-decisions)
+- [Project Structure](#-project-structure)
+- [Technology & Tooling](#-technology--tooling)
+- [Testing & Code Quality Gates](#-testing--code-quality-gates)
+- [Documentation Reading Order](#-documentation-reading-order)
+- [Agentic Workflows](#-agentic-workflows)
+- [Contribution & Onboarding Workflow](#-contribution--onboarding-workflow)
+- [Related](#-related)
+- [License](#-license)
 
 ---
 
@@ -81,14 +202,12 @@ graph TD
 
 Every developer and sub-agent must adhere to these architectural guidelines:
 
-| Decision | Area                   | Summary & Rule                                                                                                                                                                                                          |
-| :------- | :--------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **D1**   | **Vertical Slices**    | All business logic for a feature lives in `internal/<feature>/`. Commands (writes) and queries (reads) reside in separate files inside `commands/` and `queries/`. Stores and transports are thin, unified per-feature. |
-| **D2**   | **Interface Strategy** | Within a slice, commands/queries accept the full `Repository` interface from `<feature>.go`. Across slices, consumer features define narrow local interfaces satisfied implicitly via Go duck typing.                   |
-| **D3**   | **Communication**      | Slice communication is ID-only for data references, narrow local interfaces for synchronous checks, and the Platform Event Bus for mutation side effects.                                                               |
-| **D4**   | **Database Access**    | Feature stores accept `platform/database.DB` interfaces rather than raw `*sql.DB`. The connection factory switches between SQLite (WAL mode + busy timeout) and PostgreSQL dynamically.                                 |
-| **D5**   | **Boundary Rules**     | Feature logic and command/query packages **must not** import their own `transport/` or `store/` folders, nor can they import transport/store directories of other features.                                             |
-| **D6**   | **Dependency Graph**   | The import tree must remain strictly acyclic (e.g. `user` and `session` have no dependencies on higher-level features, `notification` is a pure subscriber with zero external feature imports).                         |
+- **D1: Vertical Slices** (Area: Vertical Slices) — All business logic for a feature lives in `internal/<feature>/`. Commands (writes) and queries (reads) reside in separate files inside `commands/` and `queries/`. Stores and transports are thin, unified per-feature.
+- **D2: Interface Strategy** (Area: Interface Strategy) — Within a slice, commands/queries accept the full `Repository` interface from `<feature>.go`. Across slices, consumer features define narrow local interfaces satisfied implicitly via Go duck typing.
+- **D3: Communication** (Area: Communication) — Slice communication is ID-only for data references, narrow local interfaces for synchronous checks, and the Platform Event Bus for mutation side effects.
+- **D4: Database Access** (Area: Database Access) — Feature stores accept `platform/database.DB` interfaces rather than raw `*sql.DB`. The connection factory switches between SQLite (WAL mode + busy timeout) and PostgreSQL dynamically.
+- **D5: Boundary Rules** (Area: Boundary Rules) — Feature logic and command/query packages **must not** import their own `transport/` or `store/` folders, nor can they import transport/store directories of other features.
+- **D6: Dependency Graph** (Area: Dependency Graph) — The import tree must remain strictly acyclic (e.g., `user` and `session` have no dependencies on higher-level features, `notification` is a pure subscriber with zero external feature imports).
 
 ---
 
@@ -154,114 +273,17 @@ Every developer and sub-agent must adhere to these architectural guidelines:
 
 ### Tooling Breakdown
 
-| Layer        | Phase           | Tool                          | Target/File                         |
-| :----------- | :-------------- | :---------------------------- | :---------------------------------- |
-| **Backend**  | Testing         | `go test -race -coverprofile` | `Makefile` (`make test`)            |
-| **Backend**  | Linting         | `golangci-lint` (v2.2.1)      | `.golangci.yml`                     |
-| **Backend**  | Static Analysis | `staticcheck`                 | `Makefile` (`make lint`)            |
-| **Backend**  | Formatting      | `gofmt -s`, `gofumpt`         | `Makefile` (`make format`)          |
-| **Backend**  | Vuln Check      | `govulncheck`                 | Local execution                     |
-| **Frontend** | Package/Run     | `Bun`                         | `package.json`                      |
-| **Frontend** | Formatting/Lint | `ESLint` + `Prettier`         | `eslint.config.mjs` + `.prettierrc` |
-| **Frontend** | Testing         | `Vitest` (planned)            | `vitest.config.ts`                  |
-| **Frontend** | E2E Testing     | `Playwright` (planned)        | `playwright.config.ts`              |
-
----
-
-## 🚀 Getting Started
-
-### 📋 Prerequisites & Installation Guide
-
-To configure your local environment for development and testing, install the following runtimes and tools:
-
-1. **Go 1.25+**: Install the standard library runtime from [go.dev/dl](https://go.dev/dl/).
-2. **Bun**: The fast JavaScript package manager and runtime. Install via:
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   ```
-3. **Docker & Docker Compose**: Essential for orchestrating backend/frontend services in a containerized environment.
-4. **Install All Project Dependencies**: Run the single unified install command:
-
-   ```bash
-   make install
-   ```
-
-   This installs everything: Go modules, root JS tooling, `.env` config, SSL certs, Go development tools (`gofumpt`, `goimports`, `staticcheck`, `golangci-lint`, `govulncheck`, `gosec`, `go-arch-lint`, lefthook), git hooks, and frontend dependencies.
-
-   > If you only need Go tools (without frontend/certs/env), use `make setup`.
-
----
-
-### 🐳 Running with Docker (Recommended)
-
-1. **Configure Environment Variables**  
-   Create a `.env` file at the root:
-
-   ```env
-   SERVER_PORT=8080
-   CLIENT_PORT=3000
-   DATABASE_DRIVER=sqlite
-    DATABASE_DSN=db/data/forum.db?_journal_mode=WAL&_busy_timeout=5000
-   DB_SEED_ON_START=true
-   GITHUB_CLIENT_ID=your_github_client_id
-   GITHUB_CLIENT_SECRET=your_github_client_secret
-   GOOGLE_CLIENT_ID=your_google_client_id
-   GOOGLE_CLIENT_SECRET=your_google_client_secret
-   ```
-
-2. **Boot the Platform**  
-   Build and start both the backend API and Next.js frontend services:
-
-   ```bash
-   make docker-up
-   ```
-
-   _To run the development setup with code mounting and hot reload:_
-
-   ```bash
-   make docker-dev
-   # Or use the alias:
-   make dev
-   ```
-
-3. **Access points**
-   - **Frontend web App**: [http://localhost:3000](http://localhost:3000)
-   - **Backend REST API**: [http://localhost:8080/api/v1](http://localhost:8080/api/v1)
-
-4. **Shutdown and Clean**  
-   Stop the services:
-   ```bash
-   make docker-down
-   ```
-   Purge volumes, cache, and DB files:
-   ```bash
-   make docker-clean
-   ```
-
----
-
-### 💻 Running Locally
-
-#### 1. Setup Backend
-
-Run the database migrations and boot the Go API Server:
-
-```bash
-# Run server (database is initialized automatically via migrations runner)
-go run cmd/server/main.go
-```
-
-The local SQLite file is generated at `db/data/forum.db` (or as configured per `DB_PATH` in `.env`).
-
-#### 2. Setup Frontend
-
-Install dependencies and run the Next.js development server:
-
-```bash
-cd frontend
-bun install
-bun run dev
-```
+- **Backend Tools:**
+  - **Testing**: `go test -race -coverprofile` via `Makefile` (`make test`)
+  - **Linting**: `golangci-lint` (v2.2.1) configured in `.golangci.yml`
+  - **Static Analysis**: `staticcheck` via `Makefile` (`make lint`)
+  - **Formatting**: `gofmt -s`, `gofumpt` via `Makefile` (`make format`)
+  - **Vulnerability Checks**: `govulncheck` run locally
+- **Frontend Tools:**
+  - **Package Manager / Runtime**: `Bun` configured in `package.json`
+  - **Formatting & Linting**: `ESLint` + `Prettier` configured in `eslint.config.mjs` + `.prettierrc`
+  - **Testing**: `Vitest` (planned) configured in `vitest.config.ts`
+  - **E2E Testing**: `Playwright` (planned) configured in `playwright.config.ts`
 
 ---
 
@@ -473,3 +495,10 @@ Legacy layered code is migrated to vertical slices using the Strangler Fig patte
 3. Verify contract tests match
 4. Swap routing in bootstrap
 5. Delete old code after confidence window
+
+---
+
+## 🔗 Related
+
+- [make-your-game](https://github.com/ertval/make-your-game) — ECS game engine (Pac-Man x Bomberman)
+- [CV / Portfolio](https://ertval.com)
