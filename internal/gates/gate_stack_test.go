@@ -75,7 +75,7 @@ func TestStackGate_Pass_NoFrontend(t *testing.T) {
 func TestStackGate_Pass_WithValidFrontend(t *testing.T) {
 	goMod := "module social-network\ngo 1.25\n"
 	env := "DB_DRIVER=sqlite3\nDB_PRAGMA=_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000\n"
-	pkg := `{"dependencies": {"next": "^14.0.0", "tailwindcss": "^3.0.0"}}`
+	pkg := `{"dependencies": {"next": "^14.0.0"}}`
 	dir := createMockStack(t, goMod, env, true, "frontend-next", pkg, true)
 
 	g := &StackGate{
@@ -90,8 +90,8 @@ func TestStackGate_Pass_WithValidFrontend(t *testing.T) {
 		t.Errorf("expected PASS, got %s: %s", res.Status, res.Message)
 	}
 
-	if !strings.Contains(res.Message, "Next.js/Tailwind/Bun verified") {
-		t.Errorf("expected Next.js/Tailwind/Bun verified in output, got: %s", res.Message)
+	if !strings.Contains(res.Message, "Next.js/Bun verified") {
+		t.Errorf("expected Next.js/Bun verified in output, got: %s", res.Message)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestStackGate_Fail_MissingPlatform(t *testing.T) {
 func TestStackGate_Fail_InvalidFrontend(t *testing.T) {
 	goMod := "module social-network\ngo 1.25\n"
 	env := "DB_DRIVER=sqlite3\nDB_PRAGMA=_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000\n"
-	// Missing tailwind, missing bun lockfile
+	// Missing bun lockfile
 	pkg := `{"dependencies": {"next": "^14.0.0"}}`
 	dir := createMockStack(t, goMod, env, true, "frontend", pkg, false)
 
@@ -193,22 +193,22 @@ func TestStackGate_Fail_InvalidFrontend(t *testing.T) {
 	if res.Status != "FAIL" {
 		t.Errorf("expected FAIL, got %s: %s", res.Status, res.Message)
 	}
-	if !strings.Contains(res.Message, "Tailwind CSS dependency missing") || !strings.Contains(res.Message, "Bun lockfile") {
-		t.Errorf("expected missing tailwind/lockfile errors, got: %s", res.Message)
+	if !strings.Contains(res.Message, "Bun lockfile") {
+		t.Errorf("expected missing lockfile error, got: %s", res.Message)
 	}
 }
 
 func TestStackGate_HasDependency(t *testing.T) {
 	pkg := pkgJSON{
 		Dependencies:    map[string]string{"next": "^14.0.0"},
-		DevDependencies: map[string]string{"tailwindcss": "^3.0.0"},
+		DevDependencies: map[string]string{"typescript": "^5.0.0"},
 	}
 
 	if !hasDependency(pkg, "next") {
 		t.Error("expected next in dependencies")
 	}
-	if !hasDependency(pkg, "tailwindcss") {
-		t.Error("expected tailwindcss in devDependencies")
+	if !hasDependency(pkg, "typescript") {
+		t.Error("expected typescript in devDependencies")
 	}
 	if hasDependency(pkg, "nonexistent") {
 		t.Error("expected false for missing dep")

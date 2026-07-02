@@ -24,11 +24,11 @@ type topicsRequest struct {
 }
 
 type topicsResponse struct {
-	User       *domain.LoggedInUser   `json:"user"`
-	Filters    map[string]interface{} `json:"filters"`
-	Topics     []domain.Topic         `json:"topics"`
-	Categories []domain.Category      `json:"categories"`
-	Pagination domain.Pagination      `json:"pagination"`
+	User       *domain.LoggedInUser `json:"user"`
+	Filters    map[string]any       `json:"filters"`
+	Topics     []domain.Topic       `json:"topics"`
+	Categories []domain.Category    `json:"categories"`
+	Pagination domain.Pagination    `json:"pagination"`
 }
 
 // TopicsPage handles GET requests to /topics.

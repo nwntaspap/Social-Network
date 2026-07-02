@@ -284,7 +284,7 @@ func (r *Repo) GetCommentsWithVotes(ctx context.Context, topicID int, userID *st
 
 	query += ` WHERE c.topic_id = ? ORDER BY c.created_at ASC`
 
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 	if userID != nil {
 		args = append(args, *userID)
 	}
@@ -307,7 +307,7 @@ func (r *Repo) GetCommentsWithVotes(ctx context.Context, topicID int, userID *st
 		var commentResult comment.Comment
 		var userVote sql.NullInt32
 
-		scanFields := []interface{}{
+		scanFields := []any{
 			&commentResult.ID,
 			&commentResult.UserID,
 			&commentResult.TopicID,

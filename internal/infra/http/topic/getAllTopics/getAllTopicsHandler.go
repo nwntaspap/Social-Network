@@ -18,7 +18,7 @@ import (
 )
 
 type ResponseModel struct {
-	Filters    map[string]interface{}   `json:"filters"`
+	Filters    map[string]any           `json:"filters"`
 	Topics     []topic.Topic            `json:"topics"`
 	Categories []category.Category      `json:"categories"`
 	Pagination helpers.PaginationParams `json:"pagination"`
@@ -104,7 +104,7 @@ func (h *Handler) GetAllTopics(w http.ResponseWriter, r *http.Request) {
 
 	totalPages := (allTopics.Count + pagination.Limit - 1) / pagination.Limit
 
-	paginationMeta := map[string]interface{}{
+	paginationMeta := map[string]any{
 		"page":        pagination.Page,
 		"limit":       pagination.Limit,
 		"total":       allTopics.Count,
@@ -122,13 +122,13 @@ func (h *Handler) GetAllTopics(w http.ResponseWriter, r *http.Request) {
 		paginationMeta["prev_page"] = pagination.Page - 1
 	}
 
-	appliedFilters := map[string]interface{}{
+	appliedFilters := map[string]any{
 		"search":   filter,
 		"order_by": orderBy,
 		"order":    order,
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"topics":     allTopics.Topics,
 		"pagination": paginationMeta,
 		"filters":    appliedFilters,

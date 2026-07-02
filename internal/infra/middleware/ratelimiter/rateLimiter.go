@@ -80,10 +80,7 @@ func (rl *RateLimiter) Allow(ip string) (bool, int, int64) {
 		client.currentWindow.count++
 	}
 
-	remaining := rl.Limit - totalCount - 1
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(rl.Limit-totalCount-1, 0)
 
 	resetTime := currentWindowStart + rl.windowSize
 

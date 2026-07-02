@@ -28,7 +28,7 @@ func TestRateLimiter_Allow_AfterStop(t *testing.T) {
 	rl := NewRateLimiter(5, 60, time.Minute)
 	rl.Stop()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		ok, remaining, _ := rl.Allow("1.1.1.1")
 		if !ok {
 			t.Fatalf("Allow() returned false on attempt %d, expected true", i+1)
@@ -45,7 +45,7 @@ func TestRateLimiter_Allow_BlocksWhenLimitExceeded(t *testing.T) {
 
 	ip := "10.0.0.1"
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ok, _, _ := rl.Allow(ip)
 		if !ok {
 			t.Fatalf("Allow() returned false on attempt %d, expected true", i+1)

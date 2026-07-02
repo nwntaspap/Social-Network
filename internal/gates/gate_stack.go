@@ -1,6 +1,6 @@
 /*
 StackGate validates the Go compiler version, module configuration,
-SQLite database parameters, frontend scaffold (Next.js/Tailwind/Bun),
+SQLite database parameters, frontend scaffold (Next.js/Bun),
 and platform service directory structure (Gate #1).
 */
 
@@ -198,9 +198,6 @@ func (g *StackGate) checkFrontend(rootDir string) (string, error) {
 	if !hasDependency(pkg, "next") {
 		feErrors = append(feErrors, "Next.js dependency missing in frontend package.json")
 	}
-	if !hasDependency(pkg, "tailwindcss") {
-		feErrors = append(feErrors, "Tailwind CSS dependency missing in frontend package.json")
-	}
 
 	// Check Bun lockfile
 	hasBunLock := false
@@ -217,7 +214,7 @@ func (g *StackGate) checkFrontend(rootDir string) (string, error) {
 		return "", fmt.Errorf("%s", strings.Join(feErrors, "; "))
 	}
 
-	return "Next.js/Tailwind/Bun verified", nil
+	return "Next.js/Bun verified", nil
 }
 
 func (g *StackGate) checkPlatform(rootDir string) (string, error) {

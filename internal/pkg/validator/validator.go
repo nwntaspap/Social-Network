@@ -96,7 +96,7 @@ func validCategory(value any) (bool, string) {
 
 	rv := reflect.ValueOf(value)
 	// unwrap pointers and interfaces
-	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+	for rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
 			return false, "must choose at least one category"
 		}
@@ -166,7 +166,10 @@ func validateImageFile(value any) (bool, string) {
 func required(value any) (bool, string) {
 	switch v := value.(type) {
 	case string:
-		return v != "", "must be provided"
+		if v != "" {
+			return true, ""
+		}
+		return false, "must be provided"
 	case int:
 		return true, ""
 	default:
@@ -195,7 +198,10 @@ func minLength(minimumLenght int) func(any) (bool, string) {
 		if !ok {
 			return false, InvalidType
 		}
-		return len(str) >= minimumLenght, fmt.Sprintf("must be at least %d characters long", minimumLenght)
+		if len(str) >= minimumLenght {
+			return true, ""
+		}
+		return false, fmt.Sprintf("must be at least %d characters long", minimumLenght)
 	}
 }
 
@@ -205,7 +211,10 @@ func maxLength(maximumLenght int) func(any) (bool, string) {
 		if !ok {
 			return false, InvalidType
 		}
-		return len(str) <= maximumLenght, fmt.Sprintf("must be %d characters maximum", maximumLenght)
+		if len(str) <= maximumLenght {
+			return true, ""
+		}
+		return false, fmt.Sprintf("must be %d characters maximum", maximumLenght)
 	}
 }
 
@@ -214,7 +223,10 @@ func isPositiveInt(value any) (bool, string) {
 	if !ok {
 		return false, InvalidType
 	}
-	return num > 0, "must be a positive integer"
+	if num > 0 {
+		return true, ""
+	}
+	return false, "must be a positive integer"
 }
 
 func maxInt(limit int) func(any) (bool, string) {
@@ -223,7 +235,10 @@ func maxInt(limit int) func(any) (bool, string) {
 		if !ok {
 			return false, InvalidType
 		}
-		return num <= limit, fmt.Sprintf("must be less than or equal to %d", limit)
+		if num <= limit {
+			return true, ""
+		}
+		return false, fmt.Sprintf("must be less than or equal to %d", limit)
 	}
 }
 
@@ -284,14 +299,19 @@ func validEmail(value any) (bool, string) {
 	if !ok {
 		return false, InvalidType
 	}
-	return Matches(str, EmailRX), InvalidEmail
+	if Matches(str, EmailRX) {
+		return true, ""
+	}
+	return false, InvalidEmail
 }
 
 func (v *Validator) ToStringErrors() string {
 	strError := ""
+	var strErrorSb310 strings.Builder
 	for key, value := range v.Errors {
-		strError += key + ": " + value + " "
+		strErrorSb310.WriteString(key + ": " + value + " ")
 	}
+	strError += strErrorSb310.String()
 	return strings.TrimSpace(strError)
 }
 
@@ -308,7 +328,10 @@ func validImagePath(value any) (bool, string) {
 		return false, InvalidType
 	}
 	ext := strings.ToLower(filepath.Ext(str))
-	return validImageExtensions[ext], "must be a valid image file"
+	if validImageExtensions[ext] {
+		return true, ""
+	}
+	return false, "must be a valid image file"
 }
 
 // var validCategories = map[string]bool{
@@ -342,7 +365,10 @@ func validTopicOrderBy(value any) (bool, string) {
 	if str == "" {
 		return true, ""
 	}
-	return orderByWhitelist[str], "must be a valid order by field"
+	if orderByWhitelist[str] {
+		return true, ""
+	}
+	return false, "must be a valid order by field"
 }
 
 func validCategoryOrderBy(value any) (bool, string) {
@@ -359,7 +385,10 @@ func validCategoryOrderBy(value any) (bool, string) {
 	if str == "" {
 		return true, ""
 	}
-	return orderByWhitelist[str], "must be a valid order by field"
+	if orderByWhitelist[str] {
+		return true, ""
+	}
+	return false, "must be a valid order by field"
 }
 
 func validOrder(value any) (bool, string) {
@@ -376,5 +405,8 @@ func validOrder(value any) (bool, string) {
 		return true, ""
 	}
 	upper := strings.ToUpper(str)
-	return orderWhiteLIST[upper], "must be a valid order field"
+	if orderWhiteLIST[upper] {
+		return true, ""
+	}
+	return false, "must be a valid order field"
 }

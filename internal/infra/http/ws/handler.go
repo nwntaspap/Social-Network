@@ -2,6 +2,7 @@ package ws
 
 import (
 	"net/http"
+	"slices"
 
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
@@ -30,12 +31,7 @@ func NewHandler(hub *ws.Hub, router ws.WSRouter, logger logger.Logger, allowedOr
 			WriteBufferSize: 1024,
 			CheckOrigin: func(r *http.Request) bool {
 				origin := r.Header.Get("Origin")
-				for _, allowed := range allowedOrigins {
-					if origin == allowed {
-						return true
-					}
-				}
-				return false
+				return slices.Contains(allowedOrigins, origin)
 			},
 		},
 	}

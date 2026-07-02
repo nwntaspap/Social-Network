@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -217,10 +218,5 @@ func (cs *ClientServer) TopicPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func hasID(ids []int, id int) bool {
-	for _, v := range ids {
-		if v == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, id)
 }

@@ -9,7 +9,7 @@ import (
 )
 
 // renderTemplate renders a template with the given data.
-func RenderTemplate(w http.ResponseWriter, templateName string, data interface{}) {
+func RenderTemplate(w http.ResponseWriter, templateName string, data any) {
 	resolver := path.NewResolver()
 	tmplPath := resolver.GetPath("frontend/html/pages/" + templateName + ".html")
 

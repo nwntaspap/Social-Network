@@ -16,9 +16,9 @@ import (
 )
 
 type ResponseModel struct {
-	Filters    map[string]interface{} `json:"filters"`
-	Pagination map[string]interface{} `json:"pagination"`
-	Categories []category.Category    `json:"categories"`
+	Filters    map[string]any      `json:"filters"`
+	Pagination map[string]any      `json:"pagination"`
+	Categories []category.Category `json:"categories"`
 }
 
 type Handler struct {
@@ -93,7 +93,7 @@ func (h *Handler) GetAllCategories(w http.ResponseWriter, r *http.Request) {
 
 	totalPages := (totalCount + pagination.Limit - 1) / pagination.Limit
 
-	paginationMeta := map[string]interface{}{
+	paginationMeta := map[string]any{
 		"page":       pagination.Page,
 		"limit":      pagination.Limit,
 		"totalPages": totalPages,
@@ -111,7 +111,7 @@ func (h *Handler) GetAllCategories(w http.ResponseWriter, r *http.Request) {
 		paginationMeta["prev_page"] = pagination.Page - 1
 	}
 
-	appliedFilters := map[string]interface{}{
+	appliedFilters := map[string]any{
 		"search":   filter,
 		"order_by": orderBy,
 		"order":    order,
