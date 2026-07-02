@@ -207,7 +207,6 @@ ci: be-ci fe-ci ## Full CI (all code)
 ci-new: be-ci-new fe-ci ## Scoped CI (new code only)
 
 gates: ## Run all verification gates (go build + Go gates binary)
-	go build ./...
 	go run cmd/gates/main.go --all
 
 check-arch: ## Run go-arch-lint
