@@ -239,9 +239,7 @@ bun run lint → bun run format:check → tsc --noEmit → bun run test
 Go-based deterministic gates under `internal/gates/` enforce architectural and convention rules. `make gates` is decoupled from the legacy CI and executes:
 
 1. `go build ./...` — Compiles all code (legacy + new) for build safety.
-2. `go run cmd/gates/main.go --all` — Runs the Go verification gates.
-3. `make be-ci-new` — Performs the scoped CI pipeline on the new codebase.
-4. `make fe-ci` — Performs the scoped CI pipeline on the frontend.
+2. `go run cmd/gates/main.go --all` — Runs the 14 Go verification gates (stack, branch, format, lint, go-test, coverage, layout, boundaries, DAG, TDD, migrations, security, scope-drift, frontend).
 
 | Gate       | Tool/Fallback                | What It Checks                                                                     |
 | ---------- | ---------------------------- | ---------------------------------------------------------------------------------- |

@@ -108,7 +108,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - **`make be-ci`**: Legacy blanket check: `ci-mod → check-format → lint (staticcheck + golangci-lint + govulncheck) → test`. (Use `make format` to auto-format.)
 - **`make be-ci-new`**: Scoped check for new vertical slices and new code: `ci-mod → check-format-new → lint-new (staticcheck-new + golangci-lint-new + vet-new + vulncheck-new + gosec-new) → test-new`.
 - **`make fe-ci`**: Frontend CI target. Scopes to `frontend-next/` (if it exists) or falls back to legacy `frontend/` or skips if neither exists. Runs: `bun run lint → bun run format:check → tsc --noEmit → bun run test`.
-- **`make gates`**: Decoupled from legacy CI. Gating pipeline: compiles all code (`go build ./...` for sanity), runs Go verification gates (`go run cmd/gates/main.go --all`), and executes new-code scoped checks (`be-ci-new` and `fe-ci`).
+- **`make gates`**: Decoupled from legacy CI. Compiles all code (`go build ./...`), then runs Go verification gates (`go run cmd/gates/main.go --all`).
 - **`make setup-hooks`**: Install lefthook pre-commit/pre-push hooks.
 - **Standalone commands** (when not using `make`):
   ```

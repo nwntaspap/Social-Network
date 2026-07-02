@@ -163,14 +163,12 @@ Before pushing code or opening a pull request, ensure it passes all verification
 make gates
 ```
 
-Decoupled from legacy blanket check. Performs:
+Compiles all code then runs the 14 deterministic Go verification gates:
 
 1. `go build ./...` — Compiles all code (legacy + new) for build safety.
-2. `go run cmd/gates/main.go --all` — Runs the custom Go verification gates.
-3. `make be-ci-new` — Runs new-code scoped check.
-4. `make fe-ci` — Runs frontend CI check (scoped to `frontend-next/` if it exists).
+2. `go run cmd/gates/main.go --all` — Runs the custom Go verification gates (stack, branch, format, lint, go-test, coverage, layout, boundaries, DAG, TDD, migrations, security, scope-drift, frontend).
 
-_Note: You can run legacy blanket checks via `make ci` (runs `make be-ci` + `make fe-ci`), which checks all legacy files as well._
+_You can also run legacy blanket checks via `make ci` (`make be-ci` + `make fe-ci`), which checks all legacy files._
 
 ### Go Verification Gates
 
