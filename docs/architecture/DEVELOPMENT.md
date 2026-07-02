@@ -204,7 +204,7 @@ Install hooks:
 make setup-hooks
 ```
 
-Pre-commit auto-formats staged Go/frontend files. Pre-push runs `go vet`, `go test -short`, `go build`, `go-arch-lint`, `tsc --noEmit`, `eslint`. Bypass: `--no-verify`.
+Pre-commit auto-formats staged Go/frontend files. Pre-push runs the Go verification gates (`go run cmd/gates/main.go --all`). Bypass: `--no-verify`.
 
 ### Backend Validation
 

@@ -123,8 +123,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
   - Backend: `gofumpt -l {staged_files} | xargs -r gofumpt -w` + `goimports -w -local social-network {staged_files}` (`stage_fixed: true`).
   - Frontend: `prettier --write` + `eslint`.
 - **Pre-push hooks** (lefthook):
-  - Backend: `go vet $(NEW_PKGS)`, `go test -short $(NEW_PKGS)`, `go build ./...`, `go-arch-lint check`.
-  - Frontend: `tsc --noEmit`, `bun run lint`, `bun run test`.
+  - Runs Go verification gates: `go run cmd/gates/main.go --all --plain` (14 gates: stack, branch, format, lint, go-test, coverage, layout, boundaries, DAG, TDD, migrations, security, scope-drift, frontend).
 - **D5 boundary check**:
   ```
   grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | grep -v 'platform/' | grep -v 'pkg/' | grep -v 'infra/'
