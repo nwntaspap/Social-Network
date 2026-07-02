@@ -106,7 +106,7 @@
 - **Assignee:** FE-A
 - **Story Points:** 5
 - **Dependencies:** S0-SD-03 (CI pipeline for frontend gates)
-- **Description:** Set up the frontend workspace using Next.js App Router, TypeScript, Tailwind CSS, ESLint + Prettier, testing frameworks, and Bun runtime. Includes all dependency management, lint/format/test gates, and CI integration.
+- **Description:** Set up the frontend workspace using Next.js App Router, TypeScript, ESLint + Prettier, testing frameworks, and Bun runtime. Includes all dependency management, lint/format/test gates, and CI integration.
 - **Detailed Steps:**
   1. **Install Bun runtime** (prerequisite):
      ```bash
@@ -114,7 +114,7 @@
      ```
      Verify: `bun --version` (requires ≥ 1.1).
   2. Create a `frontend/` subdirectory in the project root.
-  3. Bootstrap Next.js using `npx -y create-next-app@latest ./` (App router, TypeScript, Tailwind CSS, strict settings, Bun runtime compatibility).
+  3. Bootstrap Next.js using `npx -y create-next-app@latest ./` (App router, TypeScript, strict settings, Bun runtime compatibility).
   4. Install frontend dependencies:
      ```bash
      cd frontend && bun install
@@ -132,7 +132,7 @@
        }
      }
      ```
-  6. Install `shadcn/ui` tooling and Tailwind custom presets.
+  6. Install `shadcn/ui` tooling and CSS custom presets.
   7. Install `Vitest` and `Playwright` testing setups (`vitest.config.ts`, `playwright.config.ts`).
   8. Set up `frontend/Dockerfile` for multi-stage Next.js build (port 3000).
   9. Verify all frontend gates pass:

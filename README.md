@@ -9,7 +9,7 @@
 
 A full-stack social networking reference architecture demonstrating clean vertical-slice design in Go 1.25 with a Next.js glassmorphic frontend. Decoupled infrastructure (SQLite/PostgreSQL, Redis, RabbitMQ) behind abstract interfaces enables zero-code platform swaps.
 
-> A premium, high-performance social networking platform built with a **Go 1.25 Backend API** organized around Feature-Based Vertical Slices, and a modern **Next.js App Router Frontend** powered by Bun, Tailwind CSS, and shadcn/ui.
+> A premium, high-performance social networking platform built with a **Go 1.25 Backend API** organized around Feature-Based Vertical Slices, and a modern **Next.js App Router Frontend** powered by Bun and shadcn/ui.
 
 ---
 
@@ -141,7 +141,7 @@ graph TD
 
 ### 1. Presentation Layer (Frontend)
 
-- **Next.js App Router (Port 3000)**: Server-side and client-side rendering with Tailwind CSS and shadcn/ui.
+- **Next.js App Router (Port 3000)**: Server-side and client-side rendering with shadcn/ui.
 - **Real-time Communication**: Persistent WebSockets for chats and Server-Sent Events (SSE) for live notifications.
 - **Client Verification**: Native Unicode emoji parsing, magic-byte image validation, and client-side file size and extension checks before transport.
 
@@ -502,3 +502,4 @@ Legacy layered code is migrated to vertical slices using the Strangler Fig patte
 
 - [make-your-game](https://github.com/ertval/make-your-game) — ECS game engine (Pac-Man x Bomberman)
 - [CV / Portfolio](https://ertval.com)
+  )

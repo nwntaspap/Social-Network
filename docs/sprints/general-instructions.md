@@ -216,7 +216,7 @@ Define the directory mapping:
 - `frontend-next/src/components/ui/` (shadcn primitives)
 - `frontend-next/src/components/features/` (domain-specific composables: `auth`, `profile`, `post`, `group`, `chat`, `notification`)
 - `frontend-next/src/lib/` (API client, session cookies helper, WS coordinator)
-- `frontend-next/src/styles/` (Tailwind globals)
+- `frontend-next/src/styles/` (CSS globals)
 
 ### F6: Frontend Build & Deploy (REQUIRED)
 

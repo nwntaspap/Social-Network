@@ -658,72 +658,48 @@ func ValidateImageHeader(data []byte) error {
 
 ---
 
-## 6. Frontend Specifications (Next.js, Tailwind CSS & shadcn/ui)
+## 6. Frontend Specifications (Next.js & shadcn/ui)
 
-The user-facing client application is built with the Next.js App Router inside `frontend/` using HTML5, Tailwind CSS, and the `shadcn/ui` component library.
+The user-facing client application is built with the Next.js App Router inside `frontend/` using HTML5 and the `shadcn/ui` component library.
 
 ### 6.1 Component Library & Setup
 
 We use `shadcn/ui` to implement accessible, premium, styled interactive components.
 
-- **Configuration (`components.json`)**:
-  ```json
-  {
-    "$schema": "https://ui.shadcn.com/schema.json",
-    "style": "default",
-    "rsc": true,
-    "tsx": true,
-    "tailwind": {
-      "config": "tailwind.config.js",
-      "css": "src/styles/globals.css",
-      "baseColor": "slate",
-      "cssVariables": true
-    },
-    "aliases": {
-      "components": "@/components",
-      "utils": "@/lib/utils"
-    }
-  }
-  ```
+- **Configuration**: Components are styled via vanilla CSS with HSL custom properties.
 - **Component File Structure**:
   - Reusable primitive components (e.g., `button.tsx`, `dialog.tsx`, `input.tsx`, `dropdown-menu.tsx`) reside in `src/components/ui/`.
   - Composite feature components (e.g., `chat-window.tsx`, `post-creator.tsx`, `follow-request-card.tsx`) reside in `src/components/features/`.
 
-### 6.2 Unified CSS & Tailwind Configuration
+### 6.2 Unified CSS Configuration
 
-Tailwind utility classes form the basis of the visual design system, augmented by semantic CSS variables defined in `src/styles/globals.css`:
+Semantic CSS variables are defined in `src/styles/`:
 
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
 
-@layer base {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-
-    --glass-effect: backdrop-blur-md bg-slate-900/70 border border-white/10;
-  }
+  --glass-effect: backdrop-blur-md bg-slate-900/70 border border-white/10;
 }
 ```
 
-- **Aesthetic Styling Rules**: All custom layouts leverage modern fonts like Inter or Outfit. Use smooth hover and focus transitions on all custom Tailwind designs (`transition-all duration-200 ease-in-out`). Glassmorphism cards must use the `--glass-effect` style pattern.
+- **Aesthetic Styling Rules**: All custom layouts leverage modern fonts like Inter or Outfit. Use smooth hover and focus transitions on all custom designs (`transition-all duration-200 ease-in-out`). Glassmorphism cards must use the `--glass-effect` style pattern.
 
 ### 6.3 Forms and Validations
 
@@ -805,4 +781,10 @@ A convenience script `scripts/docker-build.sh` automates image building and cont
 #!/bin/sh
 docker compose build --parallel
 docker compose up -d
+```
+
+mpose up -d
+
+```
+
 ```

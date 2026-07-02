@@ -46,7 +46,7 @@
 
 ### Components
 
-**Frontend (Next.js)** — Serves the client-side UI on port 3000. Uses the App Router for server-side and client-side rendering. Communicates with the backend via HTTP REST for CRUD operations and WebSocket for real-time chat and notifications. Built with **shadcn/ui components + Tailwind CSS styling + ESLint + Prettier for linting/formatting**.
+**Frontend (Next.js)** — Serves the client-side UI on port 3000. Uses the App Router for server-side and client-side rendering. Communicates with the backend via HTTP REST for CRUD operations and WebSocket for real-time chat and notifications. Built with **shadcn/ui components + ESLint + Prettier for linting/formatting**.
 
 **Backend (Go)** — HTTP server on port 8080. Entry point for all API requests. Organized as **vertical feature slices** under `internal/<feature>/`, each encapsulating domain entities, CQRS commands/queries, HTTP transport handlers, and a SQLite store implementation. Cross-cutting concerns (auth, sessions, WebSocket hub, middleware) live in `internal/core/`. Platform abstractions (database factory, event bus, cache) live in `internal/platform/`.
 
@@ -732,7 +732,7 @@ After all features migrated:
 
 - Scaffold Next.js app in `frontend/` (App Router)
 - Component Library: Integrate **shadcn/ui** for UI components.
-- Styling: **Tailwind CSS** with custom HSL values (dark mode, glassmorphism, micro-animations).
+- Styling: Vanilla CSS with HSL variables (dark mode, glassmorphism, micro-animations).
 - Structure: `src/app/` (routes), `src/components/ui/` (primitives), `src/components/features/` (composite elements), `src/styles/`.
 - Code Quality: **ESLint + Prettier** for linting, formatting, and import sorting (configured via `eslint.config.mjs` and `.prettierrc`).
 - Typography: Google Fonts (Inter or Outfit).
@@ -769,16 +769,16 @@ After all features migrated:
 services:
   backend:
     build: .
-    ports: ['8080:8080']
-    volumes: ['./data:/app/data'] # SQLite persistence
+    ports: ["8080:8080"]
+    volumes: ["./data:/app/data"] # SQLite persistence
     environment:
       DB_DRIVER: sqlite3
       DB_PATH: /app/data/forum.db
-      DB_PRAGMA: '_foreign_keys=on&_journal_mode=WAL'
+      DB_PRAGMA: "_foreign_keys=on&_journal_mode=WAL"
 
   frontend:
     build: ./frontend
-    ports: ['3000:3000']
+    ports: ["3000:3000"]
     environment:
       NEXT_PUBLIC_API_URL: http://backend:8080
 ```

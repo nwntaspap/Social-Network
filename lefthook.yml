@@ -1,4 +1,12 @@
 # lefthook.yml
+output:
+  - meta
+  - summary
+  - success
+  - failure
+  - execution
+  - execution_out
+
 pre-commit:
   parallel: true
   jobs:
@@ -19,4 +27,4 @@ pre-push:
   parallel: false
   jobs:
     - name: gates
-      run: bash -o pipefail -c 'go run ./cmd/gates/ --all --plain 2>&1 | tee -a .gates-report.log'
+      run: bash -o pipefail -c 'go run ./cmd/gates/ --all --plain 2>&1 | tee .gates-report.log'
