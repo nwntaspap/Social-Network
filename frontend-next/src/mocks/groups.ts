@@ -1,0 +1,127 @@
+import type { Group } from '@/lib/types';
+
+export const mockGroups: Group[] = [
+  {
+    id: '1',
+    title: 'React Developers',
+    description:
+      'A community for React enthusiasts. Share projects, ask questions, and learn together.',
+    creatorId: '1',
+    creator: {
+      id: '1',
+      email: 'john@example.com',
+      username: 'johndoe',
+      firstName: 'John',
+      lastName: 'Doe',
+      dateOfBirth: '1995-03-15',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: true,
+      createdAt: '2024-01-15T10:30:00Z',
+    },
+    membersCount: 1254,
+    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+  {
+    id: '2',
+    title: 'Go Programming',
+    description:
+      'Gophers unite! Discuss Go best practices, concurrency patterns, and new releases.',
+    creatorId: '2',
+    creator: {
+      id: '2',
+      email: 'jane@example.com',
+      username: 'janedoe',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      dateOfBirth: '1996-07-22',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: true,
+      createdAt: '2024-02-01T08:15:00Z',
+    },
+    membersCount: 892,
+    createdAt: new Date(Date.now() - 86400000 * 60).toISOString(),
+  },
+  {
+    id: '3',
+    title: 'TypeScript Tips & Tricks',
+    description:
+      'Advanced TypeScript patterns, utility types, and type-safe architecture discussions.',
+    creatorId: '5',
+    creator: {
+      id: '5',
+      email: 'mike@example.com',
+      username: 'mikew',
+      firstName: 'Mike',
+      lastName: 'Wilson',
+      dateOfBirth: '1993-12-14',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: true,
+      createdAt: '2024-02-15T16:30:00Z',
+    },
+    membersCount: 2103,
+    createdAt: new Date(Date.now() - 86400000 * 90).toISOString(),
+  },
+  {
+    id: '4',
+    title: 'UI/UX Design',
+    description:
+      'Share designs, get feedback, and discuss the latest trends in user interface design.',
+    creatorId: '4',
+    creator: {
+      id: '4',
+      email: 'alice@example.com',
+      username: 'alicej',
+      firstName: 'Alice',
+      lastName: 'Johnson',
+      dateOfBirth: '1997-04-30',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: true,
+      createdAt: '2024-03-10T09:00:00Z',
+    },
+    membersCount: 567,
+    createdAt: new Date(Date.now() - 86400000 * 45).toISOString(),
+  },
+  {
+    id: '5',
+    title: 'Open Source Projects',
+    description:
+      'Find contributors, share your projects, and collaborate on open source initiatives.',
+    creatorId: '3',
+    creator: {
+      id: '3',
+      email: 'bob@example.com',
+      username: 'bobsmith',
+      firstName: 'Bob',
+      lastName: 'Smith',
+      dateOfBirth: '1994-11-08',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: false,
+      createdAt: '2024-01-20T14:45:00Z',
+    },
+    membersCount: 3451,
+    createdAt: new Date(Date.now() - 86400000 * 120).toISOString(),
+  },
+  {
+    id: '6',
+    title: 'DevOps & Cloud',
+    description:
+      'CI/CD pipelines, container orchestration, cloud providers, and infrastructure as code.',
+    creatorId: '6',
+    creator: {
+      id: '6',
+      email: 'sarah@example.com',
+      username: 'sarahc',
+      firstName: 'Sarah',
+      lastName: 'Connor',
+      dateOfBirth: '1998-09-03',
+      avatarUrl: '/images/user-avatar.png',
+      isPublic: false,
+      createdAt: '2024-03-01T11:20:00Z',
+    },
+    membersCount: 1689,
+    createdAt: new Date(Date.now() - 86400000 * 75).toISOString(),
+  },
+];
+
+// For search dropdown
+export const searchResults = mockGroups.slice(0, 4);
