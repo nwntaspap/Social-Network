@@ -6,8 +6,8 @@ export default function HomeContent() {
   return (
     <div className="home-container">
       <SearchBar />
-      <SuggestedUsers />
       <Feed />
+      <SuggestedUsers />
     </div>
   );
 }

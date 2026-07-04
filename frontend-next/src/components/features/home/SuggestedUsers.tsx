@@ -42,8 +42,8 @@ function SuggestedUserCard({ user }: { user: User }) {
         <Image
           src={getFileUrl(user.avatarUrl)}
           alt={getDisplayName(user)}
-          width={64}
-          height={64}
+          width={40}
+          height={40}
           className="suggested-user-avatar"
         />
         <div className="suggested-user-info">

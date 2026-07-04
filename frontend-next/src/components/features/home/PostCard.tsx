@@ -47,8 +47,8 @@ export default function PostCard({ post }: { post: Post }) {
           <Image
             src={getFileUrl(post.user.avatarUrl)}
             alt={getDisplayName(post.user)}
-            width={48}
-            height={48}
+            width={40}
+            height={40}
             className="post-avatar"
           />
           <div className="post-user-info">
@@ -73,6 +73,7 @@ export default function PostCard({ post }: { post: Post }) {
               height={400}
               className="post-image"
               style={{ objectFit: 'cover' }}
+              loading="eager"
             />
           </div>
         )}
