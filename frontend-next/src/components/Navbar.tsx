@@ -100,10 +100,10 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
     router.push('/login');
   }
 
-  // const navLinks = [
-  //   { href: '/topics', label: 'Topics' },
-  //   { href: '/activity', label: 'Activity' },
-  // ];
+  const navLinks = [
+    { href: '/groups', label: 'Groups' },
+    // { href: '/activity', label: 'Activity' },
+  ];
 
   return (
     <header>
@@ -178,11 +178,11 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
 
             {/* Nav links */}
             <ul className="nav-links">
-              {/* {navLinks.map(({ href, label }) => (
+              {navLinks.map(({ href, label }) => (
                 <li key={href} className={`nav-link${pathname === href ? ' active' : ''}`}>
                   <Link href={href}>{label}</Link>
                 </li>
-              ))} */}
+              ))}
 
               <li className="nav-link nav-link-create">
                 <Link href="/topics/create">New Post</Link>
