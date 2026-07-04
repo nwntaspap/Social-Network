@@ -1,0 +1,165 @@
+/* Groups Page Styles */
+
+.groups-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.groups-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+/* Group Grid */
+.groups-grid {
+  display: grid;
+  /* For now we want our Group Cards to be rows */
+  /* grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); */
+  gap: 1rem;
+}
+
+.group-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 12px;
+  background: var(--bg-primary, white);
+  transition: box-shadow 0.2s;
+}
+
+.group-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.group-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.group-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--primary-color, #00c6ff);
+  color: white;
+  font-weight: 700;
+  font-size: 1.25rem;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.group-card-icon:hover {
+  opacity: 0.85;
+}
+
+.group-card-title-area {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.group-card-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.group-card-title-link:hover .group-card-title {
+  color: var(--primary-color, #00c6ff);
+}
+
+.group-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+
+.group-card-meta {
+  font-size: 0.8rem;
+  color: var(--grey-color, #888);
+  margin-top: 0.15rem;
+}
+
+.group-card-desc {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #555);
+  margin-bottom: 1rem;
+  flex: 1;
+}
+
+.group-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Group button states */
+.group-btn {
+  padding: 0.4rem 1.5rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+}
+
+.group-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.group-btn--join {
+  background: var(--primary-color, #00c6ff);
+  color: white;
+  border-color: var(--primary-color, #00c6ff);
+}
+
+.group-btn--join:hover:not(:disabled) {
+  background: #0099cc;
+  border-color: #0099cc;
+}
+
+.group-btn--pending {
+  background: transparent;
+  color: var(--grey-color, #888);
+  border-color: var(--grey-color, #bbb);
+}
+
+.group-btn--leave {
+  background: transparent;
+  color: #e53e3e;
+  border-color: #e53e3e;
+}
+
+.group-btn--leave:hover:not(:disabled) {
+  background: #e53e3e;
+  color: white;
+}
+
+/* Group icon in search dropdown */
+.search-result-avatar.group-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--primary-color, #00c6ff);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}

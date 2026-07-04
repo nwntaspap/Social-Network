@@ -14,6 +14,7 @@ import '../styles/filter-pagination.css';
 import '../styles/signup-login.css';
 import '../styles/topic.css';
 import '../styles/home.css';
+import '../styles/groups.css';
 
 // Configure Rubik font
 const rubik = Rubik({
