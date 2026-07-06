@@ -17,11 +17,39 @@ import GroupCard from './GroupCard';
 export default function GroupList() {
   // TODO: fetch groups from API when backend is ready
   // const [groups, setGroups] = useState<Group[]>([]);
-  // useEffect(() => { browseGroups().then(res => setGroups(res.data)) }, []);
+  // const [loading, setLoading] = useState(true);
+
+  // useEffect(() => {
+  //   async function fetchGroups() {
+  //     try {
+  //       const response = await browseGroups();
+  //       setGroups(response.data);
+  //     } catch (error) {
+  //       console.error('Failed to fetch groups:', error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   }
+
+  //   fetchGroups();
+  // }, []);
+
+  // const handleStatusChange = (groupId: string, newStatus: MembershipStatus) => {
+  //   setGroups((prevGroups) =>
+  //     prevGroups.map((group) =>
+  //       group.id === groupId ? { ...group, membershipStatus: newStatus } : group
+  //     )
+  //   );
+  // };
+
+  // if (loading) {
+  //   return <div>Loading groups...</div>;
+  // }
 
   return (
     <div className="groups-grid">
       {mockGroups.map((group) => (
+        // onStatusChange={handleStatusChange} later
         <GroupCard key={group.id} group={group} />
       ))}
     </div>
