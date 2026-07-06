@@ -379,8 +379,8 @@ export async function createEvent(
   return api.post<Event>(`/groups/${groupId}/events`, data);
 }
 
-export async function getGroupEvents(groupId: string): Promise<Event[]> {
-  return api.get<Event[]>(`/groups/${groupId}/events`);
+export async function getGroupEvents(groupId: string, page = 1): Promise<PaginatedResponse<Event>> {
+  return api.get<PaginatedResponse<Event>>(`/groups/${groupId}/events`, { page });
 }
 
 export async function respondToEvent(

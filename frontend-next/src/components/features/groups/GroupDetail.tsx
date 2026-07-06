@@ -1,12 +1,13 @@
 'use client';
 
-// import { useState } from 'react';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { mockGroups } from '@/mocks/groups';
 import GroupHeader from './GroupHeader';
+import GroupContent from './GroupContent';
+import GroupSidebar from './GroupSidebar';
+import { mockGroups } from '@/mocks/groups';
 
-type tabView = 'posts' | 'events';
+export type tabView = 'posts' | 'events';
 
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +30,29 @@ export default function GroupDetail() {
   return (
     <div className="group-detail-container">
       <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
+
+      <div className="group-detail-layout">
+        <GroupSidebar groupId={group.id} isCreator={isCreator} />
+
+        <div className="group-main-content">
+          <div className="group-tabs">
+            <button
+              className={`group-tab ${activeTab === 'posts' ? 'group-tab--active' : ''}`}
+              onClick={() => setActiveTab('posts')}
+            >
+              Posts
+            </button>
+            <button
+              className={`group-tab ${activeTab === 'events' ? 'group-tab--active' : ''}`}
+              onClick={() => setActiveTab('events')}
+            >
+              Events
+            </button>
+          </div>
+
+          <GroupContent groupId={group.id} activeTab={activeTab} isMember={isMember} />
+        </div>
+      </div>
     </div>
   );
 }
