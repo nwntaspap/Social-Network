@@ -1,14 +1,16 @@
 'use client';
 
 // import { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { mockGroups } from '@/mocks/groups';
+import GroupHeader from './GroupHeader';
 
-// type tabView = 'posts' | 'events';
+type tabView = 'posts' | 'events';
 
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
-  // const [activeTab, setActiveTab] = useState<tabView>('posts');
+  const [activeTab, setActiveTab] = useState<tabView>('posts');
 
   // TODO: Fetch group from API when backend is ready
   const group = mockGroups.find((g) => g.id === id);
@@ -26,8 +28,7 @@ export default function GroupDetail() {
 
   return (
     <div className="group-detail-container">
-      {isMember && <p>I am member</p>}
-      {isCreator && <p>I am creator</p>}
+      <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
     </div>
   );
 }
