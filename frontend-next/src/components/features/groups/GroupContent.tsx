@@ -7,14 +7,6 @@ interface GroupContentProps {
 }
 
 export default function GroupContent({ groupId, activeTab, isMember }: GroupContentProps) {
-  if (!isMember) {
-    return (
-      <div className="group-not-member">
-        <p>You must join the group in order to see the posts and events.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="group-content-area">
       {activeTab === 'posts' ? (

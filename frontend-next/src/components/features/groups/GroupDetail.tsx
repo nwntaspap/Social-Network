@@ -27,6 +27,17 @@ export default function GroupDetail() {
   const isMember = group.membershipStatus === 'member';
   const isCreator = group.creatorId === '1'; // TODO: compare with actual current user ID
 
+  if (!isMember) {
+    return (
+      <div className="group-detail-container">
+        <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
+        <div className="group-not-member">
+          <p>You must join the group in order to see the posts and events.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="group-detail-container">
       <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />

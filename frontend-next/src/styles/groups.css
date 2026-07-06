@@ -163,3 +163,228 @@
   font-size: 1rem;
   flex-shrink: 0;
 }
+
+/*---------- Group Detail Page ----------*/
+.group-detail-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.group-detail-header {
+  margin-bottom: 2rem;
+}
+
+.group-detail-header-top {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+  align-items: end;
+}
+
+.group-detail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: var(--primary-color);
+  color: var(--white-background-light);
+  font-weight: 700;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.group-detail-info {
+  flex: 1;
+}
+
+.group-detail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--dark-background);
+  margin: 0 0 0.25rem;
+}
+
+.group-detail-meta {
+  font-size: 0.85rem;
+  color: var(--white-background);
+  margin: 0 0 0.5rem;
+}
+
+.group-detail-desc {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--dark-background);
+  margin: 0;
+}
+
+/* Header action buttons */
+.group-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.group-action-btn {
+  padding: 0.5rem 1.25rem;
+  background: var(--secondary-color);
+  color: var(--white-background-light);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.group-action-btn:hover {
+  background: var(--secondary-color-light);
+}
+
+.group-action-btn--danger {
+  background: var(--grey-color-light);
+  color: var(--dark-background);
+}
+
+.group-action-btn--danger:hover {
+  background: var(--grey-color);
+  color: var(--white-background-light);
+}
+
+.group-action-btn--delete {
+  background: transparent;
+  color: var(--dark-background);
+  border: 1px solid #e53e3e;
+}
+
+.group-action-btn--delete:hover {
+  background: #e53e3e;
+  color: var(--white-background-light);
+}
+
+/* Layout: sidebar + main */
+.group-detail-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+}
+
+/* Sidebar */
+.group-sidebar {
+  padding-top: 0.5rem;
+}
+
+.group-sidebar-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--grey-color-light);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--dark-background);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.group-sidebar-btn:hover {
+  background: var(--grey-color-light);
+}
+
+.group-pending-dropdown {
+  margin-top: 0.5rem;
+  border: 1px solid var(--grey-color-light);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--white-background-light);
+}
+
+.group-pending-empty {
+  font-size: 0.85rem;
+  color: var(--grey-color);
+  text-align: center;
+}
+
+/* Tabs */
+.group-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.group-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.group-tab:hover {
+  color: var(--dark-background);
+}
+
+.group-tab--active {
+  color: var(--white-background-light);
+  border-bottom-color: var(--primary-color-light);
+}
+
+/* Main content */
+.group-main-content {
+  min-height: 300px;
+}
+
+.group-not-member {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--grey-color);
+  font-size: 0.95rem;
+}
+
+.group-content-area {
+  padding: 0;
+}
+
+/* Group posts / events placeholder */
+.group-posts,
+.group-events {
+  padding: 2rem;
+  text-align: center;
+  color: var(--grey-color);
+  /* background: var(--white-background-light);
+  border: 1px solid var(--grey-color-light); */
+  border-radius: 12px;
+}
+
+/* Responsive: single column on small screens */
+@media (max-width: 768px) {
+  .group-detail-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .group-sidebar {
+    order: -1; /* Pending requests above content on mobile */
+  }
+
+  .group-detail-header-top {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .group-detail-actions {
+    justify-content: center;
+  }
+
+  .group-tabs {
+    justify-content: center;
+  }
+}
