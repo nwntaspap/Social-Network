@@ -11,6 +11,7 @@ import type {
   Post,
   Comment,
   Group,
+  GroupJoinRequest,
   Event,
   Chat,
   ChatMessage,
@@ -229,8 +230,13 @@ export async function getPendingFollowRequests(): Promise<FollowRequest[]> {
 
 // ─── Posts ────────────────────────────────────────────────────────────────────
 
-export async function createPost(formData: FormData): Promise<Post> {
-  const url = API_BASE + '/posts';
+export async function createPost(formData: FormData, groupId?: string): Promise<Post> {
+  let path = '/posts';
+  if (groupId) {
+    path += `?groupId=${groupId}`;
+  }
+
+  const url = API_BASE + path;
   const response = await fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -321,6 +327,14 @@ export async function getGroup(groupId: string): Promise<Group> {
   return api.get<Group>(`/groups/${groupId}`);
 }
 
+export async function updateGroup(groupId: string, data: Partial<Group>): Promise<Group> {
+  return api.put<Group>(`/groups/${groupId}`, data);
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  return api.delete<void>(`/groups/${groupId}`);
+}
+
 export async function browseGroups(query?: string, page = 1): Promise<PaginatedResponse<Group>> {
   return api.get<PaginatedResponse<Group>>('/groups', { query, page });
 }
@@ -344,8 +358,16 @@ export async function leaveGroup(groupId: string): Promise<void> {
   return api.delete<void>(`/groups/${groupId}/leave`);
 }
 
+export async function getGroupPosts(groupId: string, page = 1): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>(`/groups/${groupId}/posts`, { page });
+}
+
 export async function getGroupMembers(groupId: string, page = 1): Promise<PaginatedResponse<User>> {
   return api.get<PaginatedResponse<User>>(`/groups/${groupId}/members`, { page });
+}
+
+export async function getPendingJoinRequests(groupId: string): Promise<GroupJoinRequest[]> {
+  return api.get<GroupJoinRequest[]>(`/groups/${groupId}/requests/pending`);
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────

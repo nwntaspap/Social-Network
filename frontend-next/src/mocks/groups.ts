@@ -19,6 +19,7 @@ export const mockGroups: Group[] = [
       createdAt: '2024-01-15T10:30:00Z',
     },
     membersCount: 1254,
+    membershipStatus: 'member',
     createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
   },
   {
@@ -39,6 +40,7 @@ export const mockGroups: Group[] = [
       createdAt: '2024-02-01T08:15:00Z',
     },
     membersCount: 892,
+    membershipStatus: 'pending',
     createdAt: new Date(Date.now() - 86400000 * 60).toISOString(),
   },
   {
@@ -59,6 +61,7 @@ export const mockGroups: Group[] = [
       createdAt: '2024-02-15T16:30:00Z',
     },
     membersCount: 2103,
+    membershipStatus: 'none',
     createdAt: new Date(Date.now() - 86400000 * 90).toISOString(),
   },
   {
@@ -79,6 +82,7 @@ export const mockGroups: Group[] = [
       createdAt: '2024-03-10T09:00:00Z',
     },
     membersCount: 567,
+    membershipStatus: 'none',
     createdAt: new Date(Date.now() - 86400000 * 45).toISOString(),
   },
   {
@@ -99,6 +103,7 @@ export const mockGroups: Group[] = [
       createdAt: '2024-01-20T14:45:00Z',
     },
     membersCount: 3451,
+    membershipStatus: 'member',
     createdAt: new Date(Date.now() - 86400000 * 120).toISOString(),
   },
   {
@@ -119,9 +124,9 @@ export const mockGroups: Group[] = [
       createdAt: '2024-03-01T11:20:00Z',
     },
     membersCount: 1689,
+    membershipStatus: 'none',
     createdAt: new Date(Date.now() - 86400000 * 75).toISOString(),
   },
 ];
 
-// For search dropdown
 export const searchResults = mockGroups.slice(0, 4);

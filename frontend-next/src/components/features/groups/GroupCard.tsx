@@ -15,48 +15,33 @@
  *   Leave    → already a member
  */
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { formatRelativeDate, truncateText } from '@/lib/helpers';
-import type { Group } from '@/lib/types';
-
-type MembershipState = 'join' | 'pending' | 'leave';
+import type { Group, MembershipStatus } from '@/lib/types';
 
 export default function GroupCard({ group }: { group: Group }) {
-  // TODO: determine initial state from backend (user's membership status)
-  const [membership, setMembership] = useState<MembershipState>('join');
-  const [loading, setLoading] = useState(false);
+  // TODO: Wire to real API when backend is ready
+  // const [status, setStatus] = useState(group.membershipStatus);
+  //
+  // async function handleJoin() {
+  //   await requestToJoinGroup(group.id);
+  //   setStatus('pending');
+  // }
+  //
+  // async function handleLeave() {
+  //   await leaveGroup(group.id);
+  //   setStatus('none');
+  // }
 
-  function handleClick() {
-    if (membership === 'leave') {
-      handleLeave();
-    } else if (membership === 'join') {
-      handleJoin();
-    }
-  }
+  const status: MembershipStatus = group.membershipStatus || 'none';
 
-  // TODO: replace with real API calls when backend is ready
-  function handleJoin() {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setMembership('pending');
-      setLoading(false);
-    }, 300);
-  }
+  const buttonConfig = {
+    none: { label: 'Join', className: 'group-btn--join', disabled: false },
+    pending: { label: 'Pending', className: 'group-btn--pending', disabled: true },
+    member: { label: 'Leave', className: 'group-btn--leave', disabled: false },
+  };
 
-  function handleLeave() {
-    setLoading(true);
-    setTimeout(() => {
-      setMembership('join');
-      setLoading(false);
-    }, 300);
-  }
-
-  const buttonLabel =
-    membership === 'leave' ? 'Leave' : membership === 'pending' ? 'Pending' : 'Join';
-
-  const isDisabled = membership === 'pending' || loading;
+  const { label, className, disabled } = buttonConfig[status];
 
   return (
     <div className="group-card">
@@ -77,12 +62,9 @@ export default function GroupCard({ group }: { group: Group }) {
       <p className="group-card-desc">{truncateText(group.description, 120)}</p>
 
       <div className="group-card-footer">
-        <button
-          className={`group-btn group-btn--${membership}`}
-          onClick={handleClick}
-          disabled={isDisabled}
-        >
-          {loading ? '...' : buttonLabel}
+        {/* TODO: Add onClick handler when backend is ready */}
+        <button className={`group-btn ${className}`} disabled={disabled}>
+          {label}
         </button>
       </div>
     </div>

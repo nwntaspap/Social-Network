@@ -34,6 +34,8 @@ export interface Post {
   gifUrl?: string;
   privacy: PostPrivacy;
   allowedUsers?: string[];
+  groupId?: string; // if post belongs to a group
+  group?: Pick<Group, 'id' | 'title'>; // group info for display
   commentsCount: number;
   likesCount: number;
   isLiked?: boolean;
@@ -62,7 +64,7 @@ export interface FollowRequest {
   status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
-
+export type MembershipStatus = 'none' | 'pending' | 'member';
 export interface Group {
   id: string;
   title: string;
@@ -70,6 +72,7 @@ export interface Group {
   creatorId: string;
   creator: User;
   membersCount: number;
+  membershipStatus?: MembershipStatus;
   createdAt: string;
   updatedAt?: string;
 }
