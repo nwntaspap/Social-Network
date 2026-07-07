@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker run -p 5472:5472 danielkotsi/golangmq
+docker run -p 5672:5672 danielkotsi/golangmq

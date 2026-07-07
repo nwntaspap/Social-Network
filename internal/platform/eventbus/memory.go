@@ -48,11 +48,14 @@ func (m *goBrokerMessage) Nack(requeue bool) error {
 
 func NewGoBroker() (*GoBroker, error) {
 	cfg := gomqSDK.Config{
+		ClientName:   "social-network",
+		Username:     "social-network",
+		Password:     "123456789",
 		ChannelMax:   10,
 		FrameMax:     10372,
 		HeartbeatSec: 10,
 	}
-	client, err := gomqSDK.Connect("localhost:5742", cfg)
+	client, err := gomqSDK.Connect("localhost:5672", cfg)
 	if err != nil {
 		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%s", err)
 	}
