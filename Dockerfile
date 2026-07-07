@@ -55,7 +55,7 @@ RUN mkdir -p /app/db/data /app/frontend/static/images/uploads && \
     chown -R appuser:appuser /app/db/data /app/frontend/static/images/uploads
 
 # Copy entrypoint script
-COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
+COPY --chmod=755 scripts/entrypoint.sh /app/entrypoint.sh
 
 # Switch to non-root user
 USER appuser

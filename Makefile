@@ -239,7 +239,42 @@ bench-clean: ## Remove benchmark artifacts
 
 # ── Build ─────────────────────────────────────────────────────────────
 
-build-backend: ## Build backend binary
+seed: db-reset ## Seed database with test data
+	@echo "==> Seeding database..."
+	sqlite3 db/data/forum.db < db/migrations/schema.sql
+	sqlite3 db/data/forum.db < db/migrations/indexes.sql
+	sqlite3 db/data/forum.db < db/seeds/dev_data.sql
+
+run-backend: ## Run backend application
+	@echo "==> Running backend..."
+	go run cmd/server/main.go
+
+run-frontend: ## Run frontend application (Next.js or Legacy)
+	@if [ -f frontend/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
+		cd frontend && bun run dev; \
+	else \
+		echo "==> Running frontend (Legacy Client Server)..."; \
+		go run cmd/client/main.go; \
+	fi
+
+run-broker: ## Start the message broker container
+	@echo "📨 Starting broker container on port 5472..."
+	@docker rm -f social-network-broker 2>/dev/null || true
+	@docker run -d --rm --name social-network-broker -p 5472:5472 danielkotsi/golangmq
+	@sleep 1
+	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
+
+run-all: ## Run backend, frontend, and broker concurrently
+	@echo "==> Running backend, frontend, and broker concurrently..."
+	@$(MAKE) -s run-broker; \
+	trap 'docker rm -f social-network-broker 2>/dev/null || true; kill 0' EXIT; \
+	go run cmd/server/main.go & BACKEND_PID=$$!; \
+	$(MAKE) run-frontend; \
+	kill $$BACKEND_PID 2>/dev/null || true
+
+build-backend: ## Build backend application
+	@echo "==> Building backend..."
 	go build -o bin/server cmd/server/main.go
 
 build-frontend: ## Build frontend (Next.js)
@@ -309,4 +344,6 @@ help: ## Show this help message
 	ci-bench bench-compare bench-profile bench-flame bench-clean \
 	build-backend build-frontend build \
 	run-backend run-frontend run run-all \
+	run-backend run-frontend run run-broker run-all \
+	docker-clean docker-db \
 	db-clean db-reset seed clean help

@@ -72,8 +72,15 @@ services:
       retries: 3
       start_period: 10s
     
+    depends_on:
+      broker:
+        condition: service_started
     networks:
       - forum-network
+  broker:
+    image: danielkotsi/golangmq:latest
+    ports:
+      - "5472:5472"
 
 volumes:
   forum-db:
