@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { formatRelativeDate } from '@/lib/helpers';
-import type { Group } from '@/lib/types';
+import type { Group, MembershipStatus } from '@/lib/types';
 import InviteDropdown from './InviteDropdown';
 import CreateEventForm from './CreateEventForm';
 
@@ -16,6 +16,19 @@ interface GroupHeaderProps {
 export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderProps) {
   const [showInvite, setShowInvite] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
+  // TODO: Wire to real API when backend is ready
+  // const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
+  // const [isLoading, setIsLoading] = useState(false);
+
+  const status: MembershipStatus = group.membershipStatus || 'none';
+
+  const buttonConfig = {
+    none: { label: 'Join', className: 'group-btn--join', disabled: false },
+    pending: { label: 'Pending', className: 'group-btn--pending', disabled: true },
+    member: { label: 'Leave', className: 'group-btn--leave', disabled: false },
+  };
+
+  const { label, className, disabled } = buttonConfig[status];
 
   return (
     <div className="group-detail-header">
@@ -31,6 +44,12 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
       </div>
 
       <div className="group-detail-actions">
+        {!isMember && (
+          <button className={`group-action-btn ${className}`} disabled={disabled}>
+            {label}
+          </button>
+        )}
+
         {isMember && (
           <>
             <Link href={`/create?groupId=${group.id}`} className="group-action-btn">

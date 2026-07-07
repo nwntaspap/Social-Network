@@ -122,14 +122,14 @@
 }
 
 .group-btn--join {
-  background: var(--primary-color, #00c6ff);
+  background: var(--secondary-color, #00c6ff);
   color: white;
-  border-color: var(--primary-color, #00c6ff);
+  border-color: var(--secondary-color, #00c6ff);
 }
 
 .group-btn--join:hover:not(:disabled) {
-  background: #0099cc;
-  border-color: #0099cc;
+  background: var(--secondary-color-light);
+  /* border-color: #0099cc; */
 }
 
 .group-btn--pending {
@@ -336,8 +336,9 @@
 /* Header action buttons */
 .group-detail-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
+  flex-flow: column wrap;
+  align-items: start;
 }
 
 .group-action-btn {
@@ -605,15 +606,15 @@
     text-align: center;
   }
 
-  .group-detail-actions {
+  /* .group-detail-actions {
     justify-content: center;
-  }
+  } */
 
   .group-tabs {
     justify-content: center;
   }
 
-  .group-dropdown {
+  /* .group-dropdown {
     position: fixed;
     top: 50%;
     left: 50%;
@@ -624,5 +625,5 @@
     max-height: 90vh;
     min-height: 300px;
     overflow-y: auto;
-  }
+  } */
 }
