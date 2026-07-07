@@ -28,11 +28,11 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!title) {
+    if (!title.trim()) {
       setTitleError('Title cannot be empty');
       return;
     }
-    if (!description) {
+    if (!description.trim()) {
       setDescriptionError('Description cannot be empty');
       return;
     }

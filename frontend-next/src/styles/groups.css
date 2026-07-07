@@ -164,6 +164,119 @@
   flex-shrink: 0;
 }
 
+/*---------- Create Group ----------*/
+.create-group-wrapper {
+  margin-bottom: 1.5rem;
+}
+
+.create-group-btn {
+  padding: 0.6rem 1.5rem;
+  background: var(--secondary-color);
+  color: var(--white-background-light);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.create-group-btn:hover {
+  background: var(--secondary-color-light);
+}
+
+.create-group-form {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: var(--white-background-light);
+  border: 1px solid var(--grey-color-light);
+  border-radius: 12px;
+}
+
+.create-group-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.create-group-field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--grey-color-dark);
+}
+
+.create-group-field .form-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--grey-color-light);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--white-background-light);
+  color: var(--dark-background);
+}
+
+.create-group-field .form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(6, 143, 86, 0.1);
+}
+
+.create-group-field .form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.create-group-field p {
+  color: #e53e3e;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.create-group-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.create-group-cancel {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: var(--grey-color);
+  border: 1px solid var(--grey-color-light);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-group-cancel:hover {
+  background: var(--grey-color-light);
+}
+
+.create-group-submit {
+  padding: 0.5rem 1.5rem;
+  background: var(--primary-color);
+  color: var(--white-background-light);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.create-group-submit:hover {
+  background: var(--primary-color-light);
+}
+
+.create-group-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /*---------- Group Detail Page ----------*/
 .group-detail-container {
   max-width: 1000px;
