@@ -6,7 +6,7 @@ interface GroupContentProps {
   isMember: boolean;
 }
 
-export default function GroupContent({ groupId, activeTab, isMember }: GroupContentProps) {
+export default function GroupContent({ groupId, activeTab }: GroupContentProps) {
   return (
     <div className="group-content-area">
       {activeTab === 'posts' ? (

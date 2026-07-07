@@ -363,7 +363,119 @@
   border-radius: 12px;
 }
 
+/* Action wrapper for dropdown positioning */
+.group-action-wrapper {
+  position: relative;
+}
+
+/* Dropdown shared styles */
+.group-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background: var(--white-background-light);
+  border: 1px solid var(--grey-color-light);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  width: 320px;
+  padding: 1rem;
+}
+
+.group-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--dark-background);
+}
+
+.group-dropdown-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--grey-color);
+  padding: 0.2rem;
+  line-height: 1;
+}
+
+.group-dropdown-close:hover {
+  color: var(--dark-background);
+}
+
+/* Invite button in search results */
+.invite-btn {
+  padding: 0.3rem 0.75rem;
+  background: var(--secondary-color);
+  color: var(--white-background-light);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.invite-btn:hover {
+  background: var(--secondary-color-light);
+}
+
+/* Event form */
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.event-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.event-form-field label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--grey-color-dark);
+}
+
+.event-form .form-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--grey-color-light);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.event-form .form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(6, 143, 86, 0.1);
+}
+
+.event-form .form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.event-form .group-action-btn {
+  align-self: flex-end;
+}
+
+.event-form-field p {
+  color: #e53e3e;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
 /* Responsive: single column on small screens */
+
 @media (max-width: 768px) {
   .group-detail-layout {
     grid-template-columns: 1fr;
@@ -386,5 +498,18 @@
 
   .group-tabs {
     justify-content: center;
+  }
+
+  .group-dropdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    width: 90vw;
+    max-width: 360px;
+    max-height: 90vh;
+    min-height: 300px;
+    overflow-y: auto;
   }
 }
