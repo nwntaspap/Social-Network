@@ -89,15 +89,9 @@ func parseSameSite(s string) http.SameSite {
 }
 
 func (m *Manager) NewSessionCookie(session *session.Session) (accessCookie, refreshCookie *http.Cookie) {
-	accessMaxAge := int(time.Until(session.Expiry).Seconds())
-	if accessMaxAge < 0 {
-		accessMaxAge = 0
-	}
+	accessMaxAge := max(int(time.Until(session.Expiry).Seconds()), 0)
 
-	refreshMaxAge := int(time.Until(session.RefreshTokenExpiry).Seconds())
-	if refreshMaxAge < 0 {
-		refreshMaxAge = 0
-	}
+	refreshMaxAge := max(int(time.Until(session.RefreshTokenExpiry).Seconds()), 0)
 
 	return &http.Cookie{
 			Name:     m.cfg.AccessCookieName,

@@ -77,7 +77,7 @@ func (r *Repo) GetAllCategories(ctx context.Context, page, size int, orderBy, or
 	LEFT JOIN topic_categories tc ON c.id = tc.category_id
 	WHERE 1=1
 	`
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 
 	if filter != "" {
 		query += " AND (c.name LIKE ? OR c.description LIKE ?)"
@@ -147,7 +147,7 @@ func (r *Repo) PopulateCategoriesWithTopics(ctx context.Context, categories []ca
 	}
 
 	placeholders := make([]string, len(categoryIDs))
-	args := make([]interface{}, len(categoryIDs))
+	args := make([]any, len(categoryIDs))
 	for i, id := range categoryIDs {
 		placeholders[i] = "?"
 		args[i] = id
@@ -223,7 +223,7 @@ func (r *Repo) GetTotalCategoriesCount(ctx context.Context, filter string) (int,
 	WHERE 1=1
 	`
 
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 	if filter != "" {
 		countQuery += " AND (c.name LIKE ? OR c.description LIKE ?)"
 		filterParam := "%" + filter + "%"

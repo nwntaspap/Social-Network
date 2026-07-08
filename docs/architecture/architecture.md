@@ -150,10 +150,10 @@ Vote logic is absorbed into `topic/` and `comment/` — there is no standalone `
 
 - **Architecture**: Next.js App Router providing server and client-side rendering.
 - **Component Library**: **shadcn/ui** is used for core reusable elements (buttons, inputs, dialogs, cards, dropdowns, etc.), providing accessible and customizable components.
-- **Styling**: **Tailwind CSS** coupled with Vanilla CSS overrides for the design system (glassmorphism, dark/light themes, customized HSL color palettes, and interactive transitions).
+- **Styling**: Vanilla CSS with HSL variables and custom properties for the design system (glassmorphism, dark/light themes, customized color palettes, and interactive transitions).
 - **Communication**: REST APIs for basic CRUD operations, WebSocket channels for real-time chat (emoji support via UTF-8), and SSE for live notifications.
 - **UI Conventions**: Destructive operations (unfollow, privacy toggle, decline requests) use `shadcn/ui` Dialog overlays for confirmation. Notifications are displayed in a dedicated panel (bell icon, unread count), visually distinct from the Chat panel.
-- **Full spec**: See [SDS §6](sds.md#6-frontend-specifications-nextjs-tailwind-css--shadcnui) for detailed frontend specifications.
+- **Full spec**: See [SDS §6](sds.md#6-frontend-specifications-nextjs--shadcnui) for detailed frontend specifications.
 
 ### Docker
 
@@ -239,9 +239,7 @@ bun run lint → bun run format:check → tsc --noEmit → bun run test
 Go-based deterministic gates under `internal/gates/` enforce architectural and convention rules. `make gates` is decoupled from the legacy CI and executes:
 
 1. `go build ./...` — Compiles all code (legacy + new) for build safety.
-2. `go run cmd/gates/main.go --all` — Runs the Go verification gates.
-3. `make be-ci-new` — Performs the scoped CI pipeline on the new codebase.
-4. `make fe-ci` — Performs the scoped CI pipeline on the frontend.
+2. `go run cmd/gates/main.go --all` — Runs the 14 Go verification gates (stack, branch, format, lint, go-test, coverage, layout, boundaries, DAG, TDD, migrations, security, scope-drift, frontend).
 
 | Gate       | Tool/Fallback                | What It Checks                                                                     |
 | ---------- | ---------------------------- | ---------------------------------------------------------------------------------- |
@@ -272,3 +270,4 @@ Install: `make setup-hooks`. Bypass: `--no-verify`.
 ## 8. Requirements Verification
 
 The project's requirements checklist is maintained in [`docs/requirements/audit.md`](../requirements/audit.md). All architectural decisions and feature implementations must satisfy the conditions defined there. Sprint 6 automation tickets (S6-SD-25, S6-SD-34) implement test suites mapped directly to audit.md questions. See also the [progressive disclosure chain](../sprints/general-instructions.md#linear-progressive-disclosure-navigation-chain) (Stage 7).
+n) (Stage 7).

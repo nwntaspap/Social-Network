@@ -240,7 +240,7 @@ func (r Repo) GetTopicByID(ctx context.Context, topicID int, userID *string) (*t
 		query += `, user_vote.reaction_type`
 	}
 
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 	if userID != nil {
 		args = append(args, *userID)
 	}
@@ -251,7 +251,7 @@ func (r Repo) GetTopicByID(ctx context.Context, topicID int, userID *string) (*t
 	var userVote sql.NullInt32
 	var categoryIDs, categoryNames, categoryColors sql.NullString
 
-	scanFields := []interface{}{
+	scanFields := []any{
 		&topicResult.ID,
 		&topicResult.UserID,
 		&topicResult.Title,
@@ -316,7 +316,7 @@ func (r Repo) GetTotalTopicsCount(ctx context.Context, filter string, categoryID
     SELECT COUNT(DISTINCT t.id) 
     FROM topics t`
 
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 
 	// Add junction table join only if filtering by category
 	if categoryID > 0 {
@@ -408,7 +408,7 @@ func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orde
 
 	query += ` WHERE 1=1`
 
-	args := make([]interface{}, 0)
+	args := make([]any, 0)
 
 	if userID != nil {
 		args = append(args, *userID)
@@ -466,7 +466,7 @@ func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orde
 		var userVote sql.NullInt32
 		var categoryIDs, categoryNames, categoryColors sql.NullString
 
-		scanFields := []interface{}{
+		scanFields := []any{
 			&topic.ID,
 			&topic.UserID,
 			&topic.Title,

@@ -24,7 +24,7 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) Post(ctx context.Context, url string, headers map[string]string, body interface{}) ([]byte, error) {
+func (c *Client) Post(ctx context.Context, url string, headers map[string]string, body any) ([]byte, error) {
 	var reqBody []byte
 	var err error
 

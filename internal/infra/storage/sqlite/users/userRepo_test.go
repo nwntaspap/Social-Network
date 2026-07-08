@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"social-network/internal/domain/user"
@@ -79,7 +80,7 @@ func TestUserRegister_DuplicateEmail(t *testing.T) {
 	}
 
 	err = repo.UserRegister(context.Background(), u2)
-	if err != ErrDuplicateEmail {
+	if !errors.Is(err, ErrDuplicateEmail) {
 		t.Errorf("second UserRegister() error = %v, want %v", err, ErrDuplicateEmail)
 	}
 }

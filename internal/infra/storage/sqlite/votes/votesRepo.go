@@ -19,7 +19,7 @@ func NewRepo(db *sql.DB) *Repo {
 
 func (r *Repo) CastVote(ctx context.Context, userID string, target vote.Target, reactionType int) error {
 	var query string
-	var args []interface{}
+	var args []any
 
 	if target.CommentID != nil {
 		// Check if vote exists with same reaction type
@@ -41,7 +41,7 @@ func (r *Repo) CastVote(ctx context.Context, userID string, target vote.Target, 
 		ON CONFLICT (user_id, comment_id) DO UPDATE SET
 			reaction_type = EXCLUDED.reaction_type,
 			created_at = CURRENT_TIMESTAMP`
-		args = []interface{}{userID, *target.CommentID, reactionType}
+		args = []any{userID, *target.CommentID, reactionType}
 	} else {
 		// Check if vote exists with same reaction type
 		var existingReaction sql.NullInt32
@@ -62,7 +62,7 @@ func (r *Repo) CastVote(ctx context.Context, userID string, target vote.Target, 
 		ON CONFLICT (user_id, topic_id) DO UPDATE SET
 			reaction_type = EXCLUDED.reaction_type,
 			created_at = CURRENT_TIMESTAMP`
-		args = []interface{}{userID, target.TopicID, reactionType}
+		args = []any{userID, target.TopicID, reactionType}
 	}
 
 	stmt, err := r.DB.PrepareContext(ctx, query)
@@ -121,7 +121,7 @@ func (r *Repo) DeleteVote(ctx context.Context, userID string, topicID *int, comm
 	}
 
 	var builder strings.Builder
-	var args []interface{}
+	var args []any
 
 	builder.WriteString("DELETE FROM votes WHERE user_id = ?")
 	args = append(args, userID)
@@ -153,7 +153,7 @@ func (r *Repo) DeleteVote(ctx context.Context, userID string, topicID *int, comm
 
 func (r *Repo) GetCounts(ctx context.Context, target vote.Target) (*vote.Counts, error) {
 	var query string
-	var args []interface{}
+	var args []any
 
 	if target.CommentID == nil {
 		query = `
@@ -162,7 +162,7 @@ func (r *Repo) GetCounts(ctx context.Context, target vote.Target) (*vote.Counts,
 			COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes
 		FROM votes
 		WHERE topic_id = ? AND comment_id IS NULL`
-		args = []interface{}{target.TopicID}
+		args = []any{target.TopicID}
 	} else {
 		query = `
 		SELECT
@@ -170,7 +170,7 @@ func (r *Repo) GetCounts(ctx context.Context, target vote.Target) (*vote.Counts,
 			COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes
 		FROM votes
 		WHERE comment_id = ? AND topic_id IS NULL`
-		args = []interface{}{target.CommentID}
+		args = []any{target.CommentID}
 	}
 
 	var counts vote.Counts

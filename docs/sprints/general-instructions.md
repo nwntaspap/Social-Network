@@ -216,7 +216,7 @@ Define the directory mapping:
 - `frontend-next/src/components/ui/` (shadcn primitives)
 - `frontend-next/src/components/features/` (domain-specific composables: `auth`, `profile`, `post`, `group`, `chat`, `notification`)
 - `frontend-next/src/lib/` (API client, session cookies helper, WS coordinator)
-- `frontend-next/src/styles/` (Tailwind globals)
+- `frontend-next/src/styles/` (CSS globals)
 
 ### F6: Frontend Build & Deploy (REQUIRED)
 
@@ -259,17 +259,18 @@ Define the directory mapping:
 **Mandatory:** After every sprint, before marking complete, run:
 
 ```bash
-# Full CI and verification gates
+# Verification gates (go build + 14 Go gates: stack, branch, format, lint,
+# go-test, coverage, layout, boundaries, DAG, TDD, migrations, security,
+# scope-drift, frontend)
 make gates
 
 # Or individually:
-make be-ci   # Legacy blanket check
+make be-ci   # Legacy blanket check (informational)
 make be-ci-new   # Scoped new-code CI
 make fe-ci   # Frontend CI (scoped to frontend-next/ if it exists)
 
-# Go verification gates (architecture, security, conventions)
-make gates
-# Equivalent: go run cmd/gates/main.go --all
+# Standalone (no Makefile):
+go run cmd/gates/main.go --all
 
 # Boundary check (D5)
 grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | grep -v 'platform/' | grep -v 'pkg/'

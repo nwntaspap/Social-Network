@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 )
@@ -89,9 +90,11 @@ func (l *logger) print(level Level, message string, properties map[string]string
 
 	if len(properties) > 0 {
 		logMsg += " - "
+		var logMsgSb92 strings.Builder
 		for key, value := range properties {
-			logMsg += fmt.Sprintf("%s: %s; ", key, value)
+			logMsgSb92.WriteString(fmt.Sprintf("%s: %s; ", key, value))
 		}
+		logMsg += logMsgSb92.String()
 	}
 
 	if level > LevelError {
