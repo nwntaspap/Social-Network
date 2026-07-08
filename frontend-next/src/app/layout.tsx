@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { Rubik, Poppins } from 'next/font/google';
+import { AuthProvider } from '@/context/AuthContext';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import '../styles/base.css';
 import '../styles/layout.css';
-import '../styles/components.css';
 import '../styles/navbar.css';
 import '../styles/activity.css';
 import '../styles/category.css';
@@ -10,8 +12,9 @@ import '../styles/chat.css';
 import '../styles/create-post.css';
 import '../styles/filter-pagination.css';
 import '../styles/signup-login.css';
-import '../styles/spa.css';
 import '../styles/topic.css';
+import '../styles/home.css';
+import '../styles/groups.css';
 
 // Configure Rubik font
 const rubik = Rubik({
@@ -45,8 +48,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${rubik.variable} ${poppins.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="en"
+      className={`${rubik.variable} ${poppins.variable}`}
+      data-scroll-behavior="smooth"
+    >
+      <body>
+        {/*
+         * AuthProvider wraps everything so Navbar, Footer, and every page
+         * can read auth state via useAuth() — mirrors the module-level
+         * _currentUser pattern from auth.js.
+         */}
+        <AuthProvider>
+          {/* Sticky navbar — always rendered, content switches on auth state */}
+          <div id="navbar-root">
+            <Navbar />
+          </div>
+
+          {/* Page content injected by the router */}
+          <main id="app-root">{children}</main>
+
+          {/* Footer — always rendered */}
+          <div id="footer-root">
+            <Footer />
+          </div>
+        </AuthProvider>
+      </body>
     </html>
   );
 }

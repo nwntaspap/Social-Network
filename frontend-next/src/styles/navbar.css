@@ -32,6 +32,7 @@
   height: 50px;
 }
 .logo-icon img {
+  width: 40px;
   height: 100%;
   object-fit: contain;
 }
@@ -115,8 +116,10 @@
 
 .user-avatar {
   display: flex;
-  width: 30px;
-  height: 30px;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
   background-color: var(--primary-color-light);
   border-radius: 50%;
   overflow: hidden;
@@ -358,6 +361,6 @@
     right: -180px;
   }
   .user-menu-dropdown {
-    right: -12px;
+    right: -120px;
   }
 }
