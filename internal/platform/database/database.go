@@ -12,6 +12,7 @@ type DB interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 	Close() error
+	PingContext(ctx context.Context) error
 }
 
 type Config struct {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	// SQLite driver registration via init()
@@ -22,6 +24,13 @@ func newSQLite(cfg Config) (DB, error) {
 			sep = "&"
 		}
 		dsn += sep + cfg.Pragma
+	}
+
+	if cfg.Path != ":memory:" {
+		dir := filepath.Dir(cfg.Path)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return nil, fmt.Errorf("create db dir: %w", err)
+		}
 	}
 
 	db, err := sql.Open("sqlite3", dsn)
@@ -64,4 +73,8 @@ func (s *sqliteDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, e
 
 func (s *sqliteDB) Close() error {
 	return s.db.Close()
+}
+
+func (s *sqliteDB) PingContext(ctx context.Context) error {
+	return s.db.PingContext(ctx)
 }
