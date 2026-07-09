@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var _ Cache = (*InMemoryCache)(nil)
+
 func TestSetGet(t *testing.T) {
 	c := NewInMemoryCache()
 	defer c.Stop()

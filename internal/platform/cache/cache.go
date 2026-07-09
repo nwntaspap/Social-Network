@@ -22,4 +22,5 @@ type Cache interface {
 	//return the remaing time to live otherwise
 	TTL(key string) time.Duration
 	Exists(key string) bool
+	Stop()
 }
