@@ -239,40 +239,6 @@ bench-clean: ## Remove benchmark artifacts
 
 # ── Build ─────────────────────────────────────────────────────────────
 
-seed: db-reset ## Seed database with test data
-	@echo "==> Seeding database..."
-	sqlite3 db/data/forum.db < db/migrations/schema.sql
-	sqlite3 db/data/forum.db < db/migrations/indexes.sql
-	sqlite3 db/data/forum.db < db/seeds/dev_data.sql
-
-run-backend: ## Run backend application
-	@echo "==> Running backend..."
-	go run cmd/server/main.go
-
-run-frontend: ## Run frontend application (Next.js or Legacy)
-	@if [ -f frontend/package.json ]; then \
-		echo "==> Running frontend (Next.js)..."; \
-		cd frontend && bun run dev; \
-	else \
-		echo "==> Running frontend (Legacy Client Server)..."; \
-		go run cmd/client/main.go; \
-	fi
-
-run-broker: ## Start the message broker container
-	@echo "📨 Starting broker container on port 5672..."
-	@docker rm -f social-network-broker 2>/dev/null || true
-	@docker run -d --rm --name social-network-broker -p 5672:5672 danielkotsi/golangmq
-	@sleep 1
-	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
-
-run-all: ## Run backend, frontend, and broker concurrently
-	@echo "==> Running backend, frontend, and broker concurrently..."
-	@$(MAKE) -s run-broker; \
-	trap 'docker rm -f social-network-broker 2>/dev/null || true; kill 0' EXIT; \
-	go run cmd/server/main.go & BACKEND_PID=$$!; \
-	$(MAKE) run-frontend; \
-	kill $$BACKEND_PID 2>/dev/null || true
-
 build-backend: ## Build backend application
 	@echo "==> Building backend..."
 	go build -o bin/server cmd/server/main.go
@@ -289,12 +255,22 @@ build: build-backend build-frontend
 # ── Run (Native) ──────────────────────────────────────────────────────
 
 run-backend: ## Run backend natively
+	@echo "==> Running backend..."
 	go run cmd/server/main.go
+
+run-broker: ## Start the message broker container
+	@echo "📨 Starting broker container on port 5672..."
+	@docker rm -f social-network-broker 2>/dev/null || true
+	@docker run -d --rm --name social-network-broker -p 5672:5672 danielkotsi/golangmq
+	@sleep 1
+	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
 
 run-frontend: ## Run frontend natively (Next.js or legacy)
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
 		cd frontend-next && bun run dev; \
 	elif [ -d frontend ] && [ -f frontend/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
 		cd frontend && bun run dev; \
 	else \
 		echo "Running legacy frontend client..."; \
@@ -304,6 +280,7 @@ run-frontend: ## Run frontend natively (Next.js or legacy)
 run: ## Run backend + frontend concurrently (native)
 	@trap 'kill 0' EXIT; \
 	$(MAKE) -s run-backend & \
+	$(MAKE) -s run-broker & \
 	$(MAKE) -s run-frontend
 
 run-all: run ## Alias for run
