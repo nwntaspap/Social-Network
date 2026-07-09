@@ -5,7 +5,7 @@ interface GroupContentProps {
   activeTab: tabView;
   isMember: boolean;
 }
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function GroupContent({ groupId, activeTab }: GroupContentProps) {
   return (
     <div className="group-content-area">

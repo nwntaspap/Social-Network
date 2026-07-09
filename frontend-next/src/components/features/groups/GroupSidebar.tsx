@@ -4,7 +4,7 @@ interface GroupSidebarProps {
   groupId: string;
   isCreator: boolean;
 }
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function GroupSidebar({ groupId, isCreator }: GroupSidebarProps) {
   const [showPending, setShowPending] = useState(false);
 
