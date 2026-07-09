@@ -51,7 +51,7 @@ For step-by-step ticket instructions, see individual sprint files:
 - [x] **S1-BE-06:** Custom Migration System
 - [x] **S1-BE-07:** Core: Session Management
 - [ ] **S1-BE-08:** Core: Middlewares
-- [ ] **S1-BE-09:** Shared: Image Type Verification Utility
+- [x] **S1-BE-09:** Shared: Image Type Verification Utility
 
 ### BE-B (Backend B)
 
