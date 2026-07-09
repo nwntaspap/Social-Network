@@ -259,9 +259,9 @@ run-frontend: ## Run frontend application (Next.js or Legacy)
 	fi
 
 run-broker: ## Start the message broker container
-	@echo "📨 Starting broker container on port 5472..."
+	@echo "📨 Starting broker container on port 5672..."
 	@docker rm -f social-network-broker 2>/dev/null || true
-	@docker run -d --rm --name social-network-broker -p 5472:5472 danielkotsi/golangmq
+	@docker run -d --rm --name social-network-broker -p 5672:5672 danielkotsi/golangmq
 	@sleep 1
 	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
 
