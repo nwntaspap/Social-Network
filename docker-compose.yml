@@ -80,7 +80,7 @@ services:
   broker:
     image: danielkotsi/golangmq:latest
     ports:
-      - "5472:5472"
+      - "5672:5672"
 
 volumes:
   forum-db:

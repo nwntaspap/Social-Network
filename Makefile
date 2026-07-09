@@ -239,7 +239,7 @@ bench-clean: ## Remove benchmark artifacts
 
 # ── Build ─────────────────────────────────────────────────────────────
 
-build-backend: ## Build backend application
+build-backend: ## Build backend binary
 	@echo "==> Building backend..."
 	go build -o bin/server cmd/server/main.go
 
