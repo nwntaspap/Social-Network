@@ -254,12 +254,22 @@ build: build-backend build-frontend
 # ── Run (Native) ──────────────────────────────────────────────────────
 
 run-backend: ## Run backend natively
+	@echo "==> Running backend..."
 	go run cmd/server/main.go
+
+run-broker: ## Start the message broker container
+	@echo "📨 Starting broker container on port 5672..."
+	@docker rm -f social-network-broker 2>/dev/null || true
+	@docker run -d --rm --name social-network-broker -p 5672:5672 danielkotsi/golangmq
+	@sleep 1
+	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
 
 run-frontend: ## Run frontend natively (Next.js or legacy)
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
 		cd frontend-next && bun run dev; \
 	elif [ -d frontend ] && [ -f frontend/package.json ]; then \
+		echo "==> Running frontend (Next.js)..."; \
 		cd frontend && bun run dev; \
 	else \
 		echo "Running legacy frontend client..."; \
@@ -269,6 +279,7 @@ run-frontend: ## Run frontend natively (Next.js or legacy)
 run: ## Run backend + frontend concurrently (native)
 	@trap 'kill 0' EXIT; \
 	$(MAKE) -s run-backend & \
+	$(MAKE) -s run-broker & \
 	$(MAKE) -s run-frontend
 
 run-all: run ## Alias for run
@@ -309,4 +320,6 @@ help: ## Show this help message
 	ci-bench bench-compare bench-profile bench-flame bench-clean \
 	build-backend build-frontend build \
 	run-backend run-frontend run run-all \
+	run-backend run-frontend run run-broker run-all \
+	docker-clean docker-db \
 	db-clean db-reset seed clean help

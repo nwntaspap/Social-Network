@@ -2,6 +2,7 @@
 set -e
 
 echo "🚀 Starting Forum Application..."
+echo "📨 Broker available on port:5472"
 
 # Ensure database directory exists
 mkdir -p db/data

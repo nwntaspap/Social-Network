@@ -1,0 +1,14 @@
+{
+  "exchanges": [
+    {"name": "notifications.exchange"},
+    {"name": "dead.letter.exchange"}
+  ],
+  "queues": [
+    {"name": "notifications_queue", "dead_letter_exchange": "dead.letter.exchange", "dead_letter_routing_key": "dead.notifications"},
+    {"name": "dead.letter_queue", "dead_letter_exchange": "", "dead_letter_routing_key": ""}
+  ],
+  "bindings": [
+    {"queue": "notifications_queue", "exchange": "notifications.exchange", "routing_key": "notification.key"},
+    {"queue": "dead.letter_queue", "exchange": "dead.letter.exchange", "routing_key": "dead.notifications"}
+  ]
+}

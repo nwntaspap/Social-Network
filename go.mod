@@ -9,3 +9,5 @@ require (
 )
 
 require github.com/gorilla/websocket v1.5.3
+
+require github.com/danielkotsi/golangMQSDK v0.1.0 // indirect
