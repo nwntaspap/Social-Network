@@ -24,12 +24,10 @@ internal/platform/database/:memmory:
 # Code coverage profiles & other test artifacts
 *.out
 coverage.out
+coverage.*
+*.coverprofile
+profile.cov
 
-# Test binary, built with `go test -c`
-*.test
-
-# Code coverage profiles and other test artifacts
-*.out
 # Profiling and Benchmarking
 *.prof
 bench-*.txt
