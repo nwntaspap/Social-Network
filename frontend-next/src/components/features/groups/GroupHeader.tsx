@@ -44,8 +44,8 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
       </div>
 
       <div className="group-detail-actions">
-        {!isMember && (
-          <button className={`group-action-btn ${className}`} disabled={disabled}>
+        {!isCreator && (
+          <button className={`group-btn ${className}`} disabled={disabled}>
             {label}
           </button>
         )}
