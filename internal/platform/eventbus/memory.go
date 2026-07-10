@@ -17,9 +17,9 @@ var goBrokerSchema []byte
 
 type GoBroker struct {
 	client *gomqSDK.Client
-	//this is a channel used for all the publishes
+	// this is a channel used for all the publishes
 	pubChannel *gomqSDK.ClientChannel
-	//becasue this channel is used everywhere it need a lock
+	// becasue this channel is used everywhere it need a lock
 	pubMu sync.Mutex
 }
 type goBrokerMessage struct {
@@ -57,14 +57,14 @@ func NewGoBroker() (*GoBroker, error) {
 	}
 	client, err := gomqSDK.Connect("localhost:5672", cfg)
 	if err != nil {
-		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%s", err)
+		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	channel, err := client.OpenChannel(ctx)
 	if err != nil {
-		return &GoBroker{}, fmt.Errorf("channel for communication could not be created:%s", err)
+		return &GoBroker{}, fmt.Errorf("channel for communication could not be created:%w", err)
 	}
 	broker := &GoBroker{
 		client:     client,
@@ -72,7 +72,7 @@ func NewGoBroker() (*GoBroker, error) {
 	}
 	err = broker.InitTopology(ctx)
 	if err != nil {
-		return &GoBroker{}, fmt.Errorf("decleration error:%s", err)
+		return &GoBroker{}, fmt.Errorf("decleration error:%w", err)
 	}
 
 	return broker, nil
@@ -81,18 +81,18 @@ func NewGoBroker() (*GoBroker, error) {
 func (b *GoBroker) Subscribe(queue string, ctx context.Context) (<-chan Message, error) {
 	channel, err := b.client.OpenChannel(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("channel for communication could not be created:%s", err)
+		return nil, fmt.Errorf("channel for communication could not be created:%w", err)
 	}
 	incoming, err := channel.Consume(queue, ctx)
 	if err != nil {
-		return nil, fmt.Errorf("consume error:%s", err)
+		return nil, fmt.Errorf("consume error:%w", err)
 	}
 
-	//this is a bideriectional channel
+	// this is a bideriectional channel
 	outgoing := make(chan Message, 100)
 	go b.consume(incoming, outgoing, channel)
 
-	//a recieve only channel is returned
+	// a recieve only channel is returned
 	return outgoing, nil
 }
 

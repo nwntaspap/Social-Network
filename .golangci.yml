@@ -6,11 +6,6 @@ run:
   issues-exit-code: 1
   tests: true
   timeout: 5m
-  skip-dirs:
-    - internal/app
-    - internal/domain
-    - internal/infra
-    - internal/pkg
 
 output:
   formats:
@@ -217,6 +212,11 @@ linters:
         path: internal/infra/http/ws/handler\.go
         text: 'unused-parameter'
     paths:
+      - internal/app/
+      - internal/domain/
+      - internal/infra/
+      - internal/pkg/
+      - internal/platform/eventbus/
       - frontend/
 
 formatters:
@@ -225,6 +225,11 @@ formatters:
   exclusions:
     generated: lax
     paths:
+      - internal/app/
+      - internal/domain/
+      - internal/infra/
+      - internal/pkg/
+      - internal/platform/eventbus/
       - frontend/
   settings:
     gci:
