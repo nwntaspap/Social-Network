@@ -55,8 +55,8 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-B (Backend B)
 
-- [ ] **S1-BE-10:** Platform: Event Bus
-- [ ] **S1-BE-11:** Platform: Cache
+- [x] **S1-BE-10:** Platform: Event Bus
+- [x] **S1-BE-11:** Platform: Cache
 - [ ] **S1-BE-12:** Core: Realtime WebSocket Hub
 - [ ] **S1-BE-13:** Core: HTTP Server Bootstrap
 

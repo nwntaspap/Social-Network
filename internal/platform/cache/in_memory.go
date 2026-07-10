@@ -19,9 +19,9 @@ type InMemoryCache struct {
 	cleanupInterval time.Duration
 }
 
-type CacheOption func(*InMemoryCache)
+type Option func(*InMemoryCache)
 
-func WithCleanupInterval(d time.Duration) CacheOption {
+func WithCleanupInterval(d time.Duration) Option {
 	return func(c *InMemoryCache) {
 		if d > 0 {
 			c.cleanupInterval = d
@@ -29,7 +29,7 @@ func WithCleanupInterval(d time.Duration) CacheOption {
 	}
 }
 
-// options are basically like closures
+// NewInMemoryCache: options are basically like closures
 // for example
 //
 //	func WithCleanupInterval(d time.Duration) CacheOption {
@@ -45,7 +45,7 @@ func WithCleanupInterval(d time.Duration) CacheOption {
 //	NewInMemoryCache(WithCleanupInternal(50 * time.Millisecond))
 //
 // eventually passes the interval in the struct instance
-func NewInMemoryCache(opts ...CacheOption) *InMemoryCache {
+func NewInMemoryCache(opts ...Option) *InMemoryCache {
 	c := &InMemoryCache{
 		data:            make(map[string]*entry),
 		stopCh:          make(chan struct{}),
@@ -127,11 +127,11 @@ func (c *InMemoryCache) Get(key string) (any, error) {
 
 	if isExpired(e) {
 		c.mu.RUnlock()
-		//we check a second time because RLock does not block writes
-		//to happen somewhere else
-		//so between seeing that it is expired and trying to delete it
-		//someone could have written this value.
-		//thats why we Lock now to block writes, and delete
+		// we check a second time because RLock does not block writes
+		// to happen somewhere else
+		// so between seeing that it is expired and trying to delete it
+		// someone could have written this value.
+		// thats why we Lock now to block writes, and delete
 		c.mu.Lock()
 		if e2, ok := c.data[key]; ok && isExpired(e2) {
 			delete(c.data, key)

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestGetMissing(t *testing.T) {
 	defer c.Stop()
 
 	_, err := c.Get("noexist")
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound, got %v", err)
 	}
 }
@@ -40,7 +41,7 @@ func TestGetExpired(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	_, err := c.Get("key")
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound after expiry, got %v", err)
 	}
 }
@@ -97,7 +98,7 @@ func TestDelete(t *testing.T) {
 	c.Delete("key")
 
 	_, err := c.Get("key")
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound after Delete, got %v", err)
 	}
 }
@@ -121,7 +122,7 @@ func TestExpire(t *testing.T) {
 
 	time.Sleep(20 * time.Millisecond)
 	_, err = c.Get("key")
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound after Expire, got %v", err)
 	}
 }
@@ -131,7 +132,7 @@ func TestExpireMissing(t *testing.T) {
 	defer c.Stop()
 
 	err := c.Expire("noexist", time.Second)
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("expected ErrKeyNotFound, got %v", err)
 	}
 }
@@ -141,7 +142,7 @@ func TestExpireRemoveTTL(t *testing.T) {
 	defer c.Stop()
 
 	c.Set("key", "value", 10*time.Millisecond)
-	c.Expire("key", 0)
+	_ = c.Expire("key", 0)
 
 	time.Sleep(20 * time.Millisecond)
 	got, err := c.Get("key")
@@ -221,7 +222,7 @@ func TestLazyDeleteOnGet(t *testing.T) {
 	_, _ = c.Get("key")
 
 	_, err := c.Get("key")
-	if err != ErrKeyNotFound {
+	if !errors.Is(err, ErrKeyNotFound) {
 		t.Fatal("expected ErrKeyNotFound after lazy delete")
 	}
 }
@@ -261,7 +262,7 @@ func TestConcurrentSetGet(t *testing.T) {
 				c.Set(key, n, 0)
 			}
 			_, err := c.Get(key)
-			if err != nil && err != ErrKeyNotFound {
+			if err != nil && !errors.Is(err, ErrKeyNotFound) {
 				t.Logf("unexpected error: %v", err)
 			}
 		}(i)
@@ -277,11 +278,9 @@ func TestConcurrentSetNX(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 100 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			c.SetNX("key", "overwrite", 0)
-		}()
+		})
 	}
 	wg.Wait()
 
