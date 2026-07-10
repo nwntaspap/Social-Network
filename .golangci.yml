@@ -216,7 +216,7 @@ linters:
       - internal/domain/
       - internal/infra/
       - internal/pkg/
-      - internal/platform/eventbus/
+      # - internal/platform/eventbus/
       - frontend/
 
 formatters:
@@ -229,7 +229,7 @@ formatters:
       - internal/domain/
       - internal/infra/
       - internal/pkg/
-      - internal/platform/eventbus/
+      # - internal/platform/eventbus/
       - frontend/
   settings:
     gci:

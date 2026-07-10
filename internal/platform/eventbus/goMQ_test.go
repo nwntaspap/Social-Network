@@ -70,7 +70,7 @@ func TestGoBroker_SubscribePublishRoundtrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	msgs, err := broker.Subscribe("notifications_queue", ctx)
+	msgs, err := broker.Subscribe(ctx, "notifications_queue")
 	if err != nil {
 		t.Fatalf("Subscribe failed: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestGoBroker_NackRequeuesMessage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	msgs, err := broker.Subscribe("notifications_queue", ctx)
+	msgs, err := broker.Subscribe(ctx, "notifications_queue")
 	if err != nil {
 		t.Fatalf("Subscribe failed: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestGoBroker_NackRequeuesMessage(t *testing.T) {
 		if string(msg.Body()) != string(payload) {
 			t.Errorf("after Nack(true) got body %q, want %q", msg.Body(), payload)
 		}
-		msg.Ack()
+		_ = msg.Ack()
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for requeued message after Nack(true)")
 	}

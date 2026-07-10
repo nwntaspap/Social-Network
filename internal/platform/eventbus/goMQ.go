@@ -34,6 +34,10 @@ func (m *goBrokerMessage) Body() []byte {
 	return m.body
 }
 
+func (m *goBrokerMessage) Exchange() string {
+	return m.exchange
+}
+
 func (m *goBrokerMessage) RoutingKey() string {
 	return m.routingkey
 }
@@ -78,7 +82,7 @@ func NewGoBroker() (*GoBroker, error) {
 	return broker, nil
 }
 
-func (b *GoBroker) Subscribe(queue string, ctx context.Context) (<-chan Message, error) {
+func (b *GoBroker) Subscribe(ctx context.Context, queue string) (<-chan Message, error) {
 	channel, err := b.client.OpenChannel(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("channel for communication could not be created:%w", err)
