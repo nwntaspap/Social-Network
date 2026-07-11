@@ -24,5 +24,6 @@ type Repository interface {
 	GetFollowing(ctx context.Context, userID string) ([]Follow, error)
 	CreateFollowRequest(ctx context.Context, req *Request) error
 	DeleteFollowRequest(ctx context.Context, followerID, followeeID string) error
+	GetPendingRequests(ctx context.Context, userID string) ([]Request, error)
 	AreConnected(ctx context.Context, a, b string) (bool, error)
 }
