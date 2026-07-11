@@ -135,7 +135,7 @@ For step-by-step ticket instructions, see individual sprint files:
 ### BE-A (Backend A)
 
 - [ ] **S3-BE-35:** Follow: Entities & Repository Interface
-- [ ] **S3-BE-36:** Follow: SQLite Store
+- [x] **S3-BE-36:** Follow: SQLite Store
 - [ ] **S3-BE-37:** Follow: Follow User Command
 - [ ] **S3-BE-38:** Follow: Unfollow User Command
 - [ ] **S3-BE-39:** Follow: Accept Request Command
