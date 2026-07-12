@@ -302,6 +302,8 @@ seed: ## Seed database with test data
 
 clean: ## Remove generated artifacts
 	rm -f coverage.out
+t:
+	@bash -c 'target=$$(make -qp | awk -F: "/^[a-zA-Z0-9][^$#\/\t=]*:([^=]|$$)/ {print $$1}" | sed "s/:$$//" | fzf) && make $$target'
 
 # ── Help ──────────────────────────────────────────────────────────────
 

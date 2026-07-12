@@ -3,7 +3,7 @@ package eventbus
 import "context"
 
 type EventBus interface {
-	Subscribe(queue string, ctx context.Context) (incoming <-chan Message, err error)
+	Subscribe(ctx context.Context, queue string) (incoming <-chan Message, err error)
 	Publish(exchange, routingkey string, body []byte) error
 	InitTopology(ctx context.Context) error
 }
@@ -15,7 +15,7 @@ type EventBus interface {
 //     KAFKA consumer.seek or smth
 // so for now this interface will be used for the message
 
-// so this covers our own broker and rabbitMQ as it is
+// Message: so this covers our own broker and rabbitMQ as it is
 // for other providers the behaviour is going to change inside the implementation
 type Message interface {
 	Body() []byte
