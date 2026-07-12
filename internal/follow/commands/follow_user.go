@@ -51,7 +51,7 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 			FollowerID: cmd.FollowerID,
 			FolloweeID: cmd.TargetID,
 		}
-		err := h.repo.CreateFollowRequest(ctx, req)
+		err = h.repo.CreateFollowRequest(ctx, req)
 		if err != nil {
 			return err
 		}
