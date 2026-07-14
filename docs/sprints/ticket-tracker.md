@@ -140,10 +140,10 @@ For step-by-step ticket instructions, see individual sprint files:
 - [ ] **S3-BE-38:** Follow: Unfollow User Command
 - [x] **S3-BE-39:** Follow: Accept Request Command
 - [x] **S3-BE-40:** Follow: Decline Request Command
-- [ ] **S3-BE-41:** Follow: Get Followers Query
-- [ ] **S3-BE-42:** Follow: Get Following Query
-- [ ] **S3-BE-43:** Follow: Get Pending Requests Query
-- [ ] **S3-BE-44:** Follow: Are Connected Query **P0**
+- [x] **S3-BE-41:** Follow: Get Followers Query
+- [x] **S3-BE-42:** Follow: Get Following Query
+- [x] **S3-BE-43:** Follow: Get Pending Requests Query
+- [x] **S3-BE-44:** Follow: Are Connected Query **P0**
 - [ ] **S3-BE-45:** Follow: HTTP Transport Routing
 
 ### BE-B (Backend B)
