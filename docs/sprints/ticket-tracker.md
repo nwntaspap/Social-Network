@@ -138,8 +138,8 @@ For step-by-step ticket instructions, see individual sprint files:
 - [x] **S3-BE-36:** Follow: SQLite Store
 - [x] **S3-BE-37:** Follow: Follow User Command
 - [ ] **S3-BE-38:** Follow: Unfollow User Command
-- [ ] **S3-BE-39:** Follow: Accept Request Command
-- [ ] **S3-BE-40:** Follow: Decline Request Command
+- [x] **S3-BE-39:** Follow: Accept Request Command
+- [x] **S3-BE-40:** Follow: Decline Request Command
 - [ ] **S3-BE-41:** Follow: Get Followers Query
 - [ ] **S3-BE-42:** Follow: Get Following Query
 - [ ] **S3-BE-43:** Follow: Get Pending Requests Query
