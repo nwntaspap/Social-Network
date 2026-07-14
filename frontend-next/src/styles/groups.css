@@ -469,12 +469,108 @@
 /* Group posts / events placeholder */
 .group-posts,
 .group-events {
-  padding: 2rem;
-  text-align: center;
-  color: var(--grey-color);
-  /* background: var(--white-background-light);
-  border: 1px solid var(--grey-color-light); */
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-event-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color, #ddd);
   border-radius: 12px;
+  background: var(--bg-primary, white);
+  transition: box-shadow 0.2s;
+}
+
+.group-event-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.event-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  height: 60px;
+  background: var(--primary-color, #00c6ff);
+  color: white;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.event-month {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.event-day {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.event-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--dark-background);
+}
+
+.event-desc {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #555);
+  margin: 0 0 0.75rem;
+}
+
+.event-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--grey-color, #888);
+}
+
+.event-creator {
+  font-weight: 500;
+}
+
+.event-time {
+  font-style: italic;
+}
+
+/* Empty state */
+.group-empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--grey-color, #888);
+  font-size: 0.95rem;
+}
+
+/* Update responsive for events */
+@media (max-width: 768px) {
+  .group-event-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .event-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+  }
 }
 
 /* Action wrapper for dropdown positioning */

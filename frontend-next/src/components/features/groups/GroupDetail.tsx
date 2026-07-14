@@ -42,9 +42,31 @@ export default function GroupDetail() {
     <div className="group-detail-container">
       <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
 
-      <div className="group-detail-layout">
-        <GroupSidebar groupId={group.id} isCreator={isCreator} />
+      {isCreator ? (
+        // Creator: sidebar + main content with tabs
+        <div className="group-detail-layout">
+          <GroupSidebar groupId={group.id} isCreator={isCreator} />
 
+          <div className="group-main-content">
+            <div className="group-tabs">
+              <button
+                className={`group-tab ${activeTab === 'posts' ? 'group-tab--active' : ''}`}
+                onClick={() => setActiveTab('posts')}
+              >
+                Posts
+              </button>
+              <button
+                className={`group-tab ${activeTab === 'events' ? 'group-tab--active' : ''}`}
+                onClick={() => setActiveTab('events')}
+              >
+                Events
+              </button>
+            </div>
+            <GroupContent groupId={group.id} activeTab={activeTab} isMember={isMember} />
+          </div>
+        </div>
+      ) : (
+        // Non-creator member: just centered content with tabs
         <div className="group-main-content">
           <div className="group-tabs">
             <button
@@ -60,10 +82,9 @@ export default function GroupDetail() {
               Events
             </button>
           </div>
-
           <GroupContent groupId={group.id} activeTab={activeTab} isMember={isMember} />
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -79,6 +79,11 @@ async function apiFetch<T = unknown>(path: string, options: RequestOptions = {})
   const response = await fetch(url, mergedOptions);
   const text = await response.text();
 
+  if (response.status === 401 && path === '/auth/me' && typeof window !== 'undefined') {
+    window.location.href = '/login';
+    throw new ApiError(401, 'Session expired');
+  }
+
   if (!response.ok) {
     let message: string;
     try {
