@@ -4,18 +4,11 @@ import (
 	"context"
 	"errors"
 
+	"social-network/internal/core"
 	"social-network/internal/follow"
 )
 
 var ErrSelfFollow = errors.New("cannot follow yourself")
-
-type UserPrivacyChecker interface {
-	IsPrivate(ctx context.Context, userID string) (bool, error)
-}
-
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
-}
 
 type FollowUserCommand struct {
 	FollowerID string
@@ -24,11 +17,11 @@ type FollowUserCommand struct {
 
 type FollowUserHandler struct {
 	repo    follow.Repository
-	privacy UserPrivacyChecker
-	bus     EventBus
+	privacy core.UserPrivacyChecker
+	bus     core.EventBus
 }
 
-func NewFollowUserHandler(repo follow.Repository, privacy UserPrivacyChecker, bus EventBus) *FollowUserHandler {
+func NewFollowUserHandler(repo follow.Repository, privacy core.UserPrivacyChecker, bus core.EventBus) *FollowUserHandler {
 	return &FollowUserHandler{
 		repo:    repo,
 		privacy: privacy,

@@ -57,6 +57,8 @@ import (
 
 	wshandlers "social-network/internal/infra/ws/handlers"
 	oauth "social-network/internal/pkg/oAuth"
+
+	followtransport "social-network/internal/follow/transport"
 )
 
 const (
@@ -76,6 +78,7 @@ type Server struct {
 	cookieManager  *authcookies.Manager
 	oauth          *oauth.OAuth
 	middleware     *middleware.Middleware
+	follow         *followtransport.Handler
 	//lint:ignore U1000 pre-existing dead code, do not delete
 	db          *sql.DB
 	logger      logger.Logger
@@ -94,6 +97,7 @@ func NewServer(cfg *config.ServerConfig, app *bootstrap.App) *Server {
 		sessionManager: app.SessionManager,
 		middleware:     app.Middlware,
 		hub:            app.Hub,
+		follow:         app.Follow,
 	}
 	httpServer.initWSRouter()
 	httpServer.AddHTTPRoutes()
@@ -441,6 +445,43 @@ func (server *Server) AddHTTPRoutes() {
 				server.appServices.Queries.GetChatUsers,
 				server.logger,
 			).GetChatUsers,
+			server.middleware.Authorization.Required,
+		))
+
+	// Follow routes
+	server.router.HandleFunc(apiContext+"/follow",
+		middlewareChain(
+			server.follow.FollowUser,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/accept",
+		middlewareChain(
+			server.follow.AcceptRequest,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/decline",
+		middlewareChain(
+			server.follow.DeclineRequest,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/followers",
+		middlewareChain(
+			server.follow.GetFollowers,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/following",
+		middlewareChain(
+			server.follow.GetFollowing,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/requests",
+		middlewareChain(
+			server.follow.GetPendingRequests,
+			server.middleware.Authorization.Required,
+		))
+	server.router.HandleFunc(apiContext+"/follow/connected",
+		middlewareChain(
+			server.follow.AreConnected,
 			server.middleware.Authorization.Required,
 		))
 }

@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 
+	"social-network/internal/core"
 	"social-network/internal/follow"
 )
 
@@ -13,10 +14,10 @@ type DeclineRequestCommand struct {
 
 type DeclineRequestHandler struct {
 	repo follow.Repository
-	bus  EventBus
+	bus  core.EventBus
 }
 
-func NewDeclineRequestHandler(repo follow.Repository, bus EventBus) *DeclineRequestHandler {
+func NewDeclineRequestHandler(repo follow.Repository, bus core.EventBus) *DeclineRequestHandler {
 	return &DeclineRequestHandler{
 		repo: repo,
 		bus:  bus,

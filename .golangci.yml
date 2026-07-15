@@ -211,6 +211,9 @@ linters:
             - revive
         path: internal/infra/http/ws/handler\.go
         text: 'unused-parameter'
+      - linters:
+            - dupl
+        path: internal/follow/transport/
     paths:
       - internal/app/
       - internal/domain/

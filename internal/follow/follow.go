@@ -3,6 +3,8 @@ package follow
 import (
 	"context"
 	"time"
+
+	"social-network/internal/core"
 )
 
 type Follow struct {
@@ -26,4 +28,20 @@ type Repository interface {
 	DeleteFollowRequest(ctx context.Context, followerID, followeeID string) error
 	GetPendingRequests(ctx context.Context, userID string) ([]Request, error)
 	AreConnected(ctx context.Context, a, b string) (bool, error)
+}
+
+var _ core.UserPrivacyChecker = (*PrivacyStub)(nil)
+
+type PrivacyStub struct{}
+
+func (p *PrivacyStub) IsPrivate(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+
+var _ core.EventBus = (*NoopEventBus)(nil)
+
+type NoopEventBus struct{}
+
+func (n *NoopEventBus) Publish(_ context.Context, _ string, _ any) error {
+	return nil
 }
