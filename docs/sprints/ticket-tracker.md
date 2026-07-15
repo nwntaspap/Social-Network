@@ -144,7 +144,7 @@ For step-by-step ticket instructions, see individual sprint files:
 - [x] **S3-BE-42:** Follow: Get Following Query
 - [x] **S3-BE-43:** Follow: Get Pending Requests Query
 - [x] **S3-BE-44:** Follow: Are Connected Query **P0**
-- [ ] **S3-BE-45:** Follow: HTTP Transport Routing
+- [x] **S3-BE-45:** Follow: HTTP Transport Routing
 
 ### BE-B (Backend B)
 
