@@ -22,7 +22,7 @@ import type {
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api/v1';
 
 // ─── Error class ─────────────────────────────────────────────────────────────
 
@@ -183,7 +183,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<User> {
-  return api.get<User>('/auth/me');
+  return api.get<User>('/me');
 }
 
 // ─── Users / Profiles ─────────────────────────────────────────────────────────
