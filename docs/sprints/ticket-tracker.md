@@ -149,7 +149,7 @@ For step-by-step ticket instructions, see individual sprint files:
 ### BE-B (Backend B)
 
 - [x] **S3-BE-46:** Comment: Entity & Repository Interface
-- [ ] **S3-BE-47:** Comment: SQLite Store
+- [x] **S3-BE-47:** Comment: SQLite Store
 - [ ] **S3-BE-48:** Comment: Create Comment Command
 - [ ] **S3-BE-49:** Comment: Get Comments Query
 - [ ] **S3-BE-50:** Comment: HTTP Transport Routing

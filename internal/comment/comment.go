@@ -7,13 +7,17 @@ import (
 )
 
 type Comment struct {
-	ID        int
-	TopicID   int
-	UserID    string
-	Content   string
-	ImagePath string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            int
+	TopicID       int
+	UserID        string
+	Content       string
+	ImagePath     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UpvoteCount   int
+	DownvoteCount int
+	VoteScore     int
+	UserVote      *int
 }
 
 var ErrCommentNotFound = errors.New("comment not found")
