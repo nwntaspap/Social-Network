@@ -9,6 +9,7 @@ import (
 	"social-network/internal/app/topics"
 	"social-network/internal/config"
 	"social-network/internal/domain/session"
+	followtransport "social-network/internal/follow/transport"
 	"social-network/internal/infra/http/authcookies"
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
@@ -28,6 +29,7 @@ const stateManagerDefaultLimit = 10
 
 type App struct {
 	Services       app.Services
+	Follow         *followtransport.Handler
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
 	Middlware      *middleware.Middleware
@@ -51,6 +53,7 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 	logger := logger.New(os.Stdout, logger.LevelInfo)
 	return &App{
 		Services:       services,
+		Follow:         initFollow(db),
 		Notifier:       notifier,
 		Hub:            hub,
 		Middlware:      middleware,

@@ -23,7 +23,7 @@ services:
     
     volumes:
       # Mount source code for live changes (requires rebuild for Go changes)
-      - ./frontend:/app/frontend:ro
+      - ./frontend-next:/app/frontend:ro
       - ./db/migrations:/app/db/migrations:ro
       - ./db/seeds:/app/db/seeds:ro
       - ./cmd/client/data:/app/cmd/client/data:ro
