@@ -20,7 +20,17 @@ type Comment struct {
 	UserVote      *int
 }
 
-var ErrCommentNotFound = errors.New("comment not found")
+type VoteCounts struct {
+	Upvotes   int
+	Downvotes int
+	Score     int
+}
+
+var (
+	ErrCommentNotFound  = errors.New("comment not found")
+	ErrVoteNotFound     = errors.New("vote not found")
+	ErrInvalidVoteValue = errors.New("reaction_type must be 1 (upvote) or -1 (downvote)")
+)
 
 type Repository interface {
 	CreateComment(ctx context.Context, c *Comment) error
@@ -30,4 +40,6 @@ type Repository interface {
 	GetCommentByIDWithVotes(ctx context.Context, commentID int, userID *string) (*Comment, error)
 	GetCommentsByTopicID(ctx context.Context, topicID int) ([]Comment, error)
 	GetCommentsByTopicIDWithVotes(ctx context.Context, topicID int, userID *string) ([]Comment, error)
+	CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error
+	GetVoteCounts(ctx context.Context, commentID int) (*VoteCounts, error)
 }

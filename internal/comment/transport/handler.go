@@ -24,6 +24,10 @@ type DeleteCommentExecutor interface {
 	Execute(ctx context.Context, cmd commands.DeleteCommentCommand) error
 }
 
+type CastCommentVoteExecutor interface {
+	Execute(ctx context.Context, cmd commands.CastCommentVoteCommand) error
+}
+
 type GetCommentByIDResolver interface {
 	Resolve(ctx context.Context, q queries.GetCommentByIDQuery) (*comment.Comment, error)
 }
@@ -40,6 +44,10 @@ type GetCommentsByTopicWithVotesResolver interface {
 	Resolve(ctx context.Context, q queries.GetCommentsByTopicWithVotesQuery) ([]comment.Comment, error)
 }
 
+type GetVoteCountsResolver interface {
+	Resolve(ctx context.Context, q queries.GetVoteCountsQuery) (*comment.VoteCounts, error)
+}
+
 type CommentResponse struct {
 	ID            int    `json:"id"`
 	UserID        string `json:"userId"`
@@ -52,6 +60,12 @@ type CommentResponse struct {
 	DownvoteCount int    `json:"downvoteCount"`
 	VoteScore     int    `json:"voteScore"`
 	UserVote      *int   `json:"userVote,omitempty"`
+}
+
+type VoteCountsResponse struct {
+	Upvotes   int `json:"upvotes"`
+	Downvotes int `json:"downvotes"`
+	Score     int `json:"score"`
 }
 
 func toCommentResponse(c *comment.Comment) CommentResponse {
@@ -71,14 +85,16 @@ func toCommentResponse(c *comment.Comment) CommentResponse {
 }
 
 type Handler struct {
-	createComment CreateCommentExecutor
-	updateComment UpdateCommentExecutor
-	deleteComment DeleteCommentExecutor
-	getComment    GetCommentByIDResolver
-	getCommentWV  GetCommentByIDWithVotesResolver
-	getByTopic    GetCommentsByTopicResolver
-	getByTopicWV  GetCommentsByTopicWithVotesResolver
-	extractUser   UserExtractor
+	createComment   CreateCommentExecutor
+	updateComment   UpdateCommentExecutor
+	deleteComment   DeleteCommentExecutor
+	castCommentVote CastCommentVoteExecutor
+	getComment      GetCommentByIDResolver
+	getCommentWV    GetCommentByIDWithVotesResolver
+	getByTopic      GetCommentsByTopicResolver
+	getByTopicWV    GetCommentsByTopicWithVotesResolver
+	getCommentVotes GetVoteCountsResolver
+	extractUser     UserExtractor
 }
 
 func NewHandler(
@@ -86,19 +102,23 @@ func NewHandler(
 	createComment CreateCommentExecutor,
 	updateComment UpdateCommentExecutor,
 	deleteComment DeleteCommentExecutor,
+	castCommentVote CastCommentVoteExecutor,
 	getComment GetCommentByIDResolver,
 	getCommentWV GetCommentByIDWithVotesResolver,
 	getByTopic GetCommentsByTopicResolver,
 	getByTopicWV GetCommentsByTopicWithVotesResolver,
+	getCommentVotes GetVoteCountsResolver,
 ) *Handler {
 	return &Handler{
-		createComment: createComment,
-		updateComment: updateComment,
-		deleteComment: deleteComment,
-		getComment:    getComment,
-		getCommentWV:  getCommentWV,
-		getByTopic:    getByTopic,
-		getByTopicWV:  getByTopicWV,
-		extractUser:   extractUser,
+		createComment:   createComment,
+		updateComment:   updateComment,
+		deleteComment:   deleteComment,
+		castCommentVote: castCommentVote,
+		getComment:      getComment,
+		getCommentWV:    getCommentWV,
+		getByTopic:      getByTopic,
+		getByTopicWV:    getByTopicWV,
+		getCommentVotes: getCommentVotes,
+		extractUser:     extractUser,
 	}
 }

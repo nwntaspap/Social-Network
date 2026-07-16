@@ -9,8 +9,7 @@ import (
 )
 
 func TestGetCommentByID_Success(t *testing.T) {
-	mock := &mockGetComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, mock, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockGetComment{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -29,8 +28,7 @@ func TestGetCommentByID_Success(t *testing.T) {
 }
 
 func TestGetCommentByID_NotFound(t *testing.T) {
-	mock := &mockGetComment{result: nil, err: comment.ErrCommentNotFound}
-	h := NewHandler(extractUserOK, nil, nil, nil, mock, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockGetComment{result: nil, err: comment.ErrCommentNotFound})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -43,8 +41,7 @@ func TestGetCommentByID_NotFound(t *testing.T) {
 }
 
 func TestGetCommentByIDWithVotes_Success(t *testing.T) {
-	mock := &mockGetCommentWV{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, mock, nil, nil)
+	h := newTestHandler(extractUserOK, &mockGetCommentWV{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -63,8 +60,7 @@ func TestGetCommentByIDWithVotes_Success(t *testing.T) {
 }
 
 func TestGetCommentByIDWithVotes_Unauthorized(t *testing.T) {
-	mock := &mockGetCommentWV{result: testComment(), err: nil}
-	h := NewHandler(extractUserFail, nil, nil, nil, nil, mock, nil, nil)
+	h := newTestHandler(extractUserFail, &mockGetCommentWV{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 

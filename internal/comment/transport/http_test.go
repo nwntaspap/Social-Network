@@ -40,6 +40,14 @@ func (m *mockDeleteComment) Execute(_ context.Context, cmd commands.DeleteCommen
 	return m.err
 }
 
+type mockCastCommentVote struct {
+	err error
+}
+
+func (m *mockCastCommentVote) Execute(_ context.Context, cmd commands.CastCommentVoteCommand) error {
+	return m.err
+}
+
 type mockGetComment struct {
 	result *comment.Comment
 	err    error
@@ -74,6 +82,15 @@ type mockGetByTopicWV struct {
 
 func (m *mockGetByTopicWV) Resolve(_ context.Context, q queries.GetCommentsByTopicWithVotesQuery) ([]comment.Comment, error) {
 	return m.results, m.err
+}
+
+type mockGetCommentVotes struct {
+	result *comment.VoteCounts
+	err    error
+}
+
+func (m *mockGetCommentVotes) Resolve(_ context.Context, q queries.GetVoteCountsQuery) (*comment.VoteCounts, error) {
+	return m.result, m.err
 }
 
 func fixedTime() time.Time {
@@ -122,6 +139,8 @@ func handler(h *Handler) http.Handler {
 	mux.HandleFunc("/api/comments/get/votes", h.GetCommentByIDWithVotes)
 	mux.HandleFunc("/api/comments/topic", h.GetCommentsByTopic)
 	mux.HandleFunc("/api/comments/topic/votes", h.GetCommentsByTopicWithVotes)
+	mux.HandleFunc("/api/comments/cast-vote", h.CastCommentVote)
+	mux.HandleFunc("/api/comments/vote-counts", h.GetVoteCounts)
 	return mux
 }
 
@@ -187,9 +206,45 @@ func getFloat(t *testing.T, m map[string]any, key string) float64 {
 	return f
 }
 
+func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
+	var create CreateCommentExecutor
+	var update UpdateCommentExecutor
+	var del DeleteCommentExecutor
+	var cast CastCommentVoteExecutor
+	var get GetCommentByIDResolver
+	var getWV GetCommentByIDWithVotesResolver
+	var getByTopic GetCommentsByTopicResolver
+	var getByTopicWV GetCommentsByTopicWithVotesResolver
+	var getVotes GetVoteCountsResolver
+
+	for _, m := range mocks {
+		switch v := m.(type) {
+		case *mockCreateComment:
+			create = v
+		case *mockUpdateComment:
+			update = v
+		case *mockDeleteComment:
+			del = v
+		case *mockCastCommentVote:
+			cast = v
+		case *mockGetComment:
+			get = v
+		case *mockGetCommentWV:
+			getWV = v
+		case *mockGetByTopic:
+			getByTopic = v
+		case *mockGetByTopicWV:
+			getByTopicWV = v
+		case *mockGetCommentVotes:
+			getVotes = v
+		}
+	}
+
+	return NewHandler(extractor, create, update, del, cast, get, getWV, getByTopic, getByTopicWV, getVotes)
+}
+
 func TestCreateComment_Success(t *testing.T) {
-	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockCreateComment{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -214,8 +269,7 @@ func TestCreateComment_Success(t *testing.T) {
 }
 
 func TestCreateComment_Unauthorized(t *testing.T) {
-	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserFail, mock, nil, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserFail, &mockCreateComment{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -231,8 +285,7 @@ func TestCreateComment_Unauthorized(t *testing.T) {
 }
 
 func TestCreateComment_BadPayload(t *testing.T) {
-	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockCreateComment{result: testComment(), err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -250,8 +303,7 @@ func TestCreateComment_BadPayload(t *testing.T) {
 }
 
 func TestCreateComment_HandlerError(t *testing.T) {
-	mock := &mockCreateComment{result: nil, err: errors.New("topic not found")}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockCreateComment{result: nil, err: errors.New("topic not found")})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -267,8 +319,7 @@ func TestCreateComment_HandlerError(t *testing.T) {
 }
 
 func TestUpdateComment_Success(t *testing.T) {
-	mock := &mockUpdateComment{err: nil}
-	h := NewHandler(extractUserOK, nil, mock, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockUpdateComment{err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -284,8 +335,7 @@ func TestUpdateComment_Success(t *testing.T) {
 }
 
 func TestUpdateComment_Unauthorized(t *testing.T) {
-	mock := &mockUpdateComment{err: nil}
-	h := NewHandler(extractUserFail, nil, mock, nil, nil, nil, nil, nil)
+	h := newTestHandler(extractUserFail, &mockUpdateComment{err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -301,8 +351,7 @@ func TestUpdateComment_Unauthorized(t *testing.T) {
 }
 
 func TestDeleteComment_Success(t *testing.T) {
-	mock := &mockDeleteComment{err: nil}
-	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockDeleteComment{err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -315,8 +364,7 @@ func TestDeleteComment_Success(t *testing.T) {
 }
 
 func TestDeleteComment_BadID(t *testing.T) {
-	mock := &mockDeleteComment{err: nil}
-	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil, nil, nil)
+	h := newTestHandler(extractUserOK, &mockDeleteComment{err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 

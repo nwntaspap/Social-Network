@@ -44,6 +44,14 @@ func (m *mockRepo) GetCommentsByTopicIDWithVotes(_ context.Context, _ int, _ *st
 	return nil, nil
 }
 
+func (m *mockRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) error {
+	return nil
+}
+
+func (m *mockRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts, error) {
+	return &comment.VoteCounts{}, nil
+}
+
 var (
 	validPNG  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00}
 	badHeader = []byte{0x00, 0x01, 0x02, 0x03}

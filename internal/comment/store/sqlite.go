@@ -216,6 +216,47 @@ func (s *SQLiteStore) GetCommentsByTopicIDWithVotes(ctx context.Context, topicID
 	return comments, rows.Err()
 }
 
+func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error {
+	var existingReaction sql.NullInt32
+	checkQuery := `SELECT reaction_type FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`
+	err := s.db.QueryRowContext(ctx, checkQuery, userID, commentID).Scan(&existingReaction)
+
+	if err == nil && existingReaction.Valid && int(existingReaction.Int32) == reactionType {
+		deleteQuery := `DELETE FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`
+		_, delErr := s.db.ExecContext(ctx, deleteQuery, userID, commentID)
+		return delErr
+	}
+
+	query := `
+		INSERT INTO votes (user_id, topic_id, comment_id, reaction_type)
+		VALUES (?, NULL, ?, ?)
+		ON CONFLICT (user_id, comment_id) DO UPDATE SET
+			reaction_type = EXCLUDED.reaction_type,
+			created_at = CURRENT_TIMESTAMP`
+	_, err = s.db.ExecContext(ctx, query, userID, commentID, reactionType)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetVoteCounts(ctx context.Context, commentID int) (*comment.VoteCounts, error) {
+	counts := &comment.VoteCounts{}
+	err := s.db.QueryRowContext(ctx,
+		`SELECT
+			COALESCE(COUNT(CASE WHEN reaction_type = 1 THEN 1 END), 0),
+			COALESCE(COUNT(CASE WHEN reaction_type = -1 THEN 1 END), 0)
+		FROM votes
+		WHERE comment_id = ? AND topic_id IS NULL`, commentID).Scan(
+		&counts.Upvotes, &counts.Downvotes,
+	)
+	if err != nil {
+		return nil, err
+	}
+	counts.Score = counts.Upvotes - counts.Downvotes
+	return counts, nil
+}
+
 func nullStr(s string) any {
 	if s == "" {
 		return nil

@@ -29,6 +29,14 @@ func (m *mockRepository) GetCommentsByTopicIDWithVotes(_ context.Context, _ int,
 	return nil, nil
 }
 
+func (m *mockRepository) CastCommentVote(_ context.Context, _ string, _ int, _ int) error {
+	return nil
+}
+
+func (m *mockRepository) GetVoteCounts(_ context.Context, _ int) (*VoteCounts, error) {
+	return &VoteCounts{}, nil
+}
+
 func TestCommentStruct_Fields(t *testing.T) {
 	c := Comment{
 		ID:        1,

@@ -9,14 +9,10 @@ import (
 )
 
 func TestGetCommentsByTopic_Success(t *testing.T) {
-	mock := &mockGetByTopic{
-		results: []comment.Comment{
-			*testComment(),
-			*testComment(),
-		},
-		err: nil,
-	}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, nil, mock, nil)
+	h := newTestHandler(extractUserOK, &mockGetByTopic{
+		results: []comment.Comment{*testComment(), *testComment()},
+		err:     nil,
+	})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -42,8 +38,7 @@ func TestGetCommentsByTopic_Success(t *testing.T) {
 }
 
 func TestGetCommentsByTopic_Empty(t *testing.T) {
-	mock := &mockGetByTopic{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, nil, mock, nil)
+	h := newTestHandler(extractUserOK, &mockGetByTopic{results: []comment.Comment{}, err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -56,8 +51,7 @@ func TestGetCommentsByTopic_Empty(t *testing.T) {
 }
 
 func TestGetCommentsByTopic_BadTopicID(t *testing.T) {
-	mock := &mockGetByTopic{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, nil, mock, nil)
+	h := newTestHandler(extractUserOK, &mockGetByTopic{results: []comment.Comment{}, err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -70,14 +64,10 @@ func TestGetCommentsByTopic_BadTopicID(t *testing.T) {
 }
 
 func TestGetCommentsByTopicWithVotes_Success(t *testing.T) {
-	mock := &mockGetByTopicWV{
-		results: []comment.Comment{
-			*testComment(),
-			*testComment(),
-		},
-		err: nil,
-	}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, nil, nil, mock)
+	h := newTestHandler(extractUserOK, &mockGetByTopicWV{
+		results: []comment.Comment{*testComment(), *testComment()},
+		err:     nil,
+	})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -103,8 +93,7 @@ func TestGetCommentsByTopicWithVotes_Success(t *testing.T) {
 }
 
 func TestGetCommentsByTopicWithVotes_Unauthorized(t *testing.T) {
-	mock := &mockGetByTopicWV{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserFail, nil, nil, nil, nil, nil, nil, mock)
+	h := newTestHandler(extractUserFail, &mockGetByTopicWV{results: []comment.Comment{}, err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -117,8 +106,7 @@ func TestGetCommentsByTopicWithVotes_Unauthorized(t *testing.T) {
 }
 
 func TestGetCommentsByTopicWithVotes_Empty(t *testing.T) {
-	mock := &mockGetByTopicWV{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, nil, nil, mock)
+	h := newTestHandler(extractUserOK, &mockGetByTopicWV{results: []comment.Comment{}, err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
