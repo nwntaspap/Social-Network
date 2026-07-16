@@ -18,7 +18,7 @@ import (
 var skipDirs = map[string]bool{
 	"core": true, "platform": true, "pkg": true, "config": true,
 	"bootstrap": true, "domain": true, "infra": true, "app": true,
-	"gates": true,
+	"gates": true, "storecontracts": true,
 }
 
 // LayoutGate validates D1 vertical slice layout (Gate #2).

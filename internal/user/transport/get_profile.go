@@ -1,0 +1,54 @@
+package transport
+
+import (
+	"errors"
+	"net/http"
+
+	"social-network/internal/pkg/helpers"
+	"social-network/internal/user"
+	"social-network/internal/user/queries"
+)
+
+func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "invalid request method")
+		return
+	}
+
+	targetID, err := helpers.GetQueryString(r, "user_id")
+	if err != nil || targetID == "" {
+		helpers.RespondWithError(w, http.StatusBadRequest, "user_id query parameter is required")
+		return
+	}
+
+	requesterID := ""
+	if id, ok := h.auth.Extract(r); ok {
+		requesterID = id
+	}
+
+	result, err := h.getProfile.Resolve(r.Context(), queries.GetProfileQuery{
+		TargetID:    targetID,
+		RequesterID: requesterID,
+	})
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		helpers.RespondWithError(w, http.StatusInternalServerError, "failed to get profile")
+		return
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
+		"user": map[string]any{
+			"id":         result.User.ID,
+			"nickname":   result.User.Nickname,
+			"email":      result.User.Email,
+			"firstName":  result.User.FirstName,
+			"lastName":   result.User.LastName,
+			"avatarPath": result.User.AvatarPath,
+		},
+		"followerCount":  result.FollowerCount,
+		"followingCount": result.FollowingCount,
+	})
+}

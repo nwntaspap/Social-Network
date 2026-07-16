@@ -85,15 +85,15 @@ For step-by-step ticket instructions, see individual sprint files:
 ### BE-A (Backend A)
 
 - [ ] **S2-BE-15:** User: Entity & Repository Interface
-- [ ] **S2-BE-16:** User: SQLite Store
-- [ ] **S2-BE-17:** User: Register Command
-- [ ] **S2-BE-18:** User: Login Command
-- [ ] **S2-BE-19:** User: Logout Command
-- [ ] **S2-BE-20:** User: Update Profile Command
-- [ ] **S2-BE-21:** User: Toggle Privacy Command
-- [ ] **S2-BE-22:** User: Get Profile Query
-- [ ] **S2-BE-23:** User: Get Activity Query
-- [ ] **S2-BE-24:** User: List Users Query
+- [x] **S2-BE-16:** User: SQLite Store
+- [x] **S2-BE-17:** User: Register Command
+- [x] **S2-BE-18:** User: Login Command
+- [x] **S2-BE-19:** User: Logout Command
+- [x] **S2-BE-20:** User: Update Profile Command
+- [x] **S2-BE-21:** User: Toggle Privacy Command
+- [x] **S2-BE-22:** User: Get Profile Query
+- [x] **S2-BE-23:** User: Get Activity Query
+- [x] **S2-BE-24:** User: List Users Query
 - [ ] **S2-BE-25:** User: HTTP Transport Routing
 
 ### BE-B (Backend B)

@@ -6,6 +6,7 @@ excludeFiles:
   - ".*internal/domain/.*"
   - ".*internal/infra/.*"
   - ".*internal/pkg/.*"
+  - ".*internal/storecontracts/.*"
 
 
 components:
@@ -30,7 +31,7 @@ components:
 
 deps:
   # D6 dependency DAG
-  user_slice:         { mayDependOn: [core, platform, pkg] }
+  user_slice:         { mayDependOn: [user_slice, core, platform, pkg] }
   follow_slice:       { mayDependOn: [core, platform, pkg] }
   topic_slice:        { mayDependOn: [core, platform, pkg] }
   comment_slice:      { mayDependOn: [core, platform, pkg] }
@@ -41,9 +42,9 @@ deps:
   oauth_slice:        { mayDependOn: [core, platform, pkg] }
 
   # Shared layers
-  core:      { anyProjectDeps: true, anyVendorDeps: true }
-  platform:  { anyProjectDeps: true, anyVendorDeps: true }
-  pkg:       { anyProjectDeps: true, anyVendorDeps: true }
-  config:    { anyProjectDeps: true, anyVendorDeps: true }
-  bootstrap: { anyProjectDeps: true, anyVendorDeps: true }
-  gates:     { anyProjectDeps: true, anyVendorDeps: true }
+  core:       { anyProjectDeps: true, anyVendorDeps: true }
+  platform:   { anyProjectDeps: true, anyVendorDeps: true }
+  pkg:        { anyProjectDeps: true, anyVendorDeps: true }
+  config:     { anyProjectDeps: true, anyVendorDeps: true }
+  bootstrap:  { anyProjectDeps: true, anyVendorDeps: true }
+  gates:      { anyProjectDeps: true, anyVendorDeps: true }
