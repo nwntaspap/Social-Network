@@ -28,8 +28,16 @@ type GetCommentByIDResolver interface {
 	Resolve(ctx context.Context, q queries.GetCommentByIDQuery) (*comment.Comment, error)
 }
 
+type GetCommentByIDWithVotesResolver interface {
+	Resolve(ctx context.Context, q queries.GetCommentByIDWithVotesQuery) (*comment.Comment, error)
+}
+
 type GetCommentsByTopicResolver interface {
 	Resolve(ctx context.Context, q queries.GetCommentsByTopicQuery) ([]comment.Comment, error)
+}
+
+type GetCommentsByTopicWithVotesResolver interface {
+	Resolve(ctx context.Context, q queries.GetCommentsByTopicWithVotesQuery) ([]comment.Comment, error)
 }
 
 type CommentResponse struct {
@@ -67,7 +75,9 @@ type Handler struct {
 	updateComment UpdateCommentExecutor
 	deleteComment DeleteCommentExecutor
 	getComment    GetCommentByIDResolver
+	getCommentWV  GetCommentByIDWithVotesResolver
 	getByTopic    GetCommentsByTopicResolver
+	getByTopicWV  GetCommentsByTopicWithVotesResolver
 	extractUser   UserExtractor
 }
 
@@ -77,14 +87,18 @@ func NewHandler(
 	updateComment UpdateCommentExecutor,
 	deleteComment DeleteCommentExecutor,
 	getComment GetCommentByIDResolver,
+	getCommentWV GetCommentByIDWithVotesResolver,
 	getByTopic GetCommentsByTopicResolver,
+	getByTopicWV GetCommentsByTopicWithVotesResolver,
 ) *Handler {
 	return &Handler{
 		createComment: createComment,
 		updateComment: updateComment,
 		deleteComment: deleteComment,
 		getComment:    getComment,
+		getCommentWV:  getCommentWV,
 		getByTopic:    getByTopic,
+		getByTopicWV:  getByTopicWV,
 		extractUser:   extractUser,
 	}
 }

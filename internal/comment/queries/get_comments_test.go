@@ -11,21 +11,25 @@ import (
 type mockRepo struct {
 	getResult     []comment.Comment
 	getErr        error
-	getResultWV   []comment.Comment
-	getErrWV      error
 	getByIDResult *comment.Comment
 	getByIDErr    error
+
+	getByIDWithVotesResult *comment.Comment
+	getByIDWithVotesErr    error
+	getResultWV            []comment.Comment
+	getErrWV               error
 }
 
 func (m *mockRepo) CreateComment(_ context.Context, _ *comment.Comment) error { return nil }
 func (m *mockRepo) UpdateComment(_ context.Context, _ *comment.Comment) error { return nil }
 func (m *mockRepo) DeleteComment(_ context.Context, _ string, _ int) error    { return nil }
+
 func (m *mockRepo) GetCommentByID(_ context.Context, _ int) (*comment.Comment, error) {
 	return m.getByIDResult, m.getByIDErr
 }
 
 func (m *mockRepo) GetCommentByIDWithVotes(_ context.Context, _ int, _ *string) (*comment.Comment, error) {
-	return m.getByIDResult, m.getByIDErr
+	return m.getByIDWithVotesResult, m.getByIDWithVotesErr
 }
 
 func (m *mockRepo) GetCommentsByTopicID(_ context.Context, _ int) ([]comment.Comment, error) {
@@ -74,34 +78,6 @@ func TestGetCommentsByTopicResolver_Error(t *testing.T) {
 	r := NewGetCommentsByTopicResolver(repo)
 
 	_, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1})
-	if err == nil {
-		t.Fatal("Resolve() expected error, got nil")
-	}
-}
-
-func TestGetCommentsByTopicResolver_WithVotes(t *testing.T) {
-	expected := []comment.Comment{
-		{ID: 1, TopicID: 1, UserID: "u1", Content: "a", UpvoteCount: 3},
-	}
-	repo := &mockRepo{getResultWV: expected}
-	r := NewGetCommentsByTopicResolver(repo)
-
-	uid := "u2"
-	result, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1, UserID: &uid})
-	if err != nil {
-		t.Fatalf("Resolve() error = %v", err)
-	}
-	if len(result) != 1 || result[0].UpvoteCount != 3 {
-		t.Errorf("result = %+v, want UpvoteCount=3", result)
-	}
-}
-
-func TestGetCommentsByTopicResolver_WithVotes_Error(t *testing.T) {
-	repo := &mockRepo{getErrWV: errors.New("db down")}
-	r := NewGetCommentsByTopicResolver(repo)
-
-	uid := "u2"
-	_, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1, UserID: &uid})
 	if err == nil {
 		t.Fatal("Resolve() expected error, got nil")
 	}

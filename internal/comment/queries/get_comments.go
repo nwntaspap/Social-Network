@@ -8,7 +8,6 @@ import (
 
 type GetCommentsByTopicQuery struct {
 	TopicID int
-	UserID  *string
 }
 
 type GetCommentsByTopicResolver struct {
@@ -20,8 +19,5 @@ func NewGetCommentsByTopicResolver(repo comment.Repository) *GetCommentsByTopicR
 }
 
 func (r *GetCommentsByTopicResolver) Resolve(ctx context.Context, q GetCommentsByTopicQuery) ([]comment.Comment, error) {
-	if q.UserID != nil {
-		return r.repo.GetCommentsByTopicIDWithVotes(ctx, q.TopicID, q.UserID)
-	}
 	return r.repo.GetCommentsByTopicID(ctx, q.TopicID)
 }

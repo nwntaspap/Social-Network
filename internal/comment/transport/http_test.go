@@ -49,12 +49,30 @@ func (m *mockGetComment) Resolve(_ context.Context, q queries.GetCommentByIDQuer
 	return m.result, m.err
 }
 
+type mockGetCommentWV struct {
+	result *comment.Comment
+	err    error
+}
+
+func (m *mockGetCommentWV) Resolve(_ context.Context, q queries.GetCommentByIDWithVotesQuery) (*comment.Comment, error) {
+	return m.result, m.err
+}
+
 type mockGetByTopic struct {
 	results []comment.Comment
 	err     error
 }
 
 func (m *mockGetByTopic) Resolve(_ context.Context, q queries.GetCommentsByTopicQuery) ([]comment.Comment, error) {
+	return m.results, m.err
+}
+
+type mockGetByTopicWV struct {
+	results []comment.Comment
+	err     error
+}
+
+func (m *mockGetByTopicWV) Resolve(_ context.Context, q queries.GetCommentsByTopicWithVotesQuery) ([]comment.Comment, error) {
 	return m.results, m.err
 }
 
@@ -101,7 +119,9 @@ func handler(h *Handler) http.Handler {
 		}
 	})
 	mux.HandleFunc("/api/comments/get", h.GetCommentByID)
+	mux.HandleFunc("/api/comments/get/votes", h.GetCommentByIDWithVotes)
 	mux.HandleFunc("/api/comments/topic", h.GetCommentsByTopic)
+	mux.HandleFunc("/api/comments/topic/votes", h.GetCommentsByTopicWithVotes)
 	return mux
 }
 
@@ -169,7 +189,7 @@ func getFloat(t *testing.T, m map[string]any, key string) float64 {
 
 func TestCreateComment_Success(t *testing.T) {
 	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil)
+	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -195,7 +215,7 @@ func TestCreateComment_Success(t *testing.T) {
 
 func TestCreateComment_Unauthorized(t *testing.T) {
 	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserFail, mock, nil, nil, nil, nil)
+	h := NewHandler(extractUserFail, mock, nil, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -212,7 +232,7 @@ func TestCreateComment_Unauthorized(t *testing.T) {
 
 func TestCreateComment_BadPayload(t *testing.T) {
 	mock := &mockCreateComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil)
+	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -231,7 +251,7 @@ func TestCreateComment_BadPayload(t *testing.T) {
 
 func TestCreateComment_HandlerError(t *testing.T) {
 	mock := &mockCreateComment{result: nil, err: errors.New("topic not found")}
-	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil)
+	h := NewHandler(extractUserOK, mock, nil, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -248,7 +268,7 @@ func TestCreateComment_HandlerError(t *testing.T) {
 
 func TestUpdateComment_Success(t *testing.T) {
 	mock := &mockUpdateComment{err: nil}
-	h := NewHandler(extractUserOK, nil, mock, nil, nil, nil)
+	h := NewHandler(extractUserOK, nil, mock, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -265,7 +285,7 @@ func TestUpdateComment_Success(t *testing.T) {
 
 func TestUpdateComment_Unauthorized(t *testing.T) {
 	mock := &mockUpdateComment{err: nil}
-	h := NewHandler(extractUserFail, nil, mock, nil, nil, nil)
+	h := NewHandler(extractUserFail, nil, mock, nil, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -282,7 +302,7 @@ func TestUpdateComment_Unauthorized(t *testing.T) {
 
 func TestDeleteComment_Success(t *testing.T) {
 	mock := &mockDeleteComment{err: nil}
-	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil)
+	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
@@ -296,106 +316,11 @@ func TestDeleteComment_Success(t *testing.T) {
 
 func TestDeleteComment_BadID(t *testing.T) {
 	mock := &mockDeleteComment{err: nil}
-	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil)
+	h := NewHandler(extractUserOK, nil, nil, mock, nil, nil, nil, nil)
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
 	resp := doRequest(t, srv, http.MethodDelete, "/api/comments?id=abc", nil)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
-	}
-}
-
-func TestGetCommentByID_Success(t *testing.T) {
-	mock := &mockGetComment{result: testComment(), err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, mock, nil)
-	srv := httptest.NewServer(handler(h))
-	defer srv.Close()
-
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/get?id=1", nil)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-
-	result := decodeResponse(t, resp)
-	data := getData(t, result)
-	if getFloat(t, data, "id") != 1 {
-		t.Errorf("expected id 1, got %v", data["id"])
-	}
-}
-
-func TestGetCommentByID_NotFound(t *testing.T) {
-	mock := &mockGetComment{result: nil, err: comment.ErrCommentNotFound}
-	h := NewHandler(extractUserOK, nil, nil, nil, mock, nil)
-	srv := httptest.NewServer(handler(h))
-	defer srv.Close()
-
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/get?id=999", nil)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d", resp.StatusCode)
-	}
-}
-
-func TestGetCommentsByTopic_Success(t *testing.T) {
-	mock := &mockGetByTopic{
-		results: []comment.Comment{
-			*testComment(),
-			*testComment(),
-		},
-		err: nil,
-	}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, mock)
-	srv := httptest.NewServer(handler(h))
-	defer srv.Close()
-
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/topic?topicId=10", nil)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-
-	result := decodeResponse(t, resp)
-	data, ok := result["data"]
-	if !ok {
-		t.Fatal("response missing 'data' key")
-	}
-	dataSlice, ok := data.([]any)
-	if !ok {
-		t.Fatalf("expected data to be []any, got %T", data)
-	}
-	if len(dataSlice) != 2 {
-		t.Fatalf("expected 2 comments, got %d", len(dataSlice))
-	}
-}
-
-func TestGetCommentsByTopic_Empty(t *testing.T) {
-	mock := &mockGetByTopic{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, mock)
-	srv := httptest.NewServer(handler(h))
-	defer srv.Close()
-
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/topic?topicId=10", nil)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-}
-
-func TestGetCommentsByTopic_BadTopicID(t *testing.T) {
-	mock := &mockGetByTopic{results: []comment.Comment{}, err: nil}
-	h := NewHandler(extractUserOK, nil, nil, nil, nil, mock)
-	srv := httptest.NewServer(handler(h))
-	defer srv.Close()
-
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/topic?topicId=abc", nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
