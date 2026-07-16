@@ -22,6 +22,14 @@ func (m *mockFollowUser) Execute(_ context.Context, _ commands.FollowUserCommand
 	return m.err
 }
 
+type mockUnfollowUser struct {
+	err error
+}
+
+func (m *mockUnfollowUser) Execute(_ context.Context, _ commands.UnfollowUserCommand) error {
+	return m.err
+}
+
 type mockAcceptRequest struct {
 	err error
 }
@@ -85,7 +93,7 @@ func testExtractor(userID string) UserExtractor {
 
 func TestFollowUser_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	body, _ := json.Marshal(map[string]string{"targetId": "user-2"})
@@ -102,7 +110,7 @@ func TestFollowUser_Success(t *testing.T) {
 
 func TestFollowUser_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/follow", nil)
@@ -117,7 +125,7 @@ func TestFollowUser_Unauthorized(t *testing.T) {
 
 func TestFollowUser_CommandError(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{err: errors.New("db error")}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{err: errors.New("db error")}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	body, _ := json.Marshal(map[string]string{"targetId": "user-2"})
@@ -134,7 +142,7 @@ func TestFollowUser_CommandError(t *testing.T) {
 
 func TestFollowUser_InvalidMethod(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow", nil)
@@ -147,9 +155,73 @@ func TestFollowUser_InvalidMethod(t *testing.T) {
 	}
 }
 
+func TestUnfollowUser_Success(t *testing.T) {
+	h := NewHandler(testExtractor("user-1"),
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
+
+	body, _ := json.Marshal(map[string]string{"targetId": "user-2"})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/follow/unfollow", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.UnfollowUser(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+func TestUnfollowUser_Unauthorized(t *testing.T) {
+	h := NewHandler(testExtractor(""),
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/follow/unfollow", nil)
+	w := httptest.NewRecorder()
+
+	h.UnfollowUser(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestUnfollowUser_CommandError(t *testing.T) {
+	h := NewHandler(testExtractor("user-1"),
+		&mockFollowUser{}, &mockUnfollowUser{err: errors.New("db error")}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
+
+	body, _ := json.Marshal(map[string]string{"targetId": "user-2"})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/follow/unfollow", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.UnfollowUser(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestUnfollowUser_InvalidMethod(t *testing.T) {
+	h := NewHandler(testExtractor("user-1"),
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/unfollow", nil)
+	w := httptest.NewRecorder()
+
+	h.UnfollowUser(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+	}
+}
+
 func TestAcceptRequest_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-2"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	body, _ := json.Marshal(map[string]string{"followerId": "user-1"})
@@ -166,7 +238,7 @@ func TestAcceptRequest_Success(t *testing.T) {
 
 func TestAcceptRequest_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/follow/accept", nil)
@@ -181,7 +253,7 @@ func TestAcceptRequest_Unauthorized(t *testing.T) {
 
 func TestDeclineRequest_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-2"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	body, _ := json.Marshal(map[string]string{"followerId": "user-1"})
@@ -198,7 +270,7 @@ func TestDeclineRequest_Success(t *testing.T) {
 
 func TestGetFollowers_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{result: []follow.Follow{{FollowerID: "user-2", FolloweeID: "user-1"}}},
 		&mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -214,7 +286,7 @@ func TestGetFollowers_Success(t *testing.T) {
 
 func TestGetFollowers_MissingParam(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/followers", nil)
@@ -229,7 +301,7 @@ func TestGetFollowers_MissingParam(t *testing.T) {
 
 func TestGetFollowing_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{result: []follow.Follow{{FollowerID: "user-1", FolloweeID: "user-2"}}},
 		&mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -245,7 +317,7 @@ func TestGetFollowing_Success(t *testing.T) {
 
 func TestGetPendingRequests_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{},
 		&mockGetPendingRequests{result: []follow.Request{{FollowerID: "user-3", FolloweeID: "user-1"}}},
 		&mockAreConnected{})
@@ -262,7 +334,7 @@ func TestGetPendingRequests_Success(t *testing.T) {
 
 func TestGetPendingRequests_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/requests", nil)
@@ -277,7 +349,7 @@ func TestGetPendingRequests_Unauthorized(t *testing.T) {
 
 func TestAreConnected_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{},
 		&mockAreConnected{result: true})
 
@@ -303,7 +375,7 @@ func TestAreConnected_Success(t *testing.T) {
 
 func TestAreConnected_MissingParam(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/connected", nil)
@@ -318,7 +390,7 @@ func TestAreConnected_MissingParam(t *testing.T) {
 
 func TestAreConnected_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
-		&mockFollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/connected?targetId=user-2", nil)
