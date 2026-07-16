@@ -3,8 +3,6 @@ package follow
 import (
 	"context"
 	"time"
-
-	"social-network/internal/core"
 )
 
 type Follow struct {
@@ -30,7 +28,15 @@ type Repository interface {
 	AreConnected(ctx context.Context, a, b string) (bool, error)
 }
 
-var _ core.UserPrivacyChecker = (*PrivacyStub)(nil)
+type UserPrivacyChecker interface {
+	IsPrivate(ctx context.Context, userID string) (bool, error)
+}
+
+type EventBus interface {
+	Publish(ctx context.Context, eventType string, payload any) error
+}
+
+var _ UserPrivacyChecker = (*PrivacyStub)(nil)
 
 type PrivacyStub struct{}
 
@@ -38,7 +44,7 @@ func (p *PrivacyStub) IsPrivate(_ context.Context, _ string) (bool, error) {
 	return false, nil
 }
 
-var _ core.EventBus = (*NoopEventBus)(nil)
+var _ EventBus = (*NoopEventBus)(nil)
 
 type NoopEventBus struct{}
 

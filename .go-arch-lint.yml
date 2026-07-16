@@ -31,7 +31,7 @@ components:
 
 deps:
   # D6 dependency DAG
-  user_slice:         { mayDependOn: [core, platform, pkg] }
+  user_slice:         { mayDependOn: [user_slice, core, platform, pkg] }
   follow_slice:       { mayDependOn: [follow_slice, core, platform, pkg] }
   topic_slice:        { mayDependOn: [core, platform, pkg] }
   comment_slice:      { mayDependOn: [core, platform, pkg] }

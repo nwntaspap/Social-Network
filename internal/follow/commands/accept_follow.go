@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"social-network/internal/core"
 	"social-network/internal/follow"
 )
 
@@ -15,10 +14,10 @@ type AcceptRequestCommand struct {
 
 type AcceptRequestHandler struct {
 	repo follow.Repository
-	bus  core.EventBus
+	bus  follow.EventBus
 }
 
-func NewAcceptRequestHandler(repo follow.Repository, bus core.EventBus) *AcceptRequestHandler {
+func NewAcceptRequestHandler(repo follow.Repository, bus follow.EventBus) *AcceptRequestHandler {
 	return &AcceptRequestHandler{
 		repo: repo,
 		bus:  bus,

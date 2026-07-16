@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"social-network/internal/core"
 	"social-network/internal/follow"
 )
 
@@ -17,11 +16,11 @@ type FollowUserCommand struct {
 
 type FollowUserHandler struct {
 	repo    follow.Repository
-	privacy core.UserPrivacyChecker
-	bus     core.EventBus
+	privacy follow.UserPrivacyChecker
+	bus     follow.EventBus
 }
 
-func NewFollowUserHandler(repo follow.Repository, privacy core.UserPrivacyChecker, bus core.EventBus) *FollowUserHandler {
+func NewFollowUserHandler(repo follow.Repository, privacy follow.UserPrivacyChecker, bus follow.EventBus) *FollowUserHandler {
 	return &FollowUserHandler{
 		repo:    repo,
 		privacy: privacy,
