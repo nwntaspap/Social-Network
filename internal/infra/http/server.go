@@ -454,6 +454,11 @@ func (server *Server) AddHTTPRoutes() {
 			server.follow.FollowUser,
 			server.middleware.Authorization.Required,
 		))
+	server.router.HandleFunc(apiContext+"/follow/unfollow",
+		middlewareChain(
+			server.follow.UnfollowUser,
+			server.middleware.Authorization.Required,
+		))
 	server.router.HandleFunc(apiContext+"/follow/accept",
 		middlewareChain(
 			server.follow.AcceptRequest,

@@ -15,6 +15,10 @@ type FollowUserExecutor interface {
 	Execute(ctx context.Context, cmd commands.FollowUserCommand) error
 }
 
+type UnfollowUserExecutor interface {
+	Execute(ctx context.Context, cmd commands.UnfollowUserCommand) error
+}
+
 type AcceptRequestExecutor interface {
 	Execute(ctx context.Context, cmd commands.AcceptRequestCommand) error
 }
@@ -41,6 +45,7 @@ type ConnectedResolver interface {
 
 type Handler struct {
 	followUser     FollowUserExecutor
+	unfollowUser   UnfollowUserExecutor
 	acceptRequest  AcceptRequestExecutor
 	declineRequest DeclineRequestExecutor
 	getFollowers   FollowersResolver
@@ -53,6 +58,7 @@ type Handler struct {
 func NewHandler(
 	extractUser UserExtractor,
 	followUser FollowUserExecutor,
+	unfollowUser UnfollowUserExecutor,
 	acceptRequest AcceptRequestExecutor,
 	declineRequest DeclineRequestExecutor,
 	getFollowers FollowersResolver,
@@ -63,6 +69,7 @@ func NewHandler(
 	return &Handler{
 		extractUser:    extractUser,
 		followUser:     followUser,
+		unfollowUser:   unfollowUser,
 		acceptRequest:  acceptRequest,
 		declineRequest: declineRequest,
 		getFollowers:   getFollowers,

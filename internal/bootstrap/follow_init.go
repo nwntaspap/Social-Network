@@ -28,6 +28,7 @@ func initFollow(db *sql.DB) *followtransport.Handler {
 	return followtransport.NewHandler(
 		extractUser,
 		followcommands.NewFollowUserHandler(store, privacy, bus),
+		followcommands.NewUnfollowUserHandler(store),
 		followcommands.NewAcceptRequestHandler(store, bus),
 		followcommands.NewDeclineRequestHandler(store, bus),
 		followqueries.NewGetFollowersResolver(store),
