@@ -9,21 +9,23 @@ import (
 )
 
 type mockRepo struct {
-	getResult   []comment.Comment
-	getErr      error
-	getResultWV []comment.Comment
-	getErrWV    error
+	getResult     []comment.Comment
+	getErr        error
+	getResultWV   []comment.Comment
+	getErrWV      error
+	getByIDResult *comment.Comment
+	getByIDErr    error
 }
 
 func (m *mockRepo) CreateComment(_ context.Context, _ *comment.Comment) error { return nil }
 func (m *mockRepo) UpdateComment(_ context.Context, _ *comment.Comment) error { return nil }
 func (m *mockRepo) DeleteComment(_ context.Context, _ string, _ int) error    { return nil }
 func (m *mockRepo) GetCommentByID(_ context.Context, _ int) (*comment.Comment, error) {
-	return nil, comment.ErrCommentNotFound
+	return m.getByIDResult, m.getByIDErr
 }
 
 func (m *mockRepo) GetCommentByIDWithVotes(_ context.Context, _ int, _ *string) (*comment.Comment, error) {
-	return nil, comment.ErrCommentNotFound
+	return m.getByIDResult, m.getByIDErr
 }
 
 func (m *mockRepo) GetCommentsByTopicID(_ context.Context, _ int) ([]comment.Comment, error) {

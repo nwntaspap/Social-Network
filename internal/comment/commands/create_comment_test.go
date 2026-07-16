@@ -10,22 +10,30 @@ import (
 
 type mockRepo struct {
 	createErr error
+	updateErr error
+	deleteErr error
+	getResult *comment.Comment
+	getErr    error
 }
 
 func (m *mockRepo) CreateComment(_ context.Context, c *comment.Comment) error {
 	return m.createErr
 }
 
-func (m *mockRepo) UpdateComment(_ context.Context, _ *comment.Comment) error { return nil }
+func (m *mockRepo) UpdateComment(_ context.Context, _ *comment.Comment) error {
+	return m.updateErr
+}
 
-func (m *mockRepo) DeleteComment(_ context.Context, _ string, _ int) error { return nil }
+func (m *mockRepo) DeleteComment(_ context.Context, _ string, _ int) error {
+	return m.deleteErr
+}
 
 func (m *mockRepo) GetCommentByID(_ context.Context, _ int) (*comment.Comment, error) {
-	return nil, comment.ErrCommentNotFound
+	return m.getResult, m.getErr
 }
 
 func (m *mockRepo) GetCommentByIDWithVotes(_ context.Context, _ int, _ *string) (*comment.Comment, error) {
-	return nil, comment.ErrCommentNotFound
+	return m.getResult, m.getErr
 }
 
 func (m *mockRepo) GetCommentsByTopicID(_ context.Context, _ int) ([]comment.Comment, error) {
