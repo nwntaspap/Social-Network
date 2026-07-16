@@ -151,7 +151,7 @@ For step-by-step ticket instructions, see individual sprint files:
 - [x] **S3-BE-46:** Comment: Entity & Repository Interface
 - [x] **S3-BE-47:** Comment: SQLite Store
 - [x] **S3-BE-48:** Comment: Create Comment Command
-- [ ] **S3-BE-49:** Comment: Get Comments Query
+- [x] **S3-BE-49:** Comment: Get Comments Query
 - [ ] **S3-BE-50:** Comment: HTTP Transport Routing
 - [ ] **S3-BE-51:** Comment: Cast Vote Command & Queries (Gap Fix) **P1**
 - [ ] **S3-BE-52:** Notification: Entity & Repository Interface
