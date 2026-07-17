@@ -20,7 +20,7 @@ type Client struct {
 	hub        *Hub
 	conn       *websocket.Conn
 	send       chan []byte
-	OpenChatId string
+	openChatId string
 }
 
 func (c *Client) Send(msg []byte) {

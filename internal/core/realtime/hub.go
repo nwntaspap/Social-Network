@@ -48,11 +48,13 @@ func (h *Hub) Unregister(client *Client) {
 		return
 	}
 
-	if client.OpenChatId != "" {
-		delete(h.chatObservers[client.OpenChatId], client)
-	}
-	if len(h.chatObservers[client.OpenChatId]) == 0 {
-		delete(h.chatObservers, client.OpenChatId)
+	if client.openChatId != "" {
+		if observers, exists := h.chatObservers[client.openChatId]; exists {
+			delete(observers, client)
+			if len(observers) == 0 {
+				delete(h.chatObservers, client.openChatId)
+			}
+		}
 	}
 	delete(conns, client)
 	becameOffline := len(conns) == 0
@@ -72,12 +74,12 @@ func (h *Hub) OpenChat(client *Client, chatID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if client.OpenChatId == chatID {
+	if client.openChatId == chatID {
 		return
 	}
 
-	if client.OpenChatId != "" {
-		oldChatID := client.OpenChatId
+	if client.openChatId != "" {
+		oldChatID := client.openChatId
 		delete(h.chatObservers[oldChatID], client)
 		if len(h.chatObservers[oldChatID]) == 0 {
 			delete(h.chatObservers, oldChatID)
@@ -89,19 +91,19 @@ func (h *Hub) OpenChat(client *Client, chatID string) {
 	}
 
 	h.chatObservers[chatID][client] = true
-	client.OpenChatId = chatID
+	client.openChatId = chatID
 }
 
 func (h *Hub) CloseChat(client *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if client.OpenChatId == "" {
+	if client.openChatId == "" {
 		return
 	}
 
-	oldChatID := client.OpenChatId
-	client.OpenChatId = ""
+	oldChatID := client.openChatId
+	client.openChatId = ""
 	delete(h.chatObservers[oldChatID], client)
 	if len(h.chatObservers[oldChatID]) == 0 {
 		delete(h.chatObservers, oldChatID)
@@ -216,4 +218,11 @@ func (h *Hub) OnlineUserIDs() []string {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+// GetOpenChatId returns the chat ID the client is currently observing.
+func (h *Hub) GetOpenChatId(client *Client) string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return client.openChatId
 }

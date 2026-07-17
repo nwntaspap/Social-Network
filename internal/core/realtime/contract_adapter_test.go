@@ -28,7 +28,7 @@ func (a *hubAdapter) getOrCreate(client *realtimecontract.TestClient) *Client {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if c, ok := a.clients[client]; ok {
-		c.OpenChatId = client.OpenChatID
+		c.openChatId = client.OpenChatID
 		return c
 	}
 	c := &Client{
@@ -36,7 +36,7 @@ func (a *hubAdapter) getOrCreate(client *realtimecontract.TestClient) *Client {
 		hub:        a.inner,
 		conn:       nil,
 		send:       client.SendChan(),
-		OpenChatId: client.OpenChatID,
+		openChatId: client.OpenChatID,
 	}
 	a.clients[client] = c
 	return c
@@ -79,13 +79,13 @@ func (a *hubAdapter) OnlineUserIDs() []string {
 func (a *hubAdapter) OpenChat(client *realtimecontract.TestClient, chatID string) {
 	realClient := a.getOrCreate(client)
 	a.inner.OpenChat(realClient, chatID)
-	client.OpenChatID = realClient.OpenChatId
+	client.OpenChatID = realClient.openChatId
 }
 
 func (a *hubAdapter) CloseChat(client *realtimecontract.TestClient) {
 	realClient := a.getOrCreate(client)
 	a.inner.CloseChat(realClient)
-	client.OpenChatID = realClient.OpenChatId
+	client.OpenChatID = realClient.openChatId
 }
 
 func (a *hubAdapter) GetObserversForChat(chatID, excludeUserID string) []string {
