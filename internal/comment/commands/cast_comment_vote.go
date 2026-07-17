@@ -15,12 +15,19 @@ type CastCommentVoteCommand struct {
 	ReactionType int
 }
 
-type CastCommentVoteHandler struct {
-	repo comment.Repository
+type CommentVotedEvent struct {
+	CommentID    int
+	UserID       string
+	ReactionType int
 }
 
-func NewCastCommentVoteHandler(repo comment.Repository) *CastCommentVoteHandler {
-	return &CastCommentVoteHandler{repo: repo}
+type CastCommentVoteHandler struct {
+	repo comment.Repository
+	bus  comment.EventBus
+}
+
+func NewCastCommentVoteHandler(repo comment.Repository, bus comment.EventBus) *CastCommentVoteHandler {
+	return &CastCommentVoteHandler{repo: repo, bus: bus}
 }
 
 func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVoteCommand) error {
@@ -33,5 +40,15 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 	if cmd.ReactionType != 1 && cmd.ReactionType != -1 {
 		return ErrInvalidReactionType
 	}
-	return h.repo.CastCommentVote(ctx, cmd.UserID, cmd.CommentID, cmd.ReactionType)
+	if err := h.repo.CastCommentVote(ctx, cmd.UserID, cmd.CommentID, cmd.ReactionType); err != nil {
+		return err
+	}
+
+	h.bus.Publish(ctx, "comment.voted", CommentVotedEvent{
+		CommentID:    cmd.CommentID,
+		UserID:       cmd.UserID,
+		ReactionType: cmd.ReactionType,
+	})
+
+	return nil
 }

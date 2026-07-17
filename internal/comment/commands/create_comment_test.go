@@ -57,9 +57,13 @@ var (
 	badHeader = []byte{0x00, 0x01, 0x02, 0x03}
 )
 
+type mockBus struct{}
+
+func (m *mockBus) Publish(_ context.Context, _ string, _ any) error { return nil }
+
 func TestCreateComment_Success(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo)
+	h := NewCreateCommentHandler(repo, &mockBus{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",
@@ -79,7 +83,7 @@ func TestCreateComment_Success(t *testing.T) {
 
 func TestCreateComment_WithValidImage(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo)
+	h := NewCreateCommentHandler(repo, &mockBus{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:    "u1",
@@ -97,7 +101,7 @@ func TestCreateComment_WithValidImage(t *testing.T) {
 
 func TestCreateComment_InvalidImage(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo)
+	h := NewCreateCommentHandler(repo, &mockBus{})
 
 	_, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:    "u1",
@@ -111,7 +115,7 @@ func TestCreateComment_InvalidImage(t *testing.T) {
 }
 
 func TestCreateComment_EmptyUserID(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{TopicID: 1, Content: "x"})
 	if !errors.Is(err, ErrEmptyUserID) {
 		t.Errorf("error = %v, want ErrEmptyUserID", err)
@@ -119,7 +123,7 @@ func TestCreateComment_EmptyUserID(t *testing.T) {
 }
 
 func TestCreateComment_ZeroTopicID(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{UserID: "u1", Content: "x"})
 	if !errors.Is(err, ErrEmptyTopicID) {
 		t.Errorf("error = %v, want ErrEmptyTopicID", err)
@@ -127,7 +131,7 @@ func TestCreateComment_ZeroTopicID(t *testing.T) {
 }
 
 func TestCreateComment_EmptyContent(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{UserID: "u1", TopicID: 1})
 	if !errors.Is(err, ErrEmptyContent) {
 		t.Errorf("error = %v, want ErrEmptyContent", err)
@@ -136,7 +140,7 @@ func TestCreateComment_EmptyContent(t *testing.T) {
 
 func TestCreateComment_RepoError(t *testing.T) {
 	repo := &mockRepo{createErr: errors.New("db fail")}
-	h := NewCreateCommentHandler(repo)
+	h := NewCreateCommentHandler(repo, &mockBus{})
 
 	_, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",
@@ -150,7 +154,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 
 func TestCreateComment_NoImageAllowed(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo)
+	h := NewCreateCommentHandler(repo, &mockBus{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",

@@ -43,7 +43,7 @@ func (m *mockVoteRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCou
 
 func TestCastCommentVote_Success(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		CommentID:    1,
@@ -56,7 +56,7 @@ func TestCastCommentVote_Success(t *testing.T) {
 
 func TestCastCommentVote_Downvote(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		CommentID:    1,
@@ -69,7 +69,7 @@ func TestCastCommentVote_Downvote(t *testing.T) {
 
 func TestCastCommentVote_EmptyUserID(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		CommentID:    1,
 		ReactionType: 1,
@@ -81,7 +81,7 @@ func TestCastCommentVote_EmptyUserID(t *testing.T) {
 
 func TestCastCommentVote_ZeroCommentID(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		ReactionType: 1,
@@ -93,7 +93,7 @@ func TestCastCommentVote_ZeroCommentID(t *testing.T) {
 
 func TestCastCommentVote_InvalidReactionType(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		CommentID:    1,
@@ -106,7 +106,7 @@ func TestCastCommentVote_InvalidReactionType(t *testing.T) {
 
 func TestCastCommentVote_InvalidReactionType2(t *testing.T) {
 	repo := &mockVoteRepo{}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		CommentID:    1,
@@ -119,7 +119,7 @@ func TestCastCommentVote_InvalidReactionType2(t *testing.T) {
 
 func TestCastCommentVote_RepoError(t *testing.T) {
 	repo := &mockVoteRepo{castVoteErr: errors.New("db down")}
-	h := NewCastCommentVoteHandler(repo)
+	h := NewCastCommentVoteHandler(repo, &mockBus{})
 	err := h.Execute(context.Background(), CastCommentVoteCommand{
 		UserID:       "u1",
 		CommentID:    1,

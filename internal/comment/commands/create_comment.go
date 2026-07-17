@@ -24,10 +24,17 @@ type CreateCommentCommand struct {
 
 type CreateCommentHandler struct {
 	repo comment.Repository
+	bus  comment.EventBus
 }
 
-func NewCreateCommentHandler(repo comment.Repository) *CreateCommentHandler {
-	return &CreateCommentHandler{repo: repo}
+type CommentCreatedEvent struct {
+	CommentID int
+	TopicID   int
+	UserID    string
+}
+
+func NewCreateCommentHandler(repo comment.Repository, bus comment.EventBus) *CreateCommentHandler {
+	return &CreateCommentHandler{repo: repo, bus: bus}
 }
 
 func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCommand) (*comment.Comment, error) {
@@ -56,5 +63,12 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 	if err := h.repo.CreateComment(ctx, c); err != nil {
 		return nil, err
 	}
+
+	h.bus.Publish(ctx, "comment.created", CommentCreatedEvent{
+		CommentID: c.ID,
+		TopicID:   cmd.TopicID,
+		UserID:    cmd.UserID,
+	})
+
 	return c, nil
 }

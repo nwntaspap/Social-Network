@@ -32,6 +32,10 @@ var (
 	ErrInvalidVoteValue = errors.New("reaction_type must be 1 (upvote) or -1 (downvote)")
 )
 
+type EventBus interface {
+	Publish(ctx context.Context, eventType string, payload any) error
+}
+
 type Repository interface {
 	CreateComment(ctx context.Context, c *Comment) error
 	UpdateComment(ctx context.Context, c *Comment) error
