@@ -98,15 +98,15 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-B (Backend B)
 
-- [ ] **S2-BE-26:** Topic: Entity & Repository Interface
-- [ ] **S2-BE-27:** Topic: SQLite Store
-- [ ] **S2-BE-28:** Topic: Create Topic Command
-- [ ] **S2-BE-29:** Topic: Cast Vote Command
-- [ ] **S2-BE-30:** Topic: Get Feed Query
-- [ ] **S2-BE-31:** Topic: Get User Topics Query
-- [ ] **S2-BE-32:** Topic: Get Topic Query
-- [ ] **S2-BE-33:** Topic: Get Votes Query
-- [ ] **S2-BE-34:** Topic: HTTP Transport Routing
+- [x] **S2-BE-26:** Topic: Entity & Repository Interface
+- [x] **S2-BE-27:** Topic: SQLite Store
+- [x] **S2-BE-28:** Topic: Create Topic Command
+- [x] **S2-BE-29:** Topic: Cast Vote Command
+- [x] **S2-BE-30:** Topic: Get Feed Query
+- [x] **S2-BE-31:** Topic: Get User Topics Query
+- [x] **S2-BE-32:** Topic: Get Topic Query
+- [x] **S2-BE-33:** Topic: Get Votes Query
+- [x] **S2-BE-34:** Topic: HTTP Transport Routing
 
 ### FE-A (Frontend A)
 
@@ -124,7 +124,7 @@ For step-by-step ticket instructions, see individual sprint files:
 ### SD-QA (System Design/QA)
 
 - [ ] **S2-SD-07:** User Slice: Migration Verification Contract Tests
-- [ ] **S2-SD-08:** Topic Slice: Migration Verification Contract Tests
+- [x] **S2-SD-08:** Topic Slice: Migration Verification Contract Tests
 - [ ] **S2-SD-09:** Platform: User & Topic Migrations (000002 & 000003)
 - [ ] **S2-SD-10:** E2E: User Signup to Feed Journey
 
