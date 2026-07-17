@@ -444,7 +444,7 @@ func (r Repo) GetAllTopics(ctx context.Context, page, size, categoryID int, orde
 
 	order = sanitizeOrder(order)
 
-	query += " ORDER BY " + orderByClause + " " + order + " LIMIT ? OFFSET ?"
+	query += " ORDER BY " + orderByClause + " " + order + " LIMIT ? OFFSET ?" // #nosec G202 -- sanitized orderBy
 	offset := (page - 1) * size
 	args = append(args, size, offset)
 

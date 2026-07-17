@@ -55,7 +55,7 @@ func (h *createTopicRequestHandler) Handle(ctx context.Context, req CreateTopicR
 		if err != nil {
 			return nil, err
 		}
-		h.fileStorage.Upload(ctx, filecontent, req.ImagePath)
+		_ = h.fileStorage.Upload(ctx, filecontent, req.ImagePath)
 	} else {
 		topic.UserID = req.User.ID
 		topic.CategoryIDs = req.CategoryIDs

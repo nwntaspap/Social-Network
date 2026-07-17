@@ -177,7 +177,7 @@ func (m *MockSessionManager) NewSessionCookie(token string) *http.Cookie {
 	if m.NewSessionCookieFunc != nil {
 		return m.NewSessionCookieFunc(token)
 	}
-	return &http.Cookie{
+	return &http.Cookie{ // #nosec G124 -- test mock only
 		Name:     "session_token",
 		Value:    token,
 		Path:     "/",

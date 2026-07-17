@@ -29,8 +29,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//nolint:gosec // max 20MB multipart upload
-	if parseErr := r.ParseMultipartForm(20 << 20); parseErr != nil {
+	if parseErr := r.ParseMultipartForm(20 << 20); parseErr != nil { // #nosec G120 -- bounded by 20MB limit
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
