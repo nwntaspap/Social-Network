@@ -64,7 +64,7 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		return nil, err
 	}
 
-	h.bus.Publish(ctx, "comment.created", CommentCreatedEvent{
+	_ = h.bus.Publish(ctx, "comment.created", CommentCreatedEvent{
 		CommentID: c.ID,
 		TopicID:   cmd.TopicID,
 		UserID:    cmd.UserID,

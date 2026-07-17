@@ -44,7 +44,7 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 		return err
 	}
 
-	h.bus.Publish(ctx, "comment.voted", CommentVotedEvent{
+	_ = h.bus.Publish(ctx, "comment.voted", CommentVotedEvent{
 		CommentID:    cmd.CommentID,
 		UserID:       cmd.UserID,
 		ReactionType: cmd.ReactionType,
