@@ -7,6 +7,7 @@ import (
 
 	"social-network/internal/app"
 	"social-network/internal/app/topics"
+	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/config"
 	"social-network/internal/domain/session"
 	followtransport "social-network/internal/follow/transport"
@@ -30,6 +31,7 @@ const stateManagerDefaultLimit = 10
 type App struct {
 	Services       app.Services
 	Follow         *followtransport.Handler
+	Chat           *chattransport.Handler
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
 	Middlware      *middleware.Middleware
@@ -54,6 +56,7 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 	return &App{
 		Services:       services,
 		Follow:         initFollow(db),
+		Chat:           initChat(db, hub, repos.UserRepo),
 		Notifier:       notifier,
 		Hub:            hub,
 		Middlware:      middleware,
