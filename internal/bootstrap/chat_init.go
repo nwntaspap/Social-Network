@@ -6,12 +6,10 @@ import (
 	"net/http"
 
 	"social-network/internal/chat"
-	"social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
 	chatstore "social-network/internal/chat/store"
 	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/domain/user"
-	followstore "social-network/internal/follow/store"
 	"social-network/internal/infra/middleware"
 	"social-network/internal/infra/ws"
 )
@@ -19,11 +17,6 @@ import (
 func initChat(db *sql.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 
-	followStore := followstore.NewSQLiteStore(db)
-
-	fc := &chat.FollowAdapter{
-		AreConnectedFn: followStore.AreConnected,
-	}
 	ba := &chat.BroadcasterAdapter{
 		IsOnlineFn: hub.IsOnline,
 	}
@@ -41,8 +34,6 @@ func initChat(db *sql.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.
 		},
 	}
 
-	sendMsg := commands.NewSendPrivateMessageHandler(store, fc)
-	markRead := commands.NewMarkAsReadHandler(store)
 	getHistory := queries.NewGetChatHistoryResolver(store)
 	getUsers := queries.NewGetChatUsersResolver(store, ua, ba)
 
@@ -54,5 +45,5 @@ func initChat(db *sql.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.
 		return user.ID, true
 	}
 
-	return chattransport.NewHandler(extractUser, sendMsg, markRead, getHistory, getUsers)
+	return chattransport.NewHandler(extractUser, getHistory, getUsers)
 }
