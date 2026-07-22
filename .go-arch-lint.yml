@@ -39,7 +39,7 @@ deps:
   event_slice:        { mayDependOn: [core, platform, pkg] }
   chat_slice:         { mayDependOn: [core, platform, pkg] }
   notification_slice: { mayDependOn: [core, platform, pkg] }
-  oauth_slice:        { mayDependOn: [core, platform, pkg] }
+  oauth_slice:        { mayDependOn: [oauth_slice, core, platform, pkg], anyVendorDeps: true }
 
   # Shared layers
   core:       { anyProjectDeps: true, anyVendorDeps: true }
