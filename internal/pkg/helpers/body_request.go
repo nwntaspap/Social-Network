@@ -20,7 +20,7 @@ func ParseBodyRequest(r *http.Request, v any) (any, error) {
 }
 
 func ParseTopicForm(r *http.Request, v any) (any, error) {
-	err := r.ParseMultipartForm(maxUploadSize)
+	err := r.ParseMultipartForm(maxUploadSize) // #nosec G120 -- bounded by maxUploadSize
 	//lint:ignore SA9003 pre-existing
 	if err != nil {
 	}

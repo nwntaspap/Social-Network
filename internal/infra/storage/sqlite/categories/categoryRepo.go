@@ -91,7 +91,7 @@ func (r *Repo) GetAllCategories(ctx context.Context, page, size int, orderBy, or
 
 	order = sanitizeOrder(order)
 
-	query += " GROUP BY c.id ORDER BY c." + orderBy + " " + order + " LIMIT ? OFFSET ?"
+	query += " GROUP BY c.id ORDER BY c." + orderBy + " " + order + " LIMIT ? OFFSET ?" // #nosec G202 -- whitelisted orderBy
 	offset := (page - 1) * size
 	args = append(args, size, offset)
 

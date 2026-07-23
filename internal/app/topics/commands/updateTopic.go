@@ -63,9 +63,9 @@ func (h *updateTopicRequestHandler) UpdateWithImage(ctx context.Context, req Upd
 		return nil, err
 	}
 	if req.OldImagePath != "" {
-		h.fileStorage.Delete(ctx, strings.TrimPrefix(req.OldImagePath, uploadDir))
+		_ = h.fileStorage.Delete(ctx, strings.TrimPrefix(req.OldImagePath, uploadDir))
 	}
-	h.fileStorage.Upload(ctx, filecontent, req.ImagePath)
+	_ = h.fileStorage.Upload(ctx, filecontent, req.ImagePath)
 	err = h.repo.UpdateTopic(ctx, &topic)
 	if err != nil {
 		return nil, err

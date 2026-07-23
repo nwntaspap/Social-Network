@@ -36,7 +36,7 @@ func (h *deleteTopicRequestHandler) Handle(ctx context.Context, req DeleteTopicR
 		return err
 	}
 	if imagePath != "" {
-		h.fileStorage.Delete(ctx, strings.TrimPrefix(imagePath, uploadDir))
+		_ = h.fileStorage.Delete(ctx, strings.TrimPrefix(imagePath, uploadDir))
 	}
 	err = h.repo.DeleteTopic(ctx, req.User.ID, req.TopicID)
 	if err != nil {

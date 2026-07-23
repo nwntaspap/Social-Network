@@ -54,7 +54,7 @@ func (m *Manager) DeleteCookies(r *http.Request, w http.ResponseWriter) (session
 	cookie, err := r.Cookie(m.cfg.AccessCookieName)
 	if err == nil {
 		sessiontoken = cookie.Value
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- clearing cookie, not setting auth
 			Name:     m.cfg.AccessCookieName,
 			Value:    "",
 			Path:     "/",
@@ -66,7 +66,7 @@ func (m *Manager) DeleteCookies(r *http.Request, w http.ResponseWriter) (session
 	cookie, err = r.Cookie(m.cfg.RefreshCookieName)
 	if err == nil {
 		cookie.MaxAge = -1
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- clearing cookie, not setting auth
 			Name:     m.cfg.RefreshCookieName,
 			Value:    "",
 			Path:     "/",
@@ -93,7 +93,7 @@ func (m *Manager) NewSessionCookie(session *session.Session) (accessCookie, refr
 
 	refreshMaxAge := max(int(time.Until(session.RefreshTokenExpiry).Seconds()), 0)
 
-	return &http.Cookie{
+	return &http.Cookie{ // #nosec G124 -- fields set from config at runtime
 			Name:     m.cfg.AccessCookieName,
 			Value:    session.AccessToken,
 			Path:     m.cfg.CookiePath,
@@ -104,7 +104,7 @@ func (m *Manager) NewSessionCookie(session *session.Session) (accessCookie, refr
 			Expires:  session.Expiry.UTC(),
 			MaxAge:   accessMaxAge,
 		},
-		&http.Cookie{
+		&http.Cookie{ // #nosec G124 -- fields set from config at runtime
 			Name:     m.cfg.RefreshCookieName,
 			Value:    session.RefreshToken,
 			Path:     m.cfg.CookiePath,

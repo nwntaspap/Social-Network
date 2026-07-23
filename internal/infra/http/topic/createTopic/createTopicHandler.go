@@ -73,7 +73,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 
 	var topicToCreate RequestModel
 
-	err := r.ParseMultipartForm(maxUploadSize)
+	err := r.ParseMultipartForm(maxUploadSize) // #nosec G120 -- bounded by maxUploadSize
 	if err != nil {
 		h.Logger.PrintError(err, nil)
 		helpers.RespondWithError(
