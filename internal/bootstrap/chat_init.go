@@ -9,8 +9,8 @@ import (
 	"social-network/internal/chat/queries"
 	chatstore "social-network/internal/chat/store"
 	chattransport "social-network/internal/chat/transport"
+	"social-network/internal/core/middleware"
 	"social-network/internal/domain/user"
-	"social-network/internal/infra/middleware"
 	"social-network/internal/infra/ws"
 )
 
@@ -38,11 +38,11 @@ func initChat(db *sql.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.
 	getUsers := queries.NewGetChatUsersResolver(store, ua, ba)
 
 	extractUser := func(r *http.Request) (string, bool) {
-		user := middleware.GetUserFromContext(r)
-		if user == nil {
+		uid := middleware.GetUserIDFromContext(r)
+		if uid == "" {
 			return "", false
 		}
-		return user.ID, true
+		return uid, true
 	}
 
 	return chattransport.NewHandler(extractUser, getHistory, getUsers)

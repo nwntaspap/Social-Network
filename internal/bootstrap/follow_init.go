@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 
+	"social-network/internal/core/middleware"
 	"social-network/internal/follow"
 	followcommands "social-network/internal/follow/commands"
 	followqueries "social-network/internal/follow/queries"
 	followstore "social-network/internal/follow/store"
 	followtransport "social-network/internal/follow/transport"
-	"social-network/internal/infra/middleware"
 )
 
 func initFollow(db *sql.DB) *followtransport.Handler {
@@ -18,11 +18,11 @@ func initFollow(db *sql.DB) *followtransport.Handler {
 	bus := &follow.NoopEventBus{}
 
 	extractUser := func(r *http.Request) (string, bool) {
-		user := middleware.GetUserFromContext(r)
-		if user == nil {
+		uid := middleware.GetUserIDFromContext(r)
+		if uid == "" {
 			return "", false
 		}
-		return user.ID, true
+		return uid, true
 	}
 
 	return followtransport.NewHandler(

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,7 +16,23 @@ import (
 	"social-network/internal/core/middleware"
 	"social-network/internal/core/middleware/ratelimiter"
 	"social-network/internal/core/session"
+
+	chattransport "social-network/internal/chat/transport"
+	commenttransport "social-network/internal/comment/transport"
+	followtransport "social-network/internal/follow/transport"
+	oauthtransport "social-network/internal/oauth/transport"
+	topictransport "social-network/internal/topic/transport"
+	usertransport "social-network/internal/user/transport"
 )
+
+type AllHandlers struct {
+	User    *usertransport.Handler
+	Follow  *followtransport.Handler
+	Chat    *chattransport.Handler
+	Comment *commenttransport.Handler
+	Topic   *topictransport.Handler
+	OAuth   *oauthtransport.Handler
+}
 
 type Server struct {
 	mux    *http.ServeMux
@@ -26,6 +43,8 @@ type Server struct {
 
 	allowedOrigins []string
 	rateLimiterOpt *rateLimiterOptions
+
+	handlers *AllHandlers
 
 	handler http.Handler
 }
@@ -58,6 +77,12 @@ func WithLogging(logger *slog.Logger) Option {
 func WithRateLimiter(window *ratelimiter.Window, limit int) Option {
 	return func(s *Server) {
 		s.rateLimiterOpt = &rateLimiterOptions{window: window, limit: limit}
+	}
+}
+
+func WithHandlers(h *AllHandlers) Option {
+	return func(s *Server) {
+		s.handlers = h
 	}
 }
 
@@ -124,8 +149,10 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 
 	go func() {
 		if s.cfg.TLSCertFile != "" && s.cfg.TLSKeyFile != "" {
+			log.Println("HTTPS Server Listening on port:", s.cfg.Port)
 			errCh <- s.srv.ListenAndServeTLS(s.cfg.TLSCertFile, s.cfg.TLSKeyFile)
 		} else {
+			log.Println("HTTP Server Listening on port:", s.cfg.Port)
 			errCh <- s.srv.ListenAndServe()
 		}
 	}()

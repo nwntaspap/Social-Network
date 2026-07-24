@@ -1,22 +1,21 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
-	"social-network/internal/infra/http"
+	coreserver "social-network/internal/core/server"
 	"social-network/internal/infra/storage/sqlite"
 )
 
 func main() {
-	// 1. Load configuration first
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Configuration error: %v", err)
 	}
 
-	// 2. Initialize DB connection
 	db, err := sqlite.InitializeDB(*cfg)
 	if err != nil {
 		log.Fatalf("Database error: %v", err)
@@ -24,7 +23,21 @@ func main() {
 	defer db.Close()
 
 	app := bootstrap.Bootstrap(db, cfg)
-	HTTPServer := http.NewServer(cfg, app)
-	defer HTTPServer.Close()
-	HTTPServer.ListenAndServe()
+
+	srv := coreserver.New(
+		cfg,
+		coreserver.WithCORS(cfg.AllowedOrigins),
+		coreserver.WithAuth(app.SessionStore, cfg.SessionManager.AccessCookieName),
+		coreserver.WithHandlers(&coreserver.AllHandlers{
+			Follow: app.Follow,
+			Chat:   app.Chat,
+		}),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := srv.ListenAndServe(ctx); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

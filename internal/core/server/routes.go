@@ -5,14 +5,88 @@ import (
 	"strings"
 )
 
-func RegisterRoutes(s *Server) {
-	api := "/api/v1"
+const api = "/api/v1"
 
+func RegisterRoutes(s *Server) {
 	s.mux.HandleFunc(api+"/health", healthHandler)
 
 	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("frontend/static"))))
 
 	s.mux.HandleFunc("/", spaHandler("frontend/static/index.html"))
+
+	if s.handlers == nil {
+		return
+	}
+
+	require := s.requireAuth
+
+	// User routes
+	if h := s.handlers.User; h != nil {
+		s.mux.HandleFunc(api+"/register", h.Register)
+		s.mux.HandleFunc(api+"/login/email", h.Login)
+		s.mux.HandleFunc(api+"/login/username", h.Login)
+		s.mux.HandleFunc(api+"/logout", require(h.Logout))
+		s.mux.HandleFunc(api+"/user/profile", h.GetProfile)
+		s.mux.HandleFunc(api+"/user/update", require(h.UpdateProfile))
+		s.mux.HandleFunc(api+"/user/privacy", require(h.TogglePrivacy))
+		s.mux.HandleFunc(api+"/user/activity", h.GetActivity)
+		s.mux.HandleFunc(api+"/users", h.ListUsers)
+	}
+
+	// Follow routes
+	if h := s.handlers.Follow; h != nil {
+		s.mux.HandleFunc(api+"/follow", require(h.FollowUser))
+		s.mux.HandleFunc(api+"/follow/unfollow", require(h.UnfollowUser))
+		s.mux.HandleFunc(api+"/follow/accept", require(h.AcceptRequest))
+		s.mux.HandleFunc(api+"/follow/decline", require(h.DeclineRequest))
+		s.mux.HandleFunc(api+"/follow/followers", require(h.GetFollowers))
+		s.mux.HandleFunc(api+"/follow/following", require(h.GetFollowing))
+		s.mux.HandleFunc(api+"/follow/requests", require(h.GetPendingRequests))
+		s.mux.HandleFunc(api+"/follow/connected", require(h.AreConnected))
+	}
+
+	// Chat routes
+	if h := s.handlers.Chat; h != nil {
+		s.mux.HandleFunc(api+"/chat/users", require(h.GetConversations))
+		s.mux.HandleFunc(api+"/chat/history", require(h.GetChatHistory))
+	}
+
+	// Comment routes
+	if h := s.handlers.Comment; h != nil {
+		s.mux.HandleFunc(api+"/comments/create", require(h.CreateComment))
+		s.mux.HandleFunc(api+"/comments/update", require(h.UpdateComment))
+		s.mux.HandleFunc(api+"/comments/delete", require(h.DeleteComment))
+		s.mux.HandleFunc(api+"/comments/vote", require(h.CastCommentVote))
+		s.mux.HandleFunc(api+"/comments/get", h.GetCommentByID)
+		s.mux.HandleFunc(api+"/comments/topic", h.GetCommentsByTopic)
+		s.mux.HandleFunc(api+"/comments/topic/votes", require(h.GetCommentsByTopicWithVotes))
+		s.mux.HandleFunc(api+"/comments/votes/counts", require(h.GetVoteCounts))
+	}
+
+	// Topic routes
+	if h := s.handlers.Topic; h != nil {
+		s.mux.HandleFunc(api+"/topics/create", require(h.CreateTopic))
+		s.mux.HandleFunc(api+"/topics/update", require(h.UpdateTopic))
+		s.mux.HandleFunc(api+"/topics/delete", require(h.DeleteTopic))
+		s.mux.HandleFunc(api+"/topics/vote", require(h.CastVote))
+		s.mux.HandleFunc(api+"/topics/feed", h.GetFeed)
+		s.mux.HandleFunc(api+"/topics/get", h.GetTopic)
+		s.mux.HandleFunc(api+"/topics/user", h.GetUserTopics)
+		s.mux.HandleFunc(api+"/topics/group", h.GetGroupTopics)
+		s.mux.HandleFunc(api+"/topics/votes/counts", require(h.GetVoteCounts))
+	}
+
+	// OAuth routes
+	if h := s.handlers.OAuth; h != nil {
+		h.RegisterRoutes(s.mux)
+	}
+}
+
+func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	if s.auth == nil {
+		return next
+	}
+	return s.auth.Required(next)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
