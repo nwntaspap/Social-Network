@@ -1,18 +1,12 @@
 package oauth
 
-import "context"
+import (
+	pkgoauth "social-network/pkg/oauth"
+)
 
-type Provider interface {
-	Name() string
-	GetAuthURL(state string) string
-	ExchangeCode(ctx context.Context, code string) (string, error)
-	GetUserInfo(ctx context.Context, accessToken string) (*ProviderUserInfo, error)
-}
+// Provider is a type alias for backward compatibility.
+// Canonical definition lives in pkg/oauth.Provider.
+type Provider = pkgoauth.Provider
 
-type ProviderUserInfo struct {
-	ProviderID string
-	Email      string
-	Username   string
-	Name       string
-	AvatarURL  string
-}
+// ProviderUserInfo is a type alias for backward compatibility.
+type ProviderUserInfo = pkgoauth.ProviderUserInfo

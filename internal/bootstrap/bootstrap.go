@@ -7,7 +7,9 @@ import (
 
 	"social-network/internal/app"
 	"social-network/internal/app/topics"
+	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/config"
+	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/domain/session"
 	followtransport "social-network/internal/follow/transport"
 	"social-network/internal/infra/http/authcookies"
@@ -30,11 +32,13 @@ const stateManagerDefaultLimit = 10
 type App struct {
 	Services       app.Services
 	Follow         *followtransport.Handler
+	Chat           *chattransport.Handler
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
 	Middlware      *middleware.Middleware
 	SessionManager session.Manager
 	CookieManager  *authcookies.Manager
+	SessionStore   *coresessionstore.Store
 	OAuth          *oauth.OAuth
 	Logger         logger.Logger
 	FileStorage    topics.FileStorageManager
@@ -45,6 +49,7 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 	hub := ws.NewHub()
 	sessionManager := sessionstore.NewSessionManager(db, cfg.SessionManager)
 	cookieManager := authcookies.NewManager(cfg.SessionManager)
+	coreSessionStore := coresessionstore.NewSessionStore(db, coresessionstore.WithExpiry(cfg.SessionManager.DefaultExpiry))
 	middleware := middleware.NewMiddleware(sessionManager, cookieManager)
 	repos := sqlite.NewRepositories(db)
 	fileStorage := localstorage.NewLocalStorage()
@@ -54,11 +59,13 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 	return &App{
 		Services:       services,
 		Follow:         initFollow(db),
+		Chat:           initChat(db, hub, repos.UserRepo),
 		Notifier:       notifier,
 		Hub:            hub,
 		Middlware:      middleware,
 		SessionManager: sessionManager,
 		CookieManager:  cookieManager,
+		SessionStore:   coreSessionStore,
 		OAuth:          oAuth,
 		Logger:         logger,
 		FileStorage:    fileStorage,

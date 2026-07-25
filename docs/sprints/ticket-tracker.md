@@ -263,14 +263,14 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-B (Backend B)
 
-- [ ] **S5-BE-92:** OAuth: Entity & Repository Interface
-- [ ] **S5-BE-93:** OAuth: SQLite Store
-- [ ] **S5-BE-94:** OAuth: Initiate Login Command
-- [ ] **S5-BE-95:** OAuth: Callback Processor Command
-- [ ] **S5-BE-96:** OAuth: HTTP Transport Routing
-- [ ] **S5-BE-97:** OAuth Client: GitHub Implementation
-- [ ] **S5-BE-98:** OAuth Client: Google Implementation
-- [ ] **S5-BE-99:** Shared: Refactor OAuth Packages
+- [x] **S5-BE-92:** OAuth: Entity & Repository Interface
+- [x] **S5-BE-93:** OAuth: SQLite Store
+- [x] **S5-BE-94:** OAuth: Initiate Login Command
+- [x] **S5-BE-95:** OAuth: Callback Processor Command
+- [x] **S5-BE-96:** OAuth: HTTP Transport Routing
+- [x] **S5-BE-97:** OAuth Client: GitHub Implementation
+- [x] **S5-BE-98:** OAuth Client: Google Implementation
+- [x] **S5-BE-99:** Shared: Refactor OAuth Packages
 
 ### FE-A (Frontend A)
 
