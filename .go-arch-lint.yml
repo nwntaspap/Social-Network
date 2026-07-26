@@ -36,7 +36,7 @@ deps:
   topic_slice:        { mayDependOn: [topic_slice, core, platform, pkg] }
   comment_slice:      { mayDependOn: [comment_slice, core, platform, pkg] }
   group_slice:        { mayDependOn: [group_slice, core, platform, pkg, bootstrap] }
-  event_slice:        { mayDependOn: [core, platform, pkg] }
+  event_slice:        { mayDependOn: [event_slice, group_slice, core, platform, pkg, bootstrap] }
   chat_slice:         { mayDependOn: [chat_slice, core, platform, pkg] }
   notification_slice: { mayDependOn: [core, platform, pkg] }
   oauth_slice:        { mayDependOn: [oauth_slice, core, platform, pkg], anyVendorDeps: true }
