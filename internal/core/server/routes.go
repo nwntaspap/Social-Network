@@ -80,6 +80,22 @@ func RegisterRoutes(s *Server) {
 	if h := s.handlers.OAuth; h != nil {
 		h.RegisterRoutes(s.mux)
 	}
+
+	// Group routes
+	if h := s.handlers.Group; h != nil {
+		s.mux.HandleFunc("POST "+api+"/groups", require(h.CreateGroup))
+		s.mux.HandleFunc("GET "+api+"/groups", h.ListGroups)
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}", require(h.GetGroup))
+		s.mux.HandleFunc("PUT "+api+"/groups/{groupId}", require(h.UpdateGroup))
+		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}", require(h.DeleteGroup))
+		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}/leave", require(h.LeaveGroup))
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/invite", require(h.InviteMember))
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/request", require(h.RequestJoin))
+		s.mux.HandleFunc("PUT "+api+"/groups/requests/{requestId}", require(h.RespondJoin))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/posts", require(h.GetGroupFeed))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/members", require(h.GetGroupMembers))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/requests/pending", require(h.GetPendingJoinRequests))
+	}
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {

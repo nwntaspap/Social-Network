@@ -12,6 +12,7 @@ import (
 	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/domain/session"
 	followtransport "social-network/internal/follow/transport"
+	grouptransport "social-network/internal/group/transport"
 	"social-network/internal/infra/http/authcookies"
 	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
@@ -33,6 +34,7 @@ type App struct {
 	Services       app.Services
 	Follow         *followtransport.Handler
 	Chat           *chattransport.Handler
+	Group          *grouptransport.Handler
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
 	Middlware      *middleware.Middleware
@@ -60,6 +62,7 @@ func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
 		Services:       services,
 		Follow:         initFollow(db),
 		Chat:           initChat(db, hub, repos.UserRepo),
+		Group:          initGroup(db),
 		Notifier:       notifier,
 		Hub:            hub,
 		Middlware:      middleware,
