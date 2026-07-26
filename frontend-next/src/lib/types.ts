@@ -29,6 +29,7 @@ export interface Post {
   id: string;
   userId: string;
   user: User;
+  title?: string;
   content: string;
   imageUrl?: string;
   gifUrl?: string;
@@ -93,7 +94,6 @@ export interface GroupInvitation {
   inviter: User;
   inviteeId: string;
   invitee: User;
-  status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
 
@@ -103,7 +103,6 @@ export interface GroupJoinRequest {
   group: Group;
   requesterId: string;
   requester: User;
-  status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
 
@@ -186,4 +185,27 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
   error?: string;
+}
+
+export interface GroupPost {
+  id: string;
+  groupId: string;
+  authorId: string;
+  author: User;
+  title: string;
+  content: string;
+  imagePath?: string;
+  commentsCount: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface GroupPostComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  author: User;
+  content: string;
+  imagePath?: string;
+  createdAt: string;
 }
