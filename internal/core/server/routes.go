@@ -96,6 +96,13 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/members", require(h.GetGroupMembers))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/requests/pending", require(h.GetPendingJoinRequests))
 	}
+
+	// Event routes
+	if h := s.handlers.Event; h != nil {
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/events", require(h.CreateEvent))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/events", require(h.ListGroupEvents))
+		s.mux.HandleFunc("POST "+api+"/events/{eventId}/respond", require(h.RespondToEvent))
+	}
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
