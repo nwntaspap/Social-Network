@@ -216,12 +216,12 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-B (Backend B)
 
-- [ ] **S4-BE-77:** Event: Entities & Repository Interface
-- [ ] **S4-BE-78:** Event: SQLite Store
-- [ ] **S4-BE-79:** Event: Create Event Command
-- [ ] **S4-BE-80:** Event: RSVP Command
-- [ ] **S4-BE-81:** Event: List Group Events Query
-- [ ] **S4-BE-82:** Event: HTTP Transport Routing
+- [x] **S4-BE-77:** Event: Entities & Repository Interface
+- [x] **S4-BE-78:** Event: SQLite Store
+- [x] **S4-BE-79:** Event: Create Event Command
+- [x] **S4-BE-80:** Event: RSVP Command
+- [x] **S4-BE-81:** Event: List Group Events Query
+- [x] **S4-BE-82:** Event: HTTP Transport Routing
 
 ### FE-A (Frontend A)
 
