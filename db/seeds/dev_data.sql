@@ -1,69 +1,172 @@
--- Users
-INSERT OR IGNORE INTO users (id, email, username, password_hash) VALUES
-('df16d238-e4dd-4645-9101-54aed9c0fbf4','dev1@forum.test', 'dev_user1', '150000$ZGV2c2FsdDEyMw==$bXzDzL8hQN1qV7z6X0Xj3a8l6y1wY0s3J7xKt8fHfE4='),
-('000dec3a-51af-4e7c-ae0c-21436a0a2395','dev2@forum.test', 'dev_user2', '150000$ZGV2c2FsdDEyMw==$bXzDzL8hQN1qV7z6X0Xj3a8l6y1wY0s3J7xKt8fHfE4='),
-('f1433622-9c10-44e5-94b1-1f6a148c9131','admin@forum.test', 'forum_admin', '150000$YWRtaW5zYWx0$c2VjcmV0YWRtaW5oYXNo');
+-- Seed data for development
+-- All users have password: password123
+-- Idempotent: uses INSERT OR IGNORE for all inserts
 
--- Sessions
-INSERT OR IGNORE INTO sessions (token, user_id, expires_at, refresh_token, refresh_token_expires_at) VALUES
-('dev_session_token_1', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', DATETIME('now', '+7 days'), 'dev_refresh_token_1', DATETIME('now', '+30 days')),
-('dev_session_token_2', '000dec3a-51af-4e7c-ae0c-21436a0a2395', DATETIME('now', '+7 days'), 'dev_refresh_token_2', DATETIME('now', '+30 days')),
-('dev_session_token_3', 'f1433622-9c10-44e5-94b1-1f6a148c9131', DATETIME('now', '+7 days'), 'dev_refresh_token_3', DATETIME('now', '+30 days'));
+BEGIN TRANSACTION;
 
--- Categories
-INSERT OR IGNORE INTO categories (name, description, created_by, color, slug, image_path) VALUES
-('Get started', 'New to the forum? Here’s what you need to know.', 'df16d238-e4dd-4645-9101-54aed9c0fbf4','FA6400', 'get-started', 'static/images/categories/get_started.png'),
-('Newsroom', 'A place for announcements, AMA events and sneak previews of what’s next.', '000dec3a-51af-4e7c-ae0c-21436a0a2395', '00D16E', 'newsroom', 'static/images/categories/newsroom.png'),
-('Share your Knowledge', 'Ask questions, show off your Sketch skills, or simply browse around.', 'f1433622-9c10-44e5-94b1-1f6a148c9131', 'B24DFF', 'share-your-knowledge', 'static/images/categories/share_your_knowledge.png');
+------------------------------------------------------------
+-- USERS (5)
+------------------------------------------------------------
+INSERT OR IGNORE INTO users (id, username, email, password_hash, first_name, last_name, avatar_url, date_of_birth, about_me, is_private)
+VALUES
+  ('550e8400-e29b-41d4-a716-446655440001', 'alice',   'alice@example.com',   '$2a$12$oA6qQvZF9zHXLjnsqWDvfe6dLmRxnw8uUI5N0zrA1ErAR3tyyUdB6', 'Alice',   'Smith',   'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',   '1990-05-15', 'Admin and community leader', 0),
+  ('550e8400-e29b-41d4-a716-446655440002', 'bob',     'bob@example.com',     '$2a$12$oA6qQvZF9zHXLjnsqWDvfe6dLmRxnw8uUI5N0zrA1ErAR3tyyUdB6', 'Bob',     'Johnson', 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob',     '1992-08-22', 'Tech enthusiast and writer', 0),
+  ('550e8400-e29b-41d4-a716-446655440003', 'charlie', 'charlie@example.com', '$2a$12$oA6qQvZF9zHXLjnsqWDvfe6dLmRxnw8uUI5N0zrA1ErAR3tyyUdB6', 'Charlie', 'Brown',   'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie', '1988-12-01', 'Private account holder', 1),
+  ('550e8400-e29b-41d4-a716-446655440004', 'diana',   'diana@example.com',   '$2a$12$oA6qQvZF9zHXLjnsqWDvfe6dLmRxnw8uUI5N0zrA1ErAR3tyyUdB6', 'Diana',   'Prince',  'https://api.dicebear.com/7.x/avataaars/svg?seed=diana',   '1995-03-10', 'Event organizer and traveler', 0),
+  ('550e8400-e29b-41d4-a716-446655440005', 'eve',     'eve@example.com',     '$2a$12$oA6qQvZF9zHXLjnsqWDvfe6dLmRxnw8uUI5N0zrA1ErAR3tyyUdB6', 'Eve',     'Adams',   'https://api.dicebear.com/7.x/avataaars/svg?seed=eve',     '1993-07-28', 'New member excited to join!', 0);
 
--- Topics
-INSERT OR IGNORE INTO topics (user_id, title, content, image_path) VALUES
-('df16d238-e4dd-4645-9101-54aed9c0fbf4', 'Welcome to the Forum', 'This is a sample topic created for testing purposes.', '/static/images/sample.jpg'),
-('000dec3a-51af-4e7c-ae0c-21436a0a2395', 'Feedback on New Features', 'What do you think about the new features?', '/static/images/sample.jpg'),
-('f1433622-9c10-44e5-94b1-1f6a148c9131', 'Forum Guidelines', 'Please read the forum guidelines before posting.', '/static/images/sample.jpg');
+------------------------------------------------------------
+-- TOPICS (8) — id is INTEGER AUTOINCREMENT, not UUID
+------------------------------------------------------------
+INSERT OR IGNORE INTO topics (user_id, title, content, image_path, visibility, group_id)
+VALUES
+  ('550e8400-e29b-41d4-a716-446655440001', 'Welcome to the Forum!',        'This is the official welcome topic. Introduce yourself here!',                  NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440002', 'Go vs Rust: Performance',       'Let''s discuss the performance characteristics of Go and Rust.',                 NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440003', 'My Private Thoughts',           'This is a private topic just for me.',                                          NULL, 1, NULL),
+  ('550e8400-e29b-41d4-a716-446655440001', 'Community Guidelines',           'Please read and follow these guidelines when posting.',                        NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440004', 'Upcoming Hackathon',            'Join us for a weekend hackathon! Sign up below.',                               NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440002', 'Best VS Code Extensions',       'Share your favorite VS Code extensions for productivity.',                      NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440005', 'New Member Questions',          'Got questions? Ask them here and the community will help.',                     NULL, 0, NULL),
+  ('550e8400-e29b-41d4-a716-446655440001', 'Alice''s Group Topic',          'This topic belongs to the Go Devs group.',                                      NULL, 0, '770e8400-e29b-41d4-a716-446655440001');
 
--- Topics/Categories Junction
-INSERT OR IGNORE INTO topic_categories (topic_id, category_id) VALUES
-(1,1),
-(1,2),
-(2,2),
-(3,3);
+------------------------------------------------------------
+-- COMMENTS (10) — id is INTEGER AUTOINCREMENT
+------------------------------------------------------------
+INSERT OR IGNORE INTO comments (user_id, topic_id, content, image_path)
+VALUES
+  ('550e8400-e29b-41d4-a716-446655440002', 1, 'Hey everyone! Excited to be here.',              NULL),
+  ('550e8400-e29b-41d4-a716-446655440004', 1, 'Welcome Bob! Glad to have you.',                  NULL),
+  ('550e8400-e29b-41d4-a716-446655440001', 2, 'Rust has better memory safety guarantees.',       NULL),
+  ('550e8400-e29b-41d4-a716-446655440004', 2, 'Go is simpler to learn though.',                  NULL),
+  ('550e8400-e29b-41d4-a716-446655440005', 2, 'I''m just starting to learn both!',               NULL),
+  ('550e8400-e29b-41d4-a716-446655440002', 4, 'Great guidelines, very clear.',                   NULL),
+  ('550e8400-e29b-41d4-a716-446655440001', 5, 'Count me in for the hackathon!',                  NULL),
+  ('550e8400-e29b-41d4-a716-446655440002', 5, 'What are the rules? Any theme?',                 NULL),
+  ('550e8400-e29b-41d4-a716-446655440001', 6, 'GitLens is a must-have for any project.',         NULL),
+  ('550e8400-e29b-41d4-a716-446655440005', 6, 'Thanks for the recommendations!',                 NULL);
 
--- Comments
-INSERT OR IGNORE INTO comments (user_id, topic_id, content) VALUES
-('f1433622-9c10-44e5-94b1-1f6a148c9131', 1, 'This is a comment on the welcome topic.'),
-('000dec3a-51af-4e7c-ae0c-21436a0a2395', 2, 'I really like the new features!'),
-('f1433622-9c10-44e5-94b1-1f6a148c9131', 3, 'These guidelines are very helpful.');
+------------------------------------------------------------
+-- VOTES (12) — id is INTEGER AUTOINCREMENT, column is reaction_type
+------------------------------------------------------------
+INSERT OR IGNORE INTO votes (user_id, topic_id, comment_id, reaction_type)
+VALUES
+  -- Topic votes
+  ('550e8400-e29b-41d4-a716-446655440002', 1,  NULL, 1),
+  ('550e8400-e29b-41d4-a716-446655440003', 1,  NULL, 1),
+  ('550e8400-e29b-41d4-a716-446655440001', 2,  NULL, 1),
+  ('550e8400-e29b-41d4-a716-446655440004', 2,  NULL, 1),
+  ('550e8400-e29b-41d4-a716-446655440005', 2,  NULL, -1),
+  ('550e8400-e29b-41d4-a716-446655440002', 4,  NULL, 1),
+  ('550e8400-e29b-41d4-a716-446655440001', 5,  NULL, 1),
+  -- Comment votes
+  ('550e8400-e29b-41d4-a716-446655440001', NULL, 1, 1),
+  ('550e8400-e29b-41d4-a716-446655440004', NULL, 3, 1),
+  ('550e8400-e29b-41d4-a716-446655440002', NULL, 4, 1),
+  ('550e8400-e29b-41d4-a716-446655440003', NULL, 5, 1),
+  ('550e8400-e29b-41d4-a716-446655440001', NULL, 9, 1);
 
--- Votes
-INSERT OR IGNORE INTO votes (user_id, topic_id, comment_id, reaction_type) VALUES
-('df16d238-e4dd-4645-9101-54aed9c0fbf4', NULL, 3, 1),
-('df16d238-e4dd-4645-9101-54aed9c0fbf4', 1, NULL, 1),
-('000dec3a-51af-4e7c-ae0c-21436a0a2395', 2, NULL, 1),
-('f1433622-9c10-44e5-94b1-1f6a148c9131', 3, NULL, -1),
-('000dec3a-51af-4e7c-ae0c-21436a0a2395', 1, NULL, 1),
-('f1433622-9c10-44e5-94b1-1f6a148c9131', 1, NULL, -1);
+------------------------------------------------------------
+-- FOLLOWS (7)
+------------------------------------------------------------
+INSERT OR IGNORE INTO follows (follower_id, followee_id, created_at)
+VALUES
+  ('550e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', '2025-01-10 09:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', '2025-01-11 10:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', '2025-01-12 11:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440001', '2025-01-13 12:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', '2025-01-14 13:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', '2025-01-15 14:00:00'),
+  ('550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', '2025-01-16 15:00:00');
 
--- Chat Threads (provide explicit IDs)
-INSERT OR IGNORE INTO direct_chats (id, user_low_id, user_high_id, last_message_id, last_message_at) VALUES
-('chat_1', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', '000dec3a-51af-4e7c-ae0c-21436a0a2395', NULL, NULL),
-('chat_2', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', 'f1433622-9c10-44e5-94b1-1f6a148c9131', NULL, NULL),
-('chat_3', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'f1433622-9c10-44e5-94b1-1f6a148c9131', NULL, NULL);
+------------------------------------------------------------
+-- CHATS (2) and MESSAGES (4)
+------------------------------------------------------------
+INSERT OR IGNORE INTO chats (id, user_one_id, user_two_id, created_at)
+VALUES
+  ('990e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', '2025-02-01 10:00:00'),
+  ('990e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440005', '2025-02-02 11:00:00');
 
--- Chat Messages (use the explicit chat IDs as strings)
-INSERT OR IGNORE INTO chat_messages (chat_id, sender_id, content, client_message_id) VALUES
-('chat_1', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', 'Hello, this is a message from dev_user1 to dev_user2.', 'msg1'),
-('chat_1', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'Hi dev_user1, this is a reply from dev_user2.', 'msg2'),
-('chat_2', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', 'Hello, this is a message from dev_user1 to forum_admin.', 'msg3'),
-('chat_2', 'f1433622-9c10-44e5-94b1-1f6a148c9131', 'Hi dev_user1, this is a reply from forum_admin.', 'msg4'),
-('chat_3', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 'Hello, this is a message from dev_user2 to forum_admin.', 'msg5'),
-('chat_3', 'f1433622-9c10-44e5-94b1-1f6a148c9131', 'Hi dev_user2, this is a reply from forum_admin.', 'msg6');
+-- Chat reads (acts as participant tracking)
+INSERT OR IGNORE INTO chat_reads (chat_id, user_id, unread_count, updated_at)
+VALUES
+  ('990e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 0, '2025-02-01 10:00:00'),
+  ('990e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 0, '2025-02-01 10:00:00'),
+  ('990e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 0, '2025-02-02 11:00:00'),
+  ('990e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', 0, '2025-02-02 11:00:00');
 
--- Chat reads (use the explicit chat IDs and message IDs)
-INSERT OR IGNORE INTO chat_reads (chat_id, user_id, last_read_message_id) VALUES
-('chat_1', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', 2),
-('chat_1', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 2),
-('chat_2', 'df16d238-e4dd-4645-9101-54aed9c0fbf4', 4),
-('chat_2', 'f1433622-9c10-44e5-94b1-1f6a148c9131', 4),
-('chat_3', '000dec3a-51af-4e7c-ae0c-21436a0a2395', 6),
-('chat_3', 'f1433622-9c10-44e5-94b1-1f6a148c9131', 6);
+-- Messages (id is INTEGER AUTOINCREMENT)
+INSERT OR IGNORE INTO messages (chat_id, sender_id, content, created_at, client_message_id)
+VALUES
+  -- Chat 1: Alice <-> Bob
+  ('990e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'Hey Bob, welcome to the forum!',   '2025-02-01 10:05:00', 'seed-msg-001'),
+  ('990e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'Thanks Alice! Happy to be here.', '2025-02-01 10:10:00', 'seed-msg-002'),
+  -- Chat 2: Diana <-> Eve
+  ('990e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'Are you joining the hackathon?',   '2025-02-02 11:05:00', 'seed-msg-003'),
+  ('990e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', 'Yes! What''s the theme?',           '2025-02-02 11:10:00', 'seed-msg-004');
+
+------------------------------------------------------------
+-- GROUPS (2)
+------------------------------------------------------------
+INSERT OR IGNORE INTO groups (id, title, description, creator_id)
+VALUES
+  ('770e8400-e29b-41d4-a716-446655440001', 'Go Devs',          'A group for Go developers to share knowledge and projects.', '550e8400-e29b-41d4-a716-446655440001'),
+  ('770e8400-e29b-41d4-a716-446655440002', 'Event Planners',   'Coordinate and plan community events.',                      '550e8400-e29b-41d4-a716-446655440004');
+
+-- Group members
+INSERT OR IGNORE INTO group_members (group_id, user_id, role)
+VALUES
+  ('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+  ('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'member'),
+  ('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440005', 'member'),
+  ('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'admin'),
+  ('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 'member');
+
+-- Group posts (id is TEXT PRIMARY KEY)
+INSERT OR IGNORE INTO group_posts (id, group_id, author_id, title, content, image_path)
+VALUES
+  ('bb0e8400-e29b-41d4-a716-446655440001', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'Go 1.22 Released!',      'Go 1.22 brings some exciting new features including range-over-func.', NULL),
+  ('bb0e8400-e29b-41d4-a716-446655440002', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'Need Help with Goroutines', 'How do you handle goroutine lifecycle management in large apps?', NULL),
+  ('bb0e8400-e29b-41d4-a716-446655440003', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'Hackathon Planning',       'Let''s finalize the schedule for next week''s hackathon.',          NULL);
+
+-- Group post comments (id is TEXT PRIMARY KEY)
+INSERT OR IGNORE INTO group_post_comments (id, post_id, author_id, content, image_path)
+VALUES
+  ('cc0e8400-e29b-41d4-a716-446655440001', 'bb0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'Great news! Can''t wait to try it.', NULL),
+  ('cc0e8400-e29b-41d4-a716-446655440002', 'bb0e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 'Use context.WithCancel and errgroups.', NULL),
+  ('cc0e8400-e29b-41d4-a716-446655440003', 'bb0e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'I''ll handle the opening ceremony.', NULL);
+
+------------------------------------------------------------
+-- EVENTS (1) with OPTIONS and RSVPs
+------------------------------------------------------------
+INSERT OR IGNORE INTO events (id, group_id, creator_id, title, description, event_time)
+VALUES
+  ('dd0e8400-e29b-41d4-a716-446655440001', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'Community Hackathon 2025', 'A weekend hackathon for building cool projects together!', '2025-03-15 09:00:00');
+
+-- Event options (id is TEXT PRIMARY KEY)
+INSERT OR IGNORE INTO event_options (id, event_id, name)
+VALUES
+  ('ee0e8400-e29b-41d4-a716-446655440001', 'dd0e8400-e29b-41d4-a716-446655440001', 'Saturday Morning'),
+  ('ee0e8400-e29b-41d4-a716-446655440002', 'dd0e8400-e29b-41d4-a716-446655440001', 'Saturday Afternoon'),
+  ('ee0e8400-e29b-41d4-a716-446655440003', 'dd0e8400-e29b-41d4-a716-446655440001', 'Sunday Morning');
+
+-- Event RSVPs (no status column in schema)
+INSERT OR IGNORE INTO event_rsvps (event_id, user_id, option_id)
+VALUES
+  ('dd0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', 'ee0e8400-e29b-41d4-a716-446655440001'),
+  ('dd0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'ee0e8400-e29b-41d4-a716-446655440002'),
+  ('dd0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'ee0e8400-e29b-41d4-a716-446655440001'),
+  ('dd0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440005', 'ee0e8400-e29b-41d4-a716-446655440003');
+
+------------------------------------------------------------
+-- NOTIFICATIONS (6) — id is TEXT PRIMARY KEY
+------------------------------------------------------------
+INSERT OR IGNORE INTO notifications (id, user_id, type, source_id, content, is_read, created_at)
+VALUES
+  ('ff0e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'follow',       '550e8400-e29b-41d4-a716-446655440002', 'Bob started following you.',                          0, '2025-01-10 09:00:00'),
+  ('ff0e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 'follow',       '550e8400-e29b-41d4-a716-446655440003', 'Charlie started following you.',                      0, '2025-01-11 10:00:00'),
+  ('ff0e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'comment',      '880e8400-e29b-41d4-a716-446655440002', 'Diana commented on your topic "Welcome to the Forum!"', 0, '2025-01-20 14:00:00'),
+  ('ff0e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', 'comment',      '880e8400-e29b-41d4-a716-446655440003', 'Alice commented on your topic "Go vs Rust: Performance"', 0, '2025-01-21 15:00:00'),
+  ('ff0e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440004', 'group_invite', '770e8400-e29b-41d4-a716-446655440001', 'Alice invited you to group "Go Devs".',              0, '2025-01-22 16:00:00'),
+  ('ff0e8400-e29b-41d4-a716-446655440006', '550e8400-e29b-41d4-a716-446655440001', 'event',        'dd0e8400-e29b-41d4-a716-446655440001', 'Diana created event "Community Hackathon 2025".',     0, '2025-02-01 12:00:00');
+
+COMMIT;
