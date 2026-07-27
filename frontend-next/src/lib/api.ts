@@ -79,8 +79,9 @@ async function apiFetch<T = unknown>(path: string, options: RequestOptions = {})
   const response = await fetch(url, mergedOptions);
   const text = await response.text();
 
-  if (response.status === 401 && path === '/auth/me' && typeof window !== 'undefined') {
-    window.location.href = '/login';
+  // Check first response header
+  if (response.status === 401) {
+    handleUnauthorized();
     throw new ApiError(401, 'Session expired');
   }
 
@@ -109,6 +110,14 @@ async function apiFetch<T = unknown>(path: string, options: RequestOptions = {})
   }
 
   return body as T;
+}
+
+// ─── Check Backend Session Expiration ──────────────────────────────────────────────────────
+
+function handleUnauthorized() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth:logout'));
+  }
 }
 
 // ─── Convenience methods ──────────────────────────────────────────────────────

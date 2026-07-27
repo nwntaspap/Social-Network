@@ -17,7 +17,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { ApiError, getCurrentUser } from '@/lib/api';
 import { User } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     inflightRef.current = (async () => {
       try {
-        const me = await api.get<User>('/me');
+        const me = await getCurrentUser();
         setUserState(me);
       } catch (err) {
         if (err instanceof ApiError && err.isUnauthorized) {
@@ -71,11 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return inflightRef.current;
   }, []);
 
-  // Resolve once on mount — mirrors authMiddleware() called at app boot
-  useEffect(() => {
-    resolve();
-  }, [resolve]);
-
   const setUser = useCallback((u: User) => {
     setUserState(u);
     setLoading(false);
@@ -89,6 +84,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     setLoading(true);
     await resolve();
+  }, [resolve]);
+
+  // Run this on mount, to globally add an listener for 401 response from the backend
+  useEffect(() => {
+    const logoutHandler = () => {
+      clearUser();
+    };
+
+    window.addEventListener('auth:logout', logoutHandler);
+
+    return () => {
+      window.removeEventListener('auth:logout', logoutHandler);
+    };
+  }, [clearUser]);
+
+  // Resolve once on mount — mirrors authMiddleware() called at app boot
+  useEffect(() => {
+    resolve();
   }, [resolve]);
 
   return (

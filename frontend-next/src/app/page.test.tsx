@@ -26,6 +26,16 @@ vi.mock('@/lib/api', () => ({
       createdAt: '2024-01-01',
     }),
   },
+  getCurrentUser: vi.fn().mockResolvedValue({
+    id: '1',
+    email: 'test@test.com',
+    username: 'testuser',
+    firstName: 'Test',
+    lastName: 'User',
+    dateOfBirth: '1990-01-01',
+    isPublic: true,
+    createdAt: '2024-01-01',
+  }),
   ApiError: class ApiError extends Error {
     status: number;
     constructor(status: number, message: string) {

@@ -17,7 +17,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { api } from '@/lib/api';
+import { logout } from '@/lib/api';
 
 export default function Navbar() {
   const { user, clearUser } = useAuth();
@@ -92,7 +92,7 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
 
   async function handleLogout() {
     try {
-      await api.post('/logout');
+      await logout();
     } catch (err) {
       console.warn('Backend logout failed, clearing client state anyway:', err);
     }
@@ -185,7 +185,7 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
               ))}
 
               <li className="nav-link nav-link-create">
-                <Link href="/topics/create">New Post</Link>
+                <Link href="/create">New Post</Link>
               </li>
 
               <li className="nav-link">

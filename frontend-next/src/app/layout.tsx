@@ -7,14 +7,12 @@ import '../styles/base.css';
 import '../styles/layout.css';
 import '../styles/navbar.css';
 import '../styles/activity.css';
-import '../styles/category.css';
 import '../styles/chat.css';
 import '../styles/create-post.css';
-import '../styles/filter-pagination.css';
 import '../styles/signup-login.css';
-import '../styles/topic.css';
 import '../styles/home.css';
 import '../styles/groups.css';
+import '../styles/post.css';
 
 // Configure Rubik font
 const rubik = Rubik({
