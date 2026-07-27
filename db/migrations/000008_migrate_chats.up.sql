@@ -1,0 +1,1 @@
+-- No-op: tables already present in 000001_initial_schema

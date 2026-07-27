@@ -2,12 +2,8 @@ version: 3
 workdir: internal
 
 excludeFiles:
-  - ".*internal/app/.*"
-  - ".*internal/domain/.*"
-  - ".*internal/infra/.*"
-  - ".*internal/pkg/.*"
   - ".*internal/storecontracts/.*"
-
+  - ".*internal/bootstrap/.*"
 
 components:
   # Feature slices
@@ -22,21 +18,25 @@ components:
   oauth_slice:        { in: oauth/** }
 
   # Cross-cutting
-  core:      { in: core/** }
-  platform:  { in: platform/** }
-  pkg:       { in: pkg/** }
-  bootstrap: { in: bootstrap/** }
-  config:    { in: config/** }
-  gates:     { in: gates/** }
+  core:       { in: core/** }
+  platform:   { in: platform/** }
+  pkg:        { in: pkg/** }
+  config:     { in: config/** }
+  gates:      { in: gates/** }
+
+  # Legacy layers (being migrated to slices)
+  infra:      { in: infra/** }
+  domain:     { in: domain/** }
+  app:        { in: app/** }
 
 deps:
   # D6 dependency DAG
-  user_slice:         { mayDependOn: [user_slice, core, platform, pkg] }
+  user_slice:         { mayDependOn: [user_slice, core, platform, pkg, follow_slice, topic_slice, comment_slice] }
   follow_slice:       { mayDependOn: [follow_slice, core, platform, pkg] }
   topic_slice:        { mayDependOn: [topic_slice, core, platform, pkg] }
   comment_slice:      { mayDependOn: [comment_slice, core, platform, pkg] }
-  group_slice:        { mayDependOn: [group_slice, core, platform, pkg, bootstrap] }
-  event_slice:        { mayDependOn: [event_slice, group_slice, core, platform, pkg, bootstrap] }
+  group_slice:        { mayDependOn: [group_slice, core, platform, pkg] }
+  event_slice:        { mayDependOn: [event_slice, group_slice, core, platform, pkg] }
   chat_slice:         { mayDependOn: [chat_slice, core, platform, pkg] }
   notification_slice: { mayDependOn: [core, platform, pkg] }
   oauth_slice:        { mayDependOn: [oauth_slice, core, platform, pkg], anyVendorDeps: true }
@@ -46,5 +46,9 @@ deps:
   platform:   { anyProjectDeps: true, anyVendorDeps: true }
   pkg:        { anyProjectDeps: true, anyVendorDeps: true }
   config:     { anyProjectDeps: true, anyVendorDeps: true }
-  bootstrap:  { anyProjectDeps: true, anyVendorDeps: true }
   gates:      { anyProjectDeps: true, anyVendorDeps: true }
+
+  # Legacy layers — unrestricted
+  infra:      { anyProjectDeps: true, anyVendorDeps: true }
+  domain:     { anyProjectDeps: true, anyVendorDeps: true }
+  app:        { anyProjectDeps: true, anyVendorDeps: true }

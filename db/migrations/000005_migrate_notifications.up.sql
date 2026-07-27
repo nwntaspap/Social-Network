@@ -1,0 +1,1 @@
+-- No-op: notifications table already present in 000001_initial_schema
