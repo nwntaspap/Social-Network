@@ -45,6 +45,12 @@ func (s *SQLiteStore) CreateTopic(ctx context.Context, t *topic.Topic, allowedUs
 	}
 	t.ID = int(id)
 
+	err = tx.QueryRowContext(ctx,
+		`SELECT created_at FROM topics WHERE id = ?`, t.ID).Scan(&t.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("read created_at: %w", err)
+	}
+
 	if len(allowedUserIDs) > 0 {
 		stmt, err := tx.PrepareContext(ctx,
 			`INSERT INTO topic_allowed_users (topic_id, user_id) VALUES (?, ?)`)
@@ -170,11 +176,12 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 	var t topic.Topic
 	var userVote sql.NullInt32
 	var groupID sql.NullString
+	var updatedAt sql.NullTime
 
 	scanFields := []any{
 		&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
 		&t.Visibility, &groupID,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.CreatedAt, &updatedAt,
 		&t.OwnerUsername,
 		&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
 	}
@@ -193,6 +200,7 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 	if groupID.Valid {
 		t.GroupID = &groupID.String
 	}
+	t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
 	if userID != nil && userVote.Valid {
 		v := int(userVote.Int32)
 		t.UserVote = &v
@@ -213,18 +221,4 @@ func (s *SQLiteStore) GetImagePathFromTopicID(ctx context.Context, topicID int, 
 		return "", nil
 	}
 	return p.String, nil
-}
-
-func (s *SQLiteStore) GetPostCount(ctx context.Context, userID string) (int, error) {
-	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM topics WHERE user_id = ?`, userID).Scan(&count)
-	return count, err
-}
-
-func (s *SQLiteStore) GetVoteCount(ctx context.Context, userID string) (int, error) {
-	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM votes WHERE user_id = ?`, userID).Scan(&count)
-	return count, err
 }

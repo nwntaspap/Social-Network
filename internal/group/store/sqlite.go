@@ -22,6 +22,11 @@ func (s *SQLiteStore) CreateGroup(ctx context.Context, g *group.Group) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO groups (id, title, description, creator_id) VALUES (?, ?, ?, ?)`,
 		g.ID, g.Title, g.Description, g.CreatorID)
+	if err != nil {
+		return err
+	}
+	err = s.db.QueryRowContext(ctx,
+		`SELECT created_at FROM groups WHERE id = ?`, g.ID).Scan(&g.CreatedAt)
 	return err
 }
 
@@ -34,10 +39,11 @@ func (s *SQLiteStore) AddMember(ctx context.Context, groupID, userID string, rol
 
 func (s *SQLiteStore) GetGroupByID(ctx context.Context, groupID string) (*group.Group, error) {
 	var g group.Group
+	var updatedAt sql.NullTime
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, title, description, creator_id, created_at, updated_at
 		 FROM groups WHERE id = ?`, groupID).Scan(
-		&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &g.UpdatedAt,
+		&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -45,6 +51,7 @@ func (s *SQLiteStore) GetGroupByID(ctx context.Context, groupID string) (*group.
 		}
 		return nil, fmt.Errorf("get group: %w", err)
 	}
+	g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
 	return &g, nil
 }
 
@@ -177,9 +184,11 @@ func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID string, pag
 	var posts []group.Post
 	for rows.Next() {
 		var p group.Post
-		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &p.ImagePath, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &p.ImagePath, &p.CreatedAt, &updatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan group post: %w", err)
 		}
+		p.UpdatedAt = database.ResolveTime(updatedAt, p.CreatedAt)
 		posts = append(posts, p)
 	}
 	return posts, total, rows.Err()
@@ -242,9 +251,11 @@ func (s *SQLiteStore) ListGroups(ctx context.Context, page, size int) ([]group.G
 	var groups []group.Group
 	for rows.Next() {
 		var g group.Group
-		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan group: %w", err)
 		}
+		g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
 		groups = append(groups, g)
 	}
 	return groups, total, rows.Err()
