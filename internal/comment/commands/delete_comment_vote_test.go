@@ -112,3 +112,7 @@ func (m *mockDeleteVoteRepo) DeleteCommentVote(_ context.Context, _ string, _ in
 func (m *mockDeleteVoteRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts, error) {
 	return &comment.VoteCounts{}, nil
 }
+
+func (m *mockDeleteVoteRepo) GetCommentCount(_ context.Context, _ string) (int, error) {
+	return 0, nil
+}

@@ -43,6 +43,7 @@ func initComment(db database.DB) *commenttransport.Handler {
 		commentcommands.NewUpdateCommentHandler(store),
 		commentcommands.NewDeleteCommentHandler(store),
 		commentcommands.NewCastCommentVoteHandler(store, bus),
+		commentcommands.NewDeleteCommentVoteHandler(store, bus),
 		commentqueries.NewGetCommentByIDResolver(store),
 		commentqueries.NewGetCommentByIDWithVotesResolver(store),
 		commentqueries.NewGetCommentsByTopicResolver(store),
