@@ -263,3 +263,10 @@ func nullStr(s string) any {
 	}
 	return s
 }
+
+func (s *SQLiteStore) GetCommentCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM comments WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
+}

@@ -40,3 +40,6 @@ func (m *mockRepo) GetPendingRequests(_ context.Context, _ string) ([]follow.Req
 func (m *mockRepo) AreConnected(_ context.Context, _, _ string) (bool, error) {
 	return m.areConnectedResult, m.areConnectedErr
 }
+
+func (m *mockRepo) GetFollowerCount(_ context.Context, _ string) (int, error)  { return 0, nil }
+func (m *mockRepo) GetFollowingCount(_ context.Context, _ string) (int, error) { return 0, nil }

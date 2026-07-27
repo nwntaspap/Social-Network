@@ -52,6 +52,8 @@ func (m *mockRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts,
 	return &comment.VoteCounts{}, nil
 }
 
+func (m *mockRepo) GetCommentCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 var (
 	validPNG  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00}
 	badHeader = []byte{0x00, 0x01, 0x02, 0x03}

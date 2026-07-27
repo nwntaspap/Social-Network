@@ -41,6 +41,9 @@ func (m *mockRepo) AreConnected(_ context.Context, _, _ string) (bool, error) {
 	return false, nil
 }
 
+func (m *mockRepo) GetFollowerCount(_ context.Context, _ string) (int, error)  { return 0, nil }
+func (m *mockRepo) GetFollowingCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 type mockPrivacy struct {
 	isPrivate bool
 	err       error

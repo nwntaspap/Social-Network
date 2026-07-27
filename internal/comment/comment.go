@@ -46,4 +46,5 @@ type Repository interface {
 	GetCommentsByTopicIDWithVotes(ctx context.Context, topicID int, userID *string) ([]Comment, error)
 	CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error
 	GetVoteCounts(ctx context.Context, commentID int) (*VoteCounts, error)
+	GetCommentCount(ctx context.Context, userID string) (int, error)
 }

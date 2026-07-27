@@ -41,6 +41,8 @@ func (m *mockVoteRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCou
 	return m.getCountsResult, m.getCountsErr
 }
 
+func (m *mockVoteRepo) GetCommentCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestCastCommentVote_Success(t *testing.T) {
 	repo := &mockVoteRepo{}
 	h := NewCastCommentVoteHandler(repo, &mockBus{})

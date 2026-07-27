@@ -214,3 +214,17 @@ func (s *SQLiteStore) GetImagePathFromTopicID(ctx context.Context, topicID int, 
 	}
 	return p.String, nil
 }
+
+func (s *SQLiteStore) GetPostCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM topics WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
+}
+
+func (s *SQLiteStore) GetVoteCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM votes WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
+}

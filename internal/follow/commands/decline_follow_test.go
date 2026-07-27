@@ -40,6 +40,10 @@ func (m *declineMockRepo) AreConnected(_ context.Context, _, _ string) (bool, er
 	return false, nil
 }
 
+func (m *declineMockRepo) GetFollowerCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
+func (m *declineMockRepo) GetFollowingCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestDeclineRequestHandler_Success(t *testing.T) {
 	repo := &declineMockRepo{}
 	bus := &mockBus{}

@@ -72,4 +72,6 @@ type Repository interface {
 	CastVote(ctx context.Context, userID string, topicID int, reactionType int) error
 	DeleteVote(ctx context.Context, userID string, topicID int) error
 	GetVoteCounts(ctx context.Context, topicID int) (*VoteCounts, error)
+	GetPostCount(ctx context.Context, userID string) (int, error)
+	GetVoteCount(ctx context.Context, userID string) (int, error)
 }
