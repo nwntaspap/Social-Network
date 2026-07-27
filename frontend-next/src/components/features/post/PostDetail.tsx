@@ -139,12 +139,12 @@ export default function PostDetail() {
       prev.map((c) =>
         c.id === comment.id
           ? {
-              ...c,
-              userVote: newUserVote,
-              upvoteCount: Math.max(0, prevUp + deltaUp),
-              downvoteCount: Math.max(0, prevDown + deltaDown),
-              voteScore: prevUp + deltaUp - (prevDown + deltaDown),
-            }
+            ...c,
+            userVote: newUserVote,
+            upvoteCount: Math.max(0, prevUp + deltaUp),
+            downvoteCount: Math.max(0, prevDown + deltaDown),
+            voteScore: prevUp + deltaUp - (prevDown + deltaDown),
+          }
           : c
       )
     );
@@ -156,12 +156,12 @@ export default function PostDetail() {
         prev.map((c) =>
           c.id === comment.id
             ? {
-                ...c,
-                userVote: prevUserVote,
-                upvoteCount: prevUp,
-                downvoteCount: prevDown,
-                voteScore: prevUp - prevDown,
-              }
+              ...c,
+              userVote: prevUserVote,
+              upvoteCount: prevUp,
+              downvoteCount: prevDown,
+              voteScore: prevUp - prevDown,
+            }
             : c
         )
       );

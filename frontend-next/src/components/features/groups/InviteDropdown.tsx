@@ -7,6 +7,8 @@ import { getGroupMembers, inviteToGroup, searchUsers } from '@/lib/api';
 import type { User } from '@/lib/types';
 import Image from 'next/image';
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
+import { mockGroupInvitations } from '@/mocks/group-invitations';
+import { mockGroups } from '@/mocks/groups';
 
 interface InviteDropdownProps {
   groupId: string;
@@ -69,6 +71,23 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
       </div>
     );
   }
+
+  if (isLoading) {
+    return (
+      <div className="group-dropdown details-user">
+        <div className="group-dropdown-header">
+          <span>Invite User</span>
+          <button className="group-dropdown-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="search-no-results">Loading...</div>
+      </div>
+    );
+  }
+
+  // Combine ALL users for search: suggested users + search results
+  const allUsers = [...suggestedUsers, ...searchResults];
 
   return (
     <div className="group-dropdown details-user">
