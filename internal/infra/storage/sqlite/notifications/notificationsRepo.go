@@ -2,17 +2,17 @@ package notifications
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"social-network/internal/domain/notification"
+	"social-network/internal/platform/database"
 )
 
 type Repo struct {
-	DB *sql.DB
+	DB database.DB
 }
 
-func NewRepo(db *sql.DB) *Repo {
+func NewRepo(db database.DB) *Repo {
 	return &Repo{DB: db}
 }
 

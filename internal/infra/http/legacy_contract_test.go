@@ -169,7 +169,8 @@ func newLegacyServer(t *testing.T, cfg *config.ServerConfig) *Server {
 		Logger:         log,
 		Hub:            hub,
 		Notifier:       ntf,
-		OAuth:          minOAuth,
+		OAuth:          nil,
+		LegacyOAuth:    minOAuth,
 		// Follow, FileStorage, Services — zero-valued,
 		// registered routes will panic if invoked but contract tests
 		// register their own test routes on the mux.

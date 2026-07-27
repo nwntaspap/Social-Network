@@ -8,13 +8,14 @@ import (
 
 	"social-network/internal/domain/oauth"
 	"social-network/internal/domain/user"
+	"social-network/internal/platform/database"
 )
 
 type Repo struct {
-	db *sql.DB
+	db database.DB
 }
 
-func NewOAuthRepository(db *sql.DB) *Repo {
+func NewOAuthRepository(db database.DB) *Repo {
 	return &Repo{db: db}
 }
 
