@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 
 	"social-network/internal/core/middleware"
@@ -11,11 +10,12 @@ import (
 	eventqueries "social-network/internal/event/queries"
 	eventstore "social-network/internal/event/store"
 	eventtransport "social-network/internal/event/transport"
+	"social-network/internal/platform/database"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initEvent(db *sql.DB) *eventtransport.Handler {
+func initEvent(db database.DB) *eventtransport.Handler {
 	store := eventstore.NewSQLiteStore(db)
 	bus := &eventEventBus{}
 	groupMember := &groupMemberChecker{db: db}
@@ -46,7 +46,7 @@ func (b *eventEventBus) Publish(_ context.Context, _ string, _ any) error {
 }
 
 type groupMemberChecker struct {
-	db *sql.DB
+	db database.DB
 }
 
 func (c *groupMemberChecker) IsMember(ctx context.Context, groupID, userID string) (bool, error) {

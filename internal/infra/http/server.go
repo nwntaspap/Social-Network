@@ -92,7 +92,7 @@ func NewServer(cfg *config.ServerConfig, app *bootstrap.App) *Server {
 		appServices:    app.Services,
 		config:         cfg,
 		logger:         app.Logger,
-		oauth:          app.OAuth,
+		oauth:          app.LegacyOAuth,
 		cookieManager:  app.CookieManager,
 		sessionManager: app.SessionManager,
 		middleware:     app.Middlware,

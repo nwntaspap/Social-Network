@@ -7,7 +7,7 @@ import (
 	"social-network/internal/bootstrap"
 	"social-network/internal/config"
 	coreserver "social-network/internal/core/server"
-	"social-network/internal/infra/storage/sqlite"
+	"social-network/internal/platform/database"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Configuration error: %v", err)
 	}
 
-	db, err := sqlite.InitializeDB(*cfg)
+	db, err := database.InitDB(*cfg)
 	if err != nil {
 		log.Fatalf("Database error: %v", err)
 	}
@@ -29,8 +29,14 @@ func main() {
 		coreserver.WithCORS(cfg.AllowedOrigins),
 		coreserver.WithAuth(app.SessionStore, cfg.SessionManager.AccessCookieName),
 		coreserver.WithHandlers(&coreserver.AllHandlers{
-			Follow: app.Follow,
-			Chat:   app.Chat,
+			User:    app.User,
+			Follow:  app.Follow,
+			Chat:    app.Chat,
+			Comment: app.Comment,
+			Topic:   app.Topic,
+			Group:   app.Group,
+			Event:   app.Event,
+			OAuth:   app.OAuth,
 		}),
 	)
 

@@ -1,13 +1,12 @@
 package bootstrap
 
 import (
-	"database/sql"
 	"os"
-	"time"
 
 	"social-network/internal/app"
 	"social-network/internal/app/topics"
 	chattransport "social-network/internal/chat/transport"
+	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/config"
 	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/domain/session"
@@ -21,78 +20,69 @@ import (
 	"social-network/internal/infra/storage/sessionstore"
 	"social-network/internal/infra/storage/sqlite"
 	"social-network/internal/infra/ws"
-	"social-network/internal/pkg/oAuth/githubclient"
-	"social-network/internal/pkg/oAuth/googleclient"
+	oauthtransport "social-network/internal/oauth/transport"
+	pkgoauth "social-network/internal/pkg/oAuth"
+	"social-network/internal/platform/database"
+	topictransport "social-network/internal/topic/transport"
+	usertransport "social-network/internal/user/transport"
 
 	localstorage "social-network/internal/infra/storage/local"
-
-	oauth "social-network/internal/pkg/oAuth"
 )
-
-const stateManagerDefaultLimit = 10
 
 type App struct {
 	Services       app.Services
+	User           *usertransport.Handler
 	Follow         *followtransport.Handler
 	Chat           *chattransport.Handler
+	Comment        *commenttransport.Handler
+	Topic          *topictransport.Handler
 	Group          *grouptransport.Handler
 	Event          *eventtransport.Handler
+	OAuth          *oauthtransport.Handler
+	LegacyOAuth    *pkgoauth.OAuth
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
 	Middlware      *middleware.Middleware
 	SessionManager session.Manager
 	CookieManager  *authcookies.Manager
 	SessionStore   *coresessionstore.Store
-	OAuth          *oauth.OAuth
 	Logger         logger.Logger
 	FileStorage    topics.FileStorageManager
 }
 
-func Bootstrap(db *sql.DB, cfg *config.ServerConfig) *App {
+func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 	notifier := notifications.NewNotifier()
 	hub := ws.NewHub()
 	sessionManager := sessionstore.NewSessionManager(db, cfg.SessionManager)
+	coreSession := &coreSessionAdapter{inner: sessionManager}
 	cookieManager := authcookies.NewManager(cfg.SessionManager)
 	coreSessionStore := coresessionstore.NewSessionStore(db, coresessionstore.WithExpiry(cfg.SessionManager.DefaultExpiry))
-	middleware := middleware.NewMiddleware(sessionManager, cookieManager)
+	mw := middleware.NewMiddleware(sessionManager, cookieManager)
 	repos := sqlite.NewRepositories(db)
 	fileStorage := localstorage.NewLocalStorage()
 	services := app.NewServices(repos.UserRepo, repos.CategoryRepo, repos.TopicRepo, repos.CommentRepo, repos.VoteRepo, repos.OauthRepo, repos.ActivityRepo, repos.ChatRepo, repos.NotificationRepo, notifier, hub, fileStorage)
-	oAuth := InitOAuth(cfg.OAuth)
 	logger := logger.New(os.Stdout, logger.LevelInfo)
+
+	oauthHandler, legacyOAuth := initOAuth(db, coreSession, cfg.OAuth, cfg.OAuth.FrontendCallbackURL)
+
 	return &App{
 		Services:       services,
+		User:           initUser(db, coreSession),
 		Follow:         initFollow(db),
 		Chat:           initChat(db, hub, repos.UserRepo),
+		Comment:        initComment(db),
+		Topic:          initTopic(db),
 		Group:          initGroup(db),
 		Event:          initEvent(db),
+		OAuth:          oauthHandler,
+		LegacyOAuth:    legacyOAuth,
 		Notifier:       notifier,
 		Hub:            hub,
-		Middlware:      middleware,
+		Middlware:      mw,
 		SessionManager: sessionManager,
 		CookieManager:  cookieManager,
 		SessionStore:   coreSessionStore,
-		OAuth:          oAuth,
 		Logger:         logger,
 		FileStorage:    fileStorage,
-	}
-}
-
-func InitOAuth(cfg config.OAuthConfig) *oauth.OAuth {
-	return &oauth.OAuth{
-		StateManager: oauth.NewStateManager(stateManagerDefaultLimit * time.Minute),
-		GithubProvider: githubclient.NewProvider(
-			cfg.GitHub.ClientID,
-			cfg.GitHub.ClientSecret,
-			cfg.GitHub.RedirectURL,
-			cfg.GitHub.Scopes,
-		),
-		GoogleProvider: googleclient.NewProvider(
-			cfg.Google.ClientID,
-			cfg.Google.ClientSecret,
-			cfg.Google.RedirectURL,
-			cfg.Google.TokenURL,
-			cfg.Google.Scopes,
-		),
 	}
 }

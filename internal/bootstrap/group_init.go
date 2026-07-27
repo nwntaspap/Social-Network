@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 
 	"social-network/internal/core/middleware"
@@ -11,11 +10,12 @@ import (
 	groupqueries "social-network/internal/group/queries"
 	groupstore "social-network/internal/group/store"
 	grouptransport "social-network/internal/group/transport"
+	"social-network/internal/platform/database"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initGroup(db *sql.DB) *grouptransport.Handler {
+func initGroup(db database.DB) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
 
 	bus := &groupEventBus{}
