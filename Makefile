@@ -257,6 +257,10 @@ run-backend: ## Run backend natively
 	@echo "==> Running backend..."
 	go run cmd/server/main.go
 
+run-notifications: ## Run backend natively
+	@echo "==> Running notifications..."
+	cd services/notifications && go run cmd/server/main.go \
+
 run-broker: ## Start the message broker container
 	@echo "📨 Starting broker container on port 5672..."
 	@docker rm -f social-network-broker 2>/dev/null || true
@@ -278,8 +282,9 @@ run-frontend: ## Run frontend natively (Next.js or legacy)
 
 run: ## Run backend + frontend concurrently (native)
 	@trap 'kill 0' EXIT; \
-	$(MAKE) -s run-backend & \
 	$(MAKE) -s run-broker & \
+	$(MAKE) -s run-notifications & \
+	$(MAKE) -s run-backend & \
 	$(MAKE) -s run-frontend
 
 run-all: run ## Alias for run

@@ -65,6 +65,7 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc(api+"/comments/update", require(h.UpdateComment))
 		s.mux.HandleFunc(api+"/comments/delete", require(h.DeleteComment))
 		s.mux.HandleFunc(api+"/comments/vote", require(h.CastCommentVote))
+		s.mux.HandleFunc(api+"/comments/vote/delete", require(h.DeleteCommentVote))
 		s.mux.HandleFunc(api+"/comments/get", h.GetCommentByID)
 		s.mux.HandleFunc(api+"/comments/topic", h.GetCommentsByTopic)
 		s.mux.HandleFunc(api+"/comments/topic/votes", require(h.GetCommentsByTopicWithVotes))

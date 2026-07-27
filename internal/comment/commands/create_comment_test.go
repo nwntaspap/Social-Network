@@ -48,6 +48,10 @@ func (m *mockRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) er
 	return nil
 }
 
+func (m *mockRepo) DeleteCommentVote(_ context.Context, _ string, _ int) error {
+	return nil
+}
+
 func (m *mockRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts, error) {
 	return &comment.VoteCounts{}, nil
 }
@@ -59,9 +63,14 @@ var (
 	badHeader = []byte{0x00, 0x01, 0x02, 0x03}
 )
 
-type mockBus struct{}
+type mockBus struct {
+	eventType string
+}
 
-func (m *mockBus) Publish(_ context.Context, _ string, _ any) error { return nil }
+func (m *mockBus) Publish(_ context.Context, eventType string, _ any) error {
+	m.eventType = eventType
+	return nil
+}
 
 type mockStorage struct {
 	uploaded bool

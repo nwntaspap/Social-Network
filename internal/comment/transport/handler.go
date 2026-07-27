@@ -33,6 +33,10 @@ type CastCommentVoteExecutor interface {
 	Execute(ctx context.Context, cmd commands.CastCommentVoteCommand) error
 }
 
+type DeleteCommentVoteExecutor interface {
+	Execute(ctx context.Context, cmd commands.DeleteCommentVoteCommand) error
+}
+
 type GetCommentByIDResolver interface {
 	Resolve(ctx context.Context, q queries.GetCommentByIDQuery) (*comment.Comment, error)
 }
@@ -117,17 +121,17 @@ func toCommentResponse(c *comment.Comment, user *UserResult) CommentResponse {
 }
 
 type Handler struct {
-	createComment   CreateCommentExecutor
-	updateComment   UpdateCommentExecutor
-	deleteComment   DeleteCommentExecutor
-	castCommentVote CastCommentVoteExecutor
-	getComment      GetCommentByIDResolver
-	getCommentWV    GetCommentByIDWithVotesResolver
-	getByTopic      GetCommentsByTopicResolver
-	getByTopicWV    GetCommentsByTopicWithVotesResolver
-	getCommentVotes GetVoteCountsResolver
-	userLookup      UserLookup
-	extractUser     UserExtractor
+	createComment     CreateCommentExecutor
+	updateComment     UpdateCommentExecutor
+	deleteComment     DeleteCommentExecutor
+	castCommentVote   CastCommentVoteExecutor
+	deleteCommentVote DeleteCommentVoteExecutor
+	getComment        GetCommentByIDResolver
+	getCommentWV      GetCommentByIDWithVotesResolver
+	getByTopic        GetCommentsByTopicResolver
+	getByTopicWV      GetCommentsByTopicWithVotesResolver
+	getCommentVotes   GetVoteCountsResolver
+	extractUser       UserExtractor
 }
 
 func NewHandler(
@@ -137,6 +141,7 @@ func NewHandler(
 	updateComment UpdateCommentExecutor,
 	deleteComment DeleteCommentExecutor,
 	castCommentVote CastCommentVoteExecutor,
+	deleteCommentVote DeleteCommentVoteExecutor,
 	getComment GetCommentByIDResolver,
 	getCommentWV GetCommentByIDWithVotesResolver,
 	getByTopic GetCommentsByTopicResolver,
@@ -144,16 +149,16 @@ func NewHandler(
 	getCommentVotes GetVoteCountsResolver,
 ) *Handler {
 	return &Handler{
-		createComment:   createComment,
-		updateComment:   updateComment,
-		deleteComment:   deleteComment,
-		castCommentVote: castCommentVote,
-		getComment:      getComment,
-		getCommentWV:    getCommentWV,
-		getByTopic:      getByTopic,
-		getByTopicWV:    getByTopicWV,
-		getCommentVotes: getCommentVotes,
-		userLookup:      userLookup,
-		extractUser:     extractUser,
+		createComment:     createComment,
+		updateComment:     updateComment,
+		deleteComment:     deleteComment,
+		castCommentVote:   castCommentVote,
+		deleteCommentVote: deleteCommentVote,
+		getComment:        getComment,
+		getCommentWV:      getCommentWV,
+		getByTopic:        getByTopic,
+		getByTopicWV:      getByTopicWV,
+		getCommentVotes:   getCommentVotes,
+		extractUser:       extractUser,
 	}
 }

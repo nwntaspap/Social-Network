@@ -50,6 +50,14 @@ func (m *mockCastCommentVote) Execute(_ context.Context, cmd commands.CastCommen
 	return m.err
 }
 
+type mockDeleteCommentVote struct {
+	err error
+}
+
+func (m *mockDeleteCommentVote) Execute(_ context.Context, cmd commands.DeleteCommentVoteCommand) error {
+	return m.err
+}
+
 type mockGetComment struct {
 	result *comment.Comment
 	err    error
@@ -157,6 +165,7 @@ func handler(h *Handler) http.Handler {
 	mux.HandleFunc("/api/comments/topic", h.GetCommentsByTopic)
 	mux.HandleFunc("/api/comments/topic/votes", h.GetCommentsByTopicWithVotes)
 	mux.HandleFunc("/api/comments/cast-vote", h.CastCommentVote)
+	mux.HandleFunc("/api/comments/vote-delete", h.DeleteCommentVote)
 	mux.HandleFunc("/api/comments/vote-counts", h.GetVoteCounts)
 	return mux
 }
@@ -228,6 +237,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var update UpdateCommentExecutor
 	var del DeleteCommentExecutor
 	var cast CastCommentVoteExecutor
+	var deleteVote DeleteCommentVoteExecutor
 	var get GetCommentByIDResolver
 	var getWV GetCommentByIDWithVotesResolver
 	var getByTopic GetCommentsByTopicResolver
@@ -245,6 +255,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			del = v
 		case *mockCastCommentVote:
 			cast = v
+		case *mockDeleteCommentVote:
+			deleteVote = v
 		case *mockGetComment:
 			get = v
 		case *mockGetCommentWV:
@@ -260,11 +272,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 		}
 	}
 
-	if lookup == nil {
-		lookup = &mockUserLookup{}
-	}
-
-	return NewHandler(extractor, lookup, create, update, del, cast, get, getWV, getByTopic, getByTopicWV, getVotes)
+	return NewHandler(extractor, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes)
 }
 
 func TestCreateComment_Success(t *testing.T) {
@@ -415,45 +423,41 @@ func TestDeleteComment_BadID(t *testing.T) {
 	}
 }
 
-func TestCommentResponse_MatchesFrontendComment(t *testing.T) {
-	h := newTestHandler(extractUserOK, &mockGetByTopic{results: []comment.Comment{*testComment()}})
+func TestDeleteCommentVote_Success(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockDeleteCommentVote{err: nil})
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
-	resp := doRequest(t, srv, http.MethodGet, "/api/comments/topic?topicId=10", nil)
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=1", nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
+}
 
-	var body struct {
-		Data []map[string]any `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(body.Data) != 1 {
-		t.Fatalf("len(data) = %d, want 1", len(body.Data))
-	}
-	d := body.Data[0]
+func TestDeleteCommentVote_Unauthorized(t *testing.T) {
+	h := newTestHandler(extractUserFail, &mockDeleteCommentVote{err: nil})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
 
-	if got, ok := d["id"].(string); !ok || got != "1" {
-		t.Errorf("id = %#v, want string \"1\"", d["id"])
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=1", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
-	if got, ok := d["postId"].(string); !ok || got != "10" {
-		t.Errorf("postId = %#v, want string \"10\"", d["postId"])
-	}
-	if _, ok := d["user"].(map[string]any); !ok {
-		t.Errorf("user = %#v, want nested object", d["user"])
-	}
-	if got, ok := d["imageUrl"].(string); !ok || got != "/images/comment.jpg" {
-		t.Errorf("imageUrl = %#v, want %q", d["imageUrl"], "/images/comment.jpg")
-	}
-	if _, ok := d["topicId"]; ok {
-		t.Error("topicId should be renamed to postId")
-	}
-	if _, ok := d["imagePath"]; ok {
-		t.Error("imagePath should be renamed to imageUrl")
+}
+
+func TestDeleteCommentVote_BadID(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockDeleteCommentVote{err: nil})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
+
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=abc", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }

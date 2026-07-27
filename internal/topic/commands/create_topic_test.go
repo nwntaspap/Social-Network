@@ -9,13 +9,14 @@ import (
 )
 
 type mockTopicRepo struct {
-	createFn    func(ctx context.Context, t *topic.Topic, allowed []string) error
-	updateFn    func(ctx context.Context, t *topic.Topic, allowed []string) error
-	deleteFn    func(ctx context.Context, userID string, topicID int) error
-	getByIDFn   func(ctx context.Context, id int, userID *string) (*topic.Topic, error)
-	getImageFn  func(ctx context.Context, topicID int, userID string) (string, error)
-	castVoteFn  func(ctx context.Context, userID string, topicID int, reaction int) error
-	getCountsFn func(ctx context.Context, topicID int) (*topic.VoteCounts, error)
+	createFn     func(ctx context.Context, t *topic.Topic, allowed []string) error
+	updateFn     func(ctx context.Context, t *topic.Topic, allowed []string) error
+	deleteFn     func(ctx context.Context, userID string, topicID int) error
+	getByIDFn    func(ctx context.Context, id int, userID *string) (*topic.Topic, error)
+	getImageFn   func(ctx context.Context, topicID int, userID string) (string, error)
+	castVoteFn   func(ctx context.Context, userID string, topicID int, reaction int) error
+	deleteVoteFn func(ctx context.Context, userID string, topicID int) error
+	getCountsFn  func(ctx context.Context, topicID int) (*topic.VoteCounts, error)
 }
 
 func (m *mockTopicRepo) CreateTopic(ctx context.Context, t *topic.Topic, allowed []string) error {
@@ -72,7 +73,14 @@ func (m *mockTopicRepo) CastVote(ctx context.Context, userID string, topicID int
 	}
 	return nil
 }
-func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error { return nil }
+
+func (m *mockTopicRepo) DeleteVote(ctx context.Context, userID string, topicID int) error {
+	if m.deleteVoteFn != nil {
+		return m.deleteVoteFn(ctx, userID, topicID)
+	}
+	return nil
+}
+
 func (m *mockTopicRepo) GetVoteCounts(ctx context.Context, topicID int) (*topic.VoteCounts, error) {
 	if m.getCountsFn != nil {
 		return m.getCountsFn(ctx, topicID)

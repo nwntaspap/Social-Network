@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"social-network/internal/comment"
 	"social-network/internal/platform/database"
@@ -251,6 +252,23 @@ func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commen
 	_, err = s.db.ExecContext(ctx, query, userID, commentID, reactionType)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteCommentVote(ctx context.Context, userID string, commentID int) error {
+	result, err := s.db.ExecContext(ctx,
+		`DELETE FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`,
+		userID, commentID)
+	if err != nil {
+		return fmt.Errorf("delete comment vote: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return comment.ErrVoteNotFound
 	}
 	return nil
 }

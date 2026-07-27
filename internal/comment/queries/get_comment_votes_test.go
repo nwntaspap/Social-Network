@@ -39,6 +39,10 @@ func (m *mockVoteCountsRepo) CastCommentVote(_ context.Context, _ string, _ int,
 	return nil
 }
 
+func (m *mockVoteCountsRepo) DeleteCommentVote(_ context.Context, _ string, _ int) error {
+	return nil
+}
+
 func (m *mockVoteCountsRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts, error) {
 	return m.result, m.err
 }

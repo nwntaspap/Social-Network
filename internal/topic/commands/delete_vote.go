@@ -14,10 +14,11 @@ type DeleteVoteCommand struct {
 
 type DeleteVoteHandler struct {
 	repo topic.Repository
+	bus  topic.EventBus
 }
 
-func NewDeleteVoteHandler(repo topic.Repository) *DeleteVoteHandler {
-	return &DeleteVoteHandler{repo: repo}
+func NewDeleteVoteHandler(repo topic.Repository, bus topic.EventBus) *DeleteVoteHandler {
+	return &DeleteVoteHandler{repo: repo, bus: bus}
 }
 
 func (h *DeleteVoteHandler) Execute(ctx context.Context, cmd DeleteVoteCommand) error {
@@ -31,5 +32,11 @@ func (h *DeleteVoteHandler) Execute(ctx context.Context, cmd DeleteVoteCommand) 
 	if err := h.repo.DeleteVote(ctx, cmd.UserID, cmd.TopicID); err != nil {
 		return fmt.Errorf("delete vote: %w", err)
 	}
+
+	_ = h.bus.Publish(ctx, "post.unliked", PostUnlikedEvent{
+		TopicID: cmd.TopicID,
+		UserID:  cmd.UserID,
+	})
+
 	return nil
 }

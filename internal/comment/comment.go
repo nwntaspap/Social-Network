@@ -49,6 +49,7 @@ type Repository interface {
 	GetCommentsByTopicID(ctx context.Context, topicID int) ([]Comment, error)
 	GetCommentsByTopicIDWithVotes(ctx context.Context, topicID int, userID *string) ([]Comment, error)
 	CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error
+	DeleteCommentVote(ctx context.Context, userID string, commentID int) error
 	GetVoteCounts(ctx context.Context, commentID int) (*VoteCounts, error)
 	GetCommentCount(ctx context.Context, userID string) (int, error)
 }
