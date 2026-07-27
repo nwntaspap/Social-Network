@@ -34,6 +34,7 @@ func (a *Auth) Required(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		ctx := context.WithValue(r.Context(), userIDKey, sess.UserID)
+		ctx = context.WithValue(ctx, sessionTokenKey, token)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
@@ -53,6 +54,7 @@ func (a *Auth) Optional(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		ctx := context.WithValue(r.Context(), userIDKey, sess.UserID)
+		ctx = context.WithValue(ctx, sessionTokenKey, token)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
