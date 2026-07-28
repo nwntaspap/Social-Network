@@ -94,6 +94,7 @@ export interface GroupInvitation {
   inviter: User;
   inviteeId: string;
   invitee: User;
+  status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
 
