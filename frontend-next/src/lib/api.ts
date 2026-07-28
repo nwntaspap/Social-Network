@@ -209,7 +209,7 @@ export async function toggleProfilePrivacy(): Promise<void> {
 }
 
 export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>('/users', { page });
+  return api.get<PaginatedResponse<User>>('/users', { query, page });
 }
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
@@ -281,15 +281,15 @@ export async function getPost(postId: number): Promise<Post> {
 }
 
 export async function deletePost(postId: number): Promise<void> {
-  return api.delete<void>(`/topics/delete`, { id: postId });
+  return api.delete<void>(`/topics/delete?id=${postId}`);
 }
 
 export async function likePost(postId: number): Promise<void> {
-  return api.post<void>('/topics/vote', { id: postId });
+  return api.post<void>(`/topics/vote?id=${postId}`);
 }
 
 export async function unlikePost(postId: number): Promise<void> {
-  return api.delete<void>('/topics/vote', { id: postId });
+  return api.delete<void>(`/topics/vote?id=${postId}`);
 }
 
 // ─── Comments ─────────────────────────────────────────────────────────────────
@@ -303,7 +303,7 @@ export async function getComments(topicId: number): Promise<Comment[]> {
 }
 
 export async function deleteComment(commentId: number): Promise<void> {
-  return api.delete<void>('/comments/delete', { id: commentId });
+  return api.delete<void>(`/comments/delete?id=${commentId}`);
 }
 
 // ─── Groups ───────────────────────────────────────────────────────────────────

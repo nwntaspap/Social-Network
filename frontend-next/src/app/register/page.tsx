@@ -20,9 +20,9 @@ type Gender = '' | 'male' | 'female' | 'other' | 'prefer_not_to_say';
 
 export interface RegisterBody {
   nickname: string;
-  firstname: string;
-  lastname: string;
-  age: number;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
   gender: Gender;
   email: string;
   password: string;
@@ -61,7 +61,7 @@ function RegisterForm() {
   const [nickname, setNickname] = useState('');
   const [firstname, setFirstname] = useState('');
   const [lastname, setLastname] = useState('');
-  const [age, setAge] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<Gender>('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,7 +70,7 @@ function RegisterForm() {
   const [nicknameError, setNicknameError] = useState('');
   const [firstnameError, setFirstnameError] = useState('');
   const [lastnameError, setLastnameError] = useState('');
-  const [ageError, setAgeError] = useState('');
+  const [dateOfBirthError, setDateOfBirthError] = useState('');
   const [genderError, setGenderError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -79,7 +79,7 @@ function RegisterForm() {
     setNicknameError('');
     setFirstnameError('');
     setLastnameError('');
-    setAgeError('');
+    setDateOfBirthError('');
     setGenderError('');
     setEmailError('');
     setPasswordError('');
@@ -89,7 +89,7 @@ function RegisterForm() {
     setNickname('');
     setFirstname('');
     setLastname('');
-    setAge('');
+    setDateOfBirth('');
     setGender('');
     setEmail('');
     setPassword('');
@@ -107,7 +107,7 @@ function RegisterForm() {
     } else if (lower.includes('last')) {
       setLastnameError(msg);
     } else if (lower.includes('age')) {
-      setAgeError(msg);
+      setDateOfBirthError(msg);
     } else if (lower.includes('gender')) {
       setGenderError(msg);
     } else if (lower.includes('email')) {
@@ -135,8 +135,8 @@ function RegisterForm() {
       setLastnameError('Please enter your last name.');
       return;
     }
-    if (!age) {
-      setAgeError('Please enter your age.');
+    if (!dateOfBirth) {
+      setDateOfBirthError('Please enter your date of birth.');
       return;
     }
     if (!gender) {
@@ -154,9 +154,9 @@ function RegisterForm() {
 
     const body: RegisterBody = {
       nickname,
-      firstname,
-      lastname,
-      age: Number(age),
+      firstName: firstname,
+      lastName: lastname,
+      dateOfBirth,
       gender,
       email,
       password,
@@ -266,21 +266,19 @@ function RegisterForm() {
               </div>
 
               <div className="input-box">
-                <label htmlFor="age">Age</label>
+                <label htmlFor="dateOfBirth">Date of Birth</label>
                 <input
-                  type="number"
-                  id="age"
-                  name="age"
-                  min={0}
+                  type="date"
+                  id="dateOfBirth"
+                  name="dateOfBirth"
                   className="form-input"
-                  placeholder="Enter your age"
-                  value={age}
+                  value={dateOfBirth}
                   onChange={(e) => {
-                    setAge(e.target.value);
-                    setAgeError('');
+                    setDateOfBirth(e.target.value);
+                    setDateOfBirthError('');
                   }}
                 />
-                {ageError && <span className="error-message">{ageError}</span>}
+                {dateOfBirthError && <span className="error-message">{dateOfBirthError}</span>}
               </div>
 
               <div className="input-box">
