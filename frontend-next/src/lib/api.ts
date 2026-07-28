@@ -16,7 +16,6 @@ import type {
   Chat,
   ChatMessage,
   Notification,
-  FollowRequest,
   PaginatedResponse,
 } from './types';
 

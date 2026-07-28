@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -13,23 +13,8 @@ import type { Post, Comment } from '@/lib/types';
 
 export default function PostDetail() {
   const { id: postId } = useParams<{ id: string }>();
-  const [post, setPost] = useState<Post | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [liked, setLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
 
-  // Comment form
-  const [showCommentForm, setShowCommentForm] = useState(false);
-  const [commentContent, setCommentContent] = useState('');
-  const [commentImage, setCommentImage] = useState<File | null>(null);
-  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
-  const [commentError, setCommentError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // TODO: Replace with: const { data: post } = await getPost(postId);
+  const resolvedPost = useMemo(() => {
     const allGroupPosts = Object.values(mockGroupPosts).flat();
     const allPosts = [...feedPosts, ...allGroupPosts, ...defaultGroupPosts];
 
@@ -42,15 +27,23 @@ export default function PostDetail() {
       }
     }
 
-    if (foundPost) {
-      setPost(foundPost);
-      setLiked(foundPost.isLiked ?? false);
-      setLikesCount(foundPost.likesCount);
-      setComments(mockComments[postId] || defaultComments);
-    }
-
-    setLoading(false);
+    return foundPost ?? null;
   }, [postId]);
+
+  const [post, setPost] = useState<Post | null>(resolvedPost);
+  const [comments, setComments] = useState<Comment[]>(mockComments[postId] || defaultComments);
+  const [loading, setLoading] = useState(false);
+  const [liked, setLiked] = useState(resolvedPost?.isLiked ?? false);
+  const [likesCount, setLikesCount] = useState(resolvedPost?.likesCount ?? 0);
+
+  // Comment form
+  const [showCommentForm, setShowCommentForm] = useState(false);
+  const [commentContent, setCommentContent] = useState('');
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleLike() {
     const wasLiked = liked;
