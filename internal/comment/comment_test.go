@@ -37,6 +37,8 @@ func (m *mockRepository) GetVoteCounts(_ context.Context, _ int) (*VoteCounts, e
 	return &VoteCounts{}, nil
 }
 
+func (m *mockRepository) GetCommentCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestCommentStruct_Fields(t *testing.T) {
 	c := Comment{
 		ID:        1,

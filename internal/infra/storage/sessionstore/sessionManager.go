@@ -11,6 +11,7 @@ import (
 	"social-network/internal/domain/session"
 	"social-network/internal/domain/user"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/database"
 )
 
 const (
@@ -24,12 +25,12 @@ type CreateSessionRequest struct {
 }
 
 type Manager struct {
-	db             *sql.DB
+	db             database.DB
 	tokenGenerator tokenGenerator
 	sessionConfig  config.SessionManagerConfig
 }
 
-func NewSessionManager(db *sql.DB, sessionConfig config.SessionManagerConfig) session.Manager {
+func NewSessionManager(db database.DB, sessionConfig config.SessionManagerConfig) session.Manager {
 	return &Manager{
 		db:             db,
 		sessionConfig:  sessionConfig,

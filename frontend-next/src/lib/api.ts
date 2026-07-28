@@ -16,7 +16,6 @@ import type {
   Chat,
   ChatMessage,
   Notification,
-  FollowRequest,
   PaginatedResponse,
 } from './types';
 
@@ -176,11 +175,11 @@ export const api = {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function loginEmail(email: string, password: string): Promise<User> {
-  return api.post<User>('/login/email', { email, password });
+  return api.post<User>('/login/email', { identifier: email, password });
 }
 
 export async function loginUsername(username: string, password: string): Promise<User> {
-  return api.post<User>('/login/username', { username, password });
+  return api.post<User>('/login/username', { identifier: username, password });
 }
 
 export async function register(body: RegisterBody): Promise<void> {
@@ -198,59 +197,57 @@ export async function getCurrentUser(): Promise<User> {
 // ─── Users / Profiles ─────────────────────────────────────────────────────────
 
 export async function getUserProfile(userId: string): Promise<User> {
-  return api.get<User>(`/users/${userId}`);
+  return api.get<User>(`/user/profile`, { user_id: userId });
 }
 
 export async function updateProfile(body: Partial<User>): Promise<User> {
-  return api.put<User>('/profile', body);
+  return api.put<User>('/user/update', body);
 }
 
-export async function toggleProfilePrivacy(): Promise<User> {
-  return api.put<User>('/profile/privacy');
+export async function toggleProfilePrivacy(): Promise<void> {
+  return api.post<void>('/user/privacy');
 }
 
 export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>('/users/search', { query, page });
+  return api.get<PaginatedResponse<User>>('/users', { page });
 }
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
 
-export async function sendFollowRequest(userId: string): Promise<FollowRequest> {
-  return api.post<FollowRequest>(`/follow/request/${userId}`);
+export async function sendFollowRequest(userId: string): Promise<void> {
+  return api.post<void>('/follow', { targetId: userId });
 }
 
 export async function handleFollowRequest(
-  requestId: string,
+  followerId: string,
   action: 'accept' | 'decline'
 ): Promise<void> {
-  return api.put<void>(`/follow/request/${requestId}`, { action });
+  if (action === 'accept') {
+    return api.post<void>('/follow/accept', { followerId });
+  }
+  return api.post<void>('/follow/decline', { followerId });
 }
 
 export async function unfollowUser(userId: string): Promise<void> {
-  return api.delete<void>(`/follow/${userId}`);
+  return api.post<void>('/follow/unfollow', { targetId: userId });
 }
 
-export async function getFollowers(userId: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>(`/users/${userId}/followers`, { page });
+export async function getFollowers(userId: string): Promise<unknown[]> {
+  return api.get<unknown[]>('/follow/followers', { userId });
 }
 
-export async function getFollowing(userId: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>(`/users/${userId}/following`, { page });
+export async function getFollowing(userId: string): Promise<unknown[]> {
+  return api.get<unknown[]>('/follow/following', { userId });
 }
 
-export async function getPendingFollowRequests(): Promise<FollowRequest[]> {
-  return api.get<FollowRequest[]>('/follow/requests/pending');
+export async function getPendingFollowRequests(): Promise<unknown[]> {
+  return api.get<unknown[]>('/follow/requests');
 }
 
-// ─── Posts ────────────────────────────────────────────────────────────────────
+// ─── Posts (Topics) ───────────────────────────────────────────────────────────
 
-export async function createPost(formData: FormData, groupId?: string): Promise<Post> {
-  let path = '/posts';
-  if (groupId) {
-    path += `?groupId=${groupId}`;
-  }
-
-  const url = API_BASE + path;
+export async function createPost(formData: FormData): Promise<Post> {
+  const url = API_BASE + '/topics/create';
   const response = await fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -267,68 +264,46 @@ export async function createPost(formData: FormData, groupId?: string): Promise<
   return body.data;
 }
 
-export async function getFeed(page = 1): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>('/posts/feed', { page });
+export async function getFeed(page = 1, size = 10): Promise<{ data: Post[]; total: number }> {
+  return api.get<{ data: Post[]; total: number }>('/topics/feed', { page, size });
 }
 
-export async function getUserPosts(userId: string, page = 1): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>(`/users/${userId}/posts`, { page });
+export async function getUserPosts(
+  userId: string,
+  page = 1,
+  size = 10
+): Promise<{ data: Post[]; total: number }> {
+  return api.get<{ data: Post[]; total: number }>('/topics/user', { userId, page, size });
 }
 
-export async function getPost(postId: string): Promise<Post> {
-  return api.get<Post>(`/posts/${postId}`);
+export async function getPost(postId: number): Promise<Post> {
+  return api.get<Post>('/topics/get', { id: postId });
 }
 
-export async function deletePost(postId: string): Promise<void> {
-  return api.delete<void>(`/posts/${postId}`);
+export async function deletePost(postId: number): Promise<void> {
+  return api.delete<void>(`/topics/delete`, { id: postId });
 }
 
-export async function likePost(postId: string): Promise<void> {
-  return api.post<void>(`/posts/${postId}/like`);
+export async function likePost(postId: number): Promise<void> {
+  return api.post<void>('/topics/vote', { id: postId });
 }
 
-export async function unlikePost(postId: string): Promise<void> {
-  return api.delete<void>(`/posts/${postId}/like`);
+export async function unlikePost(postId: number): Promise<void> {
+  return api.delete<void>('/topics/vote', { id: postId });
 }
 
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
-export async function createComment(
-  postId: string,
-  content: string,
-  image?: File
-): Promise<Comment> {
-  if (image) {
-    const formData = new FormData();
-    formData.append('content', content);
-    formData.append('image', image);
-
-    const url = API_BASE + `/posts/${postId}/comments`;
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData,
-    });
-
-    const text = await response.text();
-    if (!response.ok) {
-      const err = text ? JSON.parse(text) : {};
-      throw new ApiError(response.status, err.error || err.message || 'Failed to create comment');
-    }
-
-    const body = JSON.parse(text);
-    return body.data;
-  }
-
-  return api.post<Comment>(`/posts/${postId}/comments`, { content });
+export async function createComment(topicId: number, content: string): Promise<Comment> {
+  return api.post<Comment>('/comments/create', { topicId, content });
 }
 
-export async function getComments(postId: string, page = 1): Promise<PaginatedResponse<Comment>> {
-  return api.get<PaginatedResponse<Comment>>(`/posts/${postId}/comments`, { page });
+export async function getComments(topicId: number): Promise<Comment[]> {
+  return api.get<Comment[]>('/comments/topic', { topicId });
 }
 
-export async function deleteComment(commentId: string): Promise<void> {
-  return api.delete<void>(`/comments/${commentId}`);
+export async function deleteComment(commentId: number): Promise<void> {
+  return api.delete<void>('/comments/delete', { id: commentId });
 }
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
@@ -388,7 +363,7 @@ export async function getPendingJoinRequests(groupId: string): Promise<GroupJoin
 
 export async function createEvent(
   groupId: string,
-  data: { title: string; description: string; eventDate: string }
+  data: { title: string; description: string; eventDate: string; options?: string[] }
 ): Promise<Event> {
   return api.post<Event>(`/groups/${groupId}/events`, data);
 }
@@ -397,38 +372,21 @@ export async function getGroupEvents(groupId: string, page = 1): Promise<Paginat
   return api.get<PaginatedResponse<Event>>(`/groups/${groupId}/events`, { page });
 }
 
-export async function respondToEvent(
-  eventId: string,
-  response: 'going' | 'notGoing'
-): Promise<void> {
+export async function respondToEvent(eventId: string, response: string): Promise<void> {
   return api.post<void>(`/events/${eventId}/respond`, { response });
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export async function getChats(): Promise<Chat[]> {
-  return api.get<Chat[]>('/chats');
+  return api.get<Chat[]>('/chat/users');
 }
 
-export async function getChatMessages(
-  chatId: string,
-  page = 1
-): Promise<PaginatedResponse<ChatMessage>> {
-  return api.get<PaginatedResponse<ChatMessage>>(`/chats/${chatId}/messages`, { page });
+export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
+  return api.get<ChatMessage[]>('/chat/history', { chatId });
 }
 
-export async function sendPrivateMessage(
-  receiverId: string,
-  content: string
-): Promise<ChatMessage> {
-  return api.post<ChatMessage>(`/chats/private/${receiverId}`, { content });
-}
-
-export async function sendGroupMessage(groupId: string, content: string): Promise<ChatMessage> {
-  return api.post<ChatMessage>(`/chats/group/${groupId}`, { content });
-}
-
-// ─── Notifications ────────────────────────────────────────────────────────────
+// ─── Notifications (not yet wired) ───────────────────────────────────────────
 
 export async function getNotifications(page = 1): Promise<PaginatedResponse<Notification>> {
   return api.get<PaginatedResponse<Notification>>('/notifications', { page });

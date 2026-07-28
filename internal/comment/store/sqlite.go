@@ -29,6 +29,13 @@ func (s *SQLiteStore) CreateComment(ctx context.Context, c *comment.Comment) err
 		return err
 	}
 	c.ID = int(id)
+
+	err = s.db.QueryRowContext(ctx,
+		`SELECT created_at FROM comments WHERE id = ?`, c.ID).Scan(&c.CreatedAt)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -64,11 +71,12 @@ func (s *SQLiteStore) DeleteComment(ctx context.Context, userID string, commentI
 func (s *SQLiteStore) GetCommentByID(ctx context.Context, commentID int) (*comment.Comment, error) {
 	c := &comment.Comment{}
 	var imgPath sql.NullString
+	var updatedAt sql.NullTime
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, user_id, topic_id, content, image_path, created_at, updated_at
 		FROM comments WHERE id = ?`, commentID).Scan(
 		&c.ID, &c.UserID, &c.TopicID, &c.Content,
-		&imgPath, &c.CreatedAt, &c.UpdatedAt,
+		&imgPath, &c.CreatedAt, &updatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, comment.ErrCommentNotFound
@@ -77,6 +85,7 @@ func (s *SQLiteStore) GetCommentByID(ctx context.Context, commentID int) (*comme
 		return nil, err
 	}
 	c.ImagePath = imgPath.String
+	c.UpdatedAt = database.ResolveTime(updatedAt, c.CreatedAt)
 	return c, nil
 }
 
@@ -109,9 +118,10 @@ func (s *SQLiteStore) GetCommentByIDWithVotes(ctx context.Context, commentID int
 	c := &comment.Comment{}
 	var imgPath sql.NullString
 	var userVote sql.NullInt32
+	var updatedAt sql.NullTime
 	scanFields := []any{
 		&c.ID, &c.UserID, &c.TopicID, &c.Content, &imgPath,
-		&c.CreatedAt, &c.UpdatedAt,
+		&c.CreatedAt, &updatedAt,
 		&c.UpvoteCount, &c.DownvoteCount, &c.VoteScore,
 	}
 	if userID != nil {
@@ -126,6 +136,7 @@ func (s *SQLiteStore) GetCommentByIDWithVotes(ctx context.Context, commentID int
 		return nil, err
 	}
 	c.ImagePath = imgPath.String
+	c.UpdatedAt = database.ResolveTime(updatedAt, c.CreatedAt)
 	if userID != nil && userVote.Valid {
 		v := int(userVote.Int32)
 		c.UserVote = &v
@@ -146,13 +157,15 @@ func (s *SQLiteStore) GetCommentsByTopicID(ctx context.Context, topicID int) ([]
 	for rows.Next() {
 		var c comment.Comment
 		var imgPath sql.NullString
+		var updatedAt sql.NullTime
 		if err := rows.Scan(
 			&c.ID, &c.UserID, &c.TopicID, &c.Content,
-			&imgPath, &c.CreatedAt, &c.UpdatedAt,
+			&imgPath, &c.CreatedAt, &updatedAt,
 		); err != nil {
 			return nil, err
 		}
 		c.ImagePath = imgPath.String
+		c.UpdatedAt = database.ResolveTime(updatedAt, c.CreatedAt)
 		comments = append(comments, c)
 	}
 	return comments, rows.Err()
@@ -195,9 +208,10 @@ func (s *SQLiteStore) GetCommentsByTopicIDWithVotes(ctx context.Context, topicID
 		var c comment.Comment
 		var imgPath sql.NullString
 		var userVote sql.NullInt32
+		var updatedAt sql.NullTime
 		scanFields := []any{
 			&c.ID, &c.UserID, &c.TopicID, &c.Content, &imgPath,
-			&c.CreatedAt, &c.UpdatedAt,
+			&c.CreatedAt, &updatedAt,
 			&c.UpvoteCount, &c.DownvoteCount, &c.VoteScore,
 		}
 		if userID != nil {
@@ -207,6 +221,7 @@ func (s *SQLiteStore) GetCommentsByTopicIDWithVotes(ctx context.Context, topicID
 			return nil, err
 		}
 		c.ImagePath = imgPath.String
+		c.UpdatedAt = database.ResolveTime(updatedAt, c.CreatedAt)
 		if userID != nil && userVote.Valid {
 			v := int(userVote.Int32)
 			c.UserVote = &v
@@ -262,4 +277,11 @@ func nullStr(s string) any {
 		return nil
 	}
 	return s
+}
+
+func (s *SQLiteStore) GetCommentCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM comments WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
 }

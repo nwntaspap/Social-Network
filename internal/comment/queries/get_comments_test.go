@@ -48,6 +48,8 @@ func (m *mockRepo) GetVoteCounts(_ context.Context, _ int) (*comment.VoteCounts,
 	return &comment.VoteCounts{}, nil
 }
 
+func (m *mockRepo) GetCommentCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestGetCommentsByTopicResolver_Success(t *testing.T) {
 	expected := []comment.Comment{
 		{ID: 1, TopicID: 1, UserID: "u1", Content: "a"},

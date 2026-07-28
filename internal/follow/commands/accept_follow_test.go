@@ -41,6 +41,10 @@ func (m *acceptMockRepo) AreConnected(_ context.Context, _, _ string) (bool, err
 	return false, nil
 }
 
+func (m *acceptMockRepo) GetFollowerCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
+func (m *acceptMockRepo) GetFollowingCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestAcceptRequestHandler_Success(t *testing.T) {
 	repo := &acceptMockRepo{}
 	bus := &mockBus{}

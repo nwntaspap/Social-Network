@@ -1,7 +1,6 @@
 package bootstrap
 
 import (
-	"database/sql"
 	"net/http"
 
 	"social-network/internal/core/middleware"
@@ -10,9 +9,10 @@ import (
 	followqueries "social-network/internal/follow/queries"
 	followstore "social-network/internal/follow/store"
 	followtransport "social-network/internal/follow/transport"
+	"social-network/internal/platform/database"
 )
 
-func initFollow(db *sql.DB) *followtransport.Handler {
+func initFollow(db database.DB) *followtransport.Handler {
 	store := followstore.NewSQLiteStore(db)
 	privacy := &follow.PrivacyStub{}
 	bus := &follow.NoopEventBus{}

@@ -43,6 +43,8 @@ func (m *mockVoteCountsRepo) GetVoteCounts(_ context.Context, _ int) (*comment.V
 	return m.result, m.err
 }
 
+func (m *mockVoteCountsRepo) GetCommentCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestGetVoteCountsResolver_Success(t *testing.T) {
 	expected := &comment.VoteCounts{Upvotes: 5, Downvotes: 2, Score: 3}
 	repo := &mockVoteCountsRepo{result: expected}

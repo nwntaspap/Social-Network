@@ -56,6 +56,7 @@ func (s *SQLiteStore) getChatByPair(ctx context.Context, userOneID, userTwoID st
 	var c chat.Chat
 	var lastMessageID sql.NullInt64
 	var lastMessageAt sql.NullTime
+	var updatedAt sql.NullTime
 
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, user_one_id, user_two_id, created_at, updated_at, last_message_id, last_message_at
@@ -67,7 +68,7 @@ func (s *SQLiteStore) getChatByPair(ctx context.Context, userOneID, userTwoID st
 		&c.UserOneID,
 		&c.UserTwoID,
 		&c.CreatedAt,
-		&c.UpdatedAt,
+		&updatedAt,
 		&lastMessageID,
 		&lastMessageAt,
 	)
@@ -76,6 +77,11 @@ func (s *SQLiteStore) getChatByPair(ctx context.Context, userOneID, userTwoID st
 			return nil, errors.New("chat not found after create")
 		}
 		return nil, err
+	}
+
+	c.UpdatedAt = updatedAt.Time
+	if !updatedAt.Valid {
+		c.UpdatedAt = c.CreatedAt
 	}
 
 	if lastMessageID.Valid {
@@ -99,6 +105,7 @@ func (s *SQLiteStore) GetChat(ctx context.Context, chatID string) (*chat.Chat, e
 	var c chat.Chat
 	var lastMessageID sql.NullInt64
 	var lastMessageAt sql.NullTime
+	var updatedAt sql.NullTime
 
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, user_one_id, user_two_id, created_at, updated_at, last_message_id, last_message_at
@@ -109,7 +116,7 @@ func (s *SQLiteStore) GetChat(ctx context.Context, chatID string) (*chat.Chat, e
 		&c.UserOneID,
 		&c.UserTwoID,
 		&c.CreatedAt,
-		&c.UpdatedAt,
+		&updatedAt,
 		&lastMessageID,
 		&lastMessageAt,
 	)
@@ -118,6 +125,11 @@ func (s *SQLiteStore) GetChat(ctx context.Context, chatID string) (*chat.Chat, e
 			return nil, errors.New("chat not found")
 		}
 		return nil, err
+	}
+
+	c.UpdatedAt = updatedAt.Time
+	if !updatedAt.Valid {
+		c.UpdatedAt = c.CreatedAt
 	}
 
 	if lastMessageID.Valid {
@@ -168,19 +180,25 @@ func (s *SQLiteStore) GetChatsForUser(ctx context.Context, userID string) ([]*ch
 		var c chat.Chat
 		var lastMessageID sql.NullInt64
 		var lastMessageAt sql.NullTime
+		var updatedAt sql.NullTime
 
 		err = rows.Scan(
 			&c.ID,
 			&c.UserOneID,
 			&c.UserTwoID,
 			&c.CreatedAt,
-			&c.UpdatedAt,
+			&updatedAt,
 			&lastMessageID,
 			&lastMessageAt,
 			&c.UnreadCount,
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		c.UpdatedAt = updatedAt.Time
+		if !updatedAt.Valid {
+			c.UpdatedAt = c.CreatedAt
 		}
 
 		if lastMessageID.Valid {

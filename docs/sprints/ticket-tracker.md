@@ -197,31 +197,31 @@ For step-by-step ticket instructions, see individual sprint files:
 
 ### BE-A (Backend A)
 
-- [ ] **S4-BE-61:** Group: Entities & Repository Interface
-- [ ] **S4-BE-62:** Group: SQLite Store
-- [ ] **S4-BE-63:** Group: Create Group Command
-- [ ] **S4-BE-64:** Group: Invite Member Command
-- [ ] **S4-BE-65:** Group: Respond Invite Command
-- [ ] **S4-BE-66:** Group: Request Join Command
-- [ ] **S4-BE-67:** Group: Respond Join Command
-- [ ] **S4-BE-68:** Group: Create Post Command
-- [ ] **S4-BE-69:** Group: Send Group Message Command
-- [ ] **S4-BE-70:** Group: List Groups Query
-- [ ] **S4-BE-71:** Group: Get Group Detail Query
-- [ ] **S4-BE-72:** Group: Get Group Feed Query
-- [ ] **S4-BE-73:** Group: Get Group Chat History Query
-- [ ] **S4-BE-74:** Group: HTTP Transport Routing
-- [ ] **S4-BE-75:** Group: WS Transport Routing
-- [ ] **S4-BE-76:** Group: Post Comments (Gap Fix) **P1**
+- [x] **S4-BE-61:** Group: Entities & Repository Interface
+- [x] **S4-BE-62:** Group: SQLite Store
+- [x] **S4-BE-63:** Group: Create Group Command
+- [x] **S4-BE-64:** Group: Invite Member Command
+- [x] **S4-BE-65:** Group: Respond Invite Command
+- [x] **S4-BE-66:** Group: Request Join Command
+- [x] **S4-BE-67:** Group: Respond Join Command
+- [x] **S4-BE-68:** Group: Create Post Command
+- [x] **S4-BE-69:** Group: Send Group Message Command
+- [x] **S4-BE-70:** Group: List Groups Query
+- [x] **S4-BE-71:** Group: Get Group Detail Query
+- [x] **S4-BE-72:** Group: Get Group Feed Query
+- [x] **S4-BE-73:** Group: Get Group Chat History Query
+- [x] **S4-BE-74:** Group: HTTP Transport Routing
+- [x] **S4-BE-75:** Group: WS Transport Routing
+- [x] **S4-BE-76:** Group: Post Comments (Gap Fix) **P1**
 
 ### BE-B (Backend B)
 
-- [ ] **S4-BE-77:** Event: Entities & Repository Interface
-- [ ] **S4-BE-78:** Event: SQLite Store
-- [ ] **S4-BE-79:** Event: Create Event Command
-- [ ] **S4-BE-80:** Event: RSVP Command
-- [ ] **S4-BE-81:** Event: List Group Events Query
-- [ ] **S4-BE-82:** Event: HTTP Transport Routing
+- [x] **S4-BE-77:** Event: Entities & Repository Interface
+- [x] **S4-BE-78:** Event: SQLite Store
+- [x] **S4-BE-79:** Event: Create Event Command
+- [x] **S4-BE-80:** Event: RSVP Command
+- [x] **S4-BE-81:** Event: List Group Events Query
+- [x] **S4-BE-82:** Event: HTTP Transport Routing
 
 ### FE-A (Frontend A)
 

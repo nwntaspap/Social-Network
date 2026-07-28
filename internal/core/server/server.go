@@ -19,7 +19,9 @@ import (
 
 	chattransport "social-network/internal/chat/transport"
 	commenttransport "social-network/internal/comment/transport"
+	eventtransport "social-network/internal/event/transport"
 	followtransport "social-network/internal/follow/transport"
+	grouptransport "social-network/internal/group/transport"
 	oauthtransport "social-network/internal/oauth/transport"
 	topictransport "social-network/internal/topic/transport"
 	usertransport "social-network/internal/user/transport"
@@ -31,6 +33,8 @@ type AllHandlers struct {
 	Chat    *chattransport.Handler
 	Comment *commenttransport.Handler
 	Topic   *topictransport.Handler
+	Group   *grouptransport.Handler
+	Event   *eventtransport.Handler
 	OAuth   *oauthtransport.Handler
 }
 

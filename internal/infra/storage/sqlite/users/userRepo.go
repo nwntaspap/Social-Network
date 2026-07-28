@@ -7,13 +7,14 @@ import (
 	"fmt"
 
 	"social-network/internal/domain/user"
+	"social-network/internal/platform/database"
 )
 
 type Repo struct {
-	DB *sql.DB
+	DB database.DB
 }
 
-func NewRepo(db *sql.DB) *Repo {
+func NewRepo(db database.DB) *Repo {
 	return &Repo{
 		DB: db,
 	}

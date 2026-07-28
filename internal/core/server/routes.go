@@ -26,6 +26,7 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc(api+"/login/email", h.Login)
 		s.mux.HandleFunc(api+"/login/username", h.Login)
 		s.mux.HandleFunc(api+"/logout", require(h.Logout))
+		s.mux.HandleFunc(api+"/me", require(h.GetMe))
 		s.mux.HandleFunc(api+"/user/profile", h.GetProfile)
 		s.mux.HandleFunc(api+"/user/update", require(h.UpdateProfile))
 		s.mux.HandleFunc(api+"/user/privacy", require(h.TogglePrivacy))
@@ -79,6 +80,29 @@ func RegisterRoutes(s *Server) {
 	// OAuth routes
 	if h := s.handlers.OAuth; h != nil {
 		h.RegisterRoutes(s.mux)
+	}
+
+	// Group routes
+	if h := s.handlers.Group; h != nil {
+		s.mux.HandleFunc("POST "+api+"/groups", require(h.CreateGroup))
+		s.mux.HandleFunc("GET "+api+"/groups", h.ListGroups)
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}", require(h.GetGroup))
+		s.mux.HandleFunc("PUT "+api+"/groups/{groupId}", require(h.UpdateGroup))
+		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}", require(h.DeleteGroup))
+		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}/leave", require(h.LeaveGroup))
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/invite", require(h.InviteMember))
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/request", require(h.RequestJoin))
+		s.mux.HandleFunc("PUT "+api+"/groups/requests/{requestId}", require(h.RespondJoin))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/posts", require(h.GetGroupFeed))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/members", require(h.GetGroupMembers))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/requests/pending", require(h.GetPendingJoinRequests))
+	}
+
+	// Event routes
+	if h := s.handlers.Event; h != nil {
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/events", require(h.CreateEvent))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/events", require(h.ListGroupEvents))
+		s.mux.HandleFunc("POST "+api+"/events/{eventId}/respond", require(h.RespondToEvent))
 	}
 }
 

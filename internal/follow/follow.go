@@ -6,15 +6,15 @@ import (
 )
 
 type Follow struct {
-	FollowerID string
-	FolloweeID string
-	CreatedAt  time.Time
+	FollowerID string    `json:"followerId"`
+	FolloweeID string    `json:"followeeId"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type Request struct {
-	FollowerID string
-	FolloweeID string
-	CreatedAt  time.Time
+	FollowerID string    `json:"followerId"`
+	FolloweeID string    `json:"followeeId"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type Repository interface {
@@ -26,6 +26,8 @@ type Repository interface {
 	DeleteFollowRequest(ctx context.Context, followerID, followeeID string) error
 	GetPendingRequests(ctx context.Context, userID string) ([]Request, error)
 	AreConnected(ctx context.Context, a, b string) (bool, error)
+	GetFollowerCount(ctx context.Context, userID string) (int, error)
+	GetFollowingCount(ctx context.Context, userID string) (int, error)
 }
 
 type UserPrivacyChecker interface {

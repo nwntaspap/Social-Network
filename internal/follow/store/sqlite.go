@@ -109,3 +109,17 @@ func (s *SQLiteStore) AreConnected(ctx context.Context, a, b string) (bool, erro
 	err := s.db.QueryRowContext(ctx, query, a, b).Scan(&exists)
 	return exists, err
 }
+
+func (s *SQLiteStore) GetFollowerCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM follows WHERE followee_id = ?`, userID).Scan(&count)
+	return count, err
+}
+
+func (s *SQLiteStore) GetFollowingCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM follows WHERE follower_id = ?`, userID).Scan(&count)
+	return count, err
+}

@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 
 	"social-network/internal/chat"
@@ -12,9 +11,10 @@ import (
 	"social-network/internal/core/middleware"
 	"social-network/internal/domain/user"
 	"social-network/internal/infra/ws"
+	"social-network/internal/platform/database"
 )
 
-func initChat(db *sql.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.Handler {
+func initChat(db database.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 
 	ba := &chat.BroadcasterAdapter{

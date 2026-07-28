@@ -79,6 +79,8 @@ func (m *mockTopicRepo) GetVoteCounts(ctx context.Context, topicID int) (*topic.
 	}
 	return &topic.VoteCounts{}, nil
 }
+func (m *mockTopicRepo) GetPostCount(_ context.Context, _ string) (int, error) { return 0, nil }
+func (m *mockTopicRepo) GetVoteCount(_ context.Context, _ string) (int, error) { return 0, nil }
 
 type mockEventBus struct {
 	eventType string

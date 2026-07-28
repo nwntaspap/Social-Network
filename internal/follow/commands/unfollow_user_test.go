@@ -45,6 +45,10 @@ func (m *unfollowMockRepo) AreConnected(_ context.Context, _, _ string) (bool, e
 	return false, nil
 }
 
+func (m *unfollowMockRepo) GetFollowerCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
+func (m *unfollowMockRepo) GetFollowingCount(_ context.Context, _ string) (int, error) { return 0, nil }
+
 func TestUnfollowUserHandler_Success(t *testing.T) {
 	repo := &unfollowMockRepo{}
 	h := NewUnfollowUserHandler(repo)

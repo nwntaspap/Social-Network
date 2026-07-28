@@ -1,8 +1,6 @@
 package sqlite
 
 import (
-	"database/sql"
-
 	"social-network/internal/domain/activity"
 	"social-network/internal/domain/category"
 	"social-network/internal/domain/chat"
@@ -19,6 +17,7 @@ import (
 	"social-network/internal/infra/storage/sqlite/topics"
 	"social-network/internal/infra/storage/sqlite/users"
 	"social-network/internal/infra/storage/sqlite/votes"
+	"social-network/internal/platform/database"
 
 	activities "social-network/internal/infra/storage/sqlite/activity"
 
@@ -37,7 +36,7 @@ type Repositories struct {
 	ChatRepo         chat.Repository
 }
 
-func NewRepositories(db *sql.DB) *Repositories {
+func NewRepositories(db database.DB) *Repositories {
 	return &Repositories{
 		UserRepo:         users.NewRepo(db),
 		CategoryRepo:     categories.NewRepo(db),

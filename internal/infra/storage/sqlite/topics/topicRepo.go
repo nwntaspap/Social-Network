@@ -11,13 +11,14 @@ import (
 
 	"social-network/internal/domain/comment"
 	"social-network/internal/domain/topic"
+	"social-network/internal/platform/database"
 )
 
 type Repo struct {
-	DB *sql.DB
+	DB database.DB
 }
 
-func NewRepo(db *sql.DB) *Repo {
+func NewRepo(db database.DB) *Repo {
 	return &Repo{
 		DB: db,
 	}

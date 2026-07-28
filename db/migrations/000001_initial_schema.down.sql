@@ -1,0 +1,24 @@
+-- 000001_initial_schema.down.sql
+DROP TABLE IF EXISTS event_rsvps;
+DROP TABLE IF EXISTS event_options;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS group_post_comments;
+DROP TABLE IF EXISTS group_posts;
+DROP TABLE IF EXISTS group_chat_messages;
+DROP TABLE IF EXISTS group_join_requests;
+DROP TABLE IF EXISTS group_invitations;
+DROP TABLE IF EXISTS group_members;
+DROP TABLE IF EXISTS groups;
+DROP TABLE IF EXISTS oauth_providers;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS chat_reads;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS chats;
+DROP TABLE IF EXISTS follow_requests;
+DROP TABLE IF EXISTS follows;
+DROP TABLE IF EXISTS votes;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS topic_allowed_users;
+DROP TABLE IF EXISTS topics;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

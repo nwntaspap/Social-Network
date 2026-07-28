@@ -1,17 +1,32 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
 type contextIDKey string
 
-const userIDKey contextIDKey = "UserID"
+const (
+	userIDKey       contextIDKey = "UserID"
+	sessionTokenKey contextIDKey = "SessionToken"
+)
 
 func GetUserIDFromContext(r *http.Request) string {
 	v, _ := r.Context().Value(userIDKey).(string)
 	return v
+}
+
+func GetSessionTokenFromContext(r *http.Request) string {
+	v, _ := r.Context().Value(sessionTokenKey).(string)
+	return v
+}
+
+// WithSessionToken injects a session token into the request context.
+// Intended for use in tests where the auth middleware is bypassed.
+func WithSessionToken(r *http.Request, token string) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), sessionTokenKey, token))
 }
 
 func readTokenFromRequest(r *http.Request, cookieName string) string {

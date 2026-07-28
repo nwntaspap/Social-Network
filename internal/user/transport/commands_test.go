@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"social-network/internal/core/middleware"
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
 )
@@ -201,9 +202,8 @@ func TestLogout_Success(t *testing.T) {
 	h := newTestHandler()
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{"token": "tok123"})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/logout", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/logout", nil)
+	req = middleware.WithSessionToken(req, "tok123")
 	rr := httptest.NewRecorder()
 
 	h.Logout(rr, req)

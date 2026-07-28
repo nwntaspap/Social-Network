@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"social-network/internal/platform/database"
 	"social-network/internal/topic"
 )
 
@@ -56,33 +57,9 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 	}
 	defer rows.Close()
 
-	var topics []topic.Topic
-	for rows.Next() {
-		var t topic.Topic
-		var userVote sql.NullInt32
-		var groupID sql.NullString
-
-		if err := rows.Scan(
-			&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
-			&t.Visibility, &groupID,
-			&t.CreatedAt, &t.UpdatedAt,
-			&t.OwnerUsername,
-			&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
-			&userVote,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan topic: %w", err)
-		}
-		if groupID.Valid {
-			t.GroupID = &groupID.String
-		}
-		if userVote.Valid {
-			v := int(userVote.Int32)
-			t.UserVote = &v
-		}
-		topics = append(topics, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows iter: %w", err)
+	topics, err := collectTopics(rows, true)
+	if err != nil {
+		return nil, 0, err
 	}
 	return topics, total, nil
 }
@@ -124,33 +101,9 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 	}
 	defer rows.Close()
 
-	var topics []topic.Topic
-	for rows.Next() {
-		var t topic.Topic
-		var userVote sql.NullInt32
-		var groupID sql.NullString
-
-		if err := rows.Scan(
-			&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
-			&t.Visibility, &groupID,
-			&t.CreatedAt, &t.UpdatedAt,
-			&t.OwnerUsername,
-			&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
-			&userVote,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan topic: %w", err)
-		}
-		if groupID.Valid {
-			t.GroupID = &groupID.String
-		}
-		if userVote.Valid {
-			v := int(userVote.Int32)
-			t.UserVote = &v
-		}
-		topics = append(topics, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows iter: %w", err)
+	topics, err := collectTopics(rows, true)
+	if err != nil {
+		return nil, 0, err
 	}
 	return topics, total, nil
 }
@@ -188,29 +141,52 @@ func (s *SQLiteStore) GetTopicsByGroupID(ctx context.Context, groupID string, pa
 	}
 	defer rows.Close()
 
+	topics, err := collectTopics(rows, false)
+	if err != nil {
+		return nil, 0, err
+	}
+	return topics, total, nil
+}
+
+func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) {
 	var topics []topic.Topic
 	for rows.Next() {
 		var t topic.Topic
-		var groupIDVal sql.NullString
+		var groupID sql.NullString
+		var updatedAt sql.NullTime
 
-		if err := rows.Scan(
+		scanArgs := []any{
 			&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
-			&t.Visibility, &groupIDVal,
-			&t.CreatedAt, &t.UpdatedAt,
+			&t.Visibility, &groupID,
+			&t.CreatedAt, &updatedAt,
 			&t.OwnerUsername,
 			&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan topic: %w", err)
 		}
-		if groupIDVal.Valid {
-			t.GroupID = &groupIDVal.String
+		if includeUserVote {
+			var userVote sql.NullInt32
+			scanArgs = append(scanArgs, &userVote)
+			if err := rows.Scan(scanArgs...); err != nil {
+				return nil, fmt.Errorf("scan topic: %w", err)
+			}
+			if userVote.Valid {
+				v := int(userVote.Int32)
+				t.UserVote = &v
+			}
+		} else {
+			if err := rows.Scan(scanArgs...); err != nil {
+				return nil, fmt.Errorf("scan topic: %w", err)
+			}
+		}
+		t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
+		if groupID.Valid {
+			t.GroupID = &groupID.String
 		}
 		topics = append(topics, t)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows iter: %w", err)
+		return nil, fmt.Errorf("rows iter: %w", err)
 	}
-	return topics, total, nil
+	return topics, nil
 }
 
 func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) error {
@@ -255,6 +231,20 @@ func (s *SQLiteStore) GetVoteCounts(ctx context.Context, topicID int) (*topic.Vo
 		return nil, fmt.Errorf("get vote counts: %w", err)
 	}
 	return &vc, nil
+}
+
+func (s *SQLiteStore) GetPostCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM topics WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
+}
+
+func (s *SQLiteStore) GetVoteCount(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM votes WHERE user_id = ?`, userID).Scan(&count)
+	return count, err
 }
 
 func (s *SQLiteStore) getAllowedUsers(ctx context.Context, topicID int) ([]string, error) {
