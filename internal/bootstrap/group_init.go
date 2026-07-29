@@ -12,15 +12,17 @@ import (
 	grouptransport "social-network/internal/group/transport"
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
 func initGroup(db database.DB, isOnline func(string) bool) *grouptransport.Handler {
+func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
 	img := localstorage.NewLocalStorage()
+	users := userstore.NewSQLiteStore(db)
 
-	bus := &groupEventBus{}
 	followChecker := &groupFollowChecker{}
 
 	extractUser := func(r *http.Request) (string, bool) {
@@ -31,15 +33,13 @@ func initGroup(db database.DB, isOnline func(string) bool) *grouptransport.Handl
 		return uid, true
 	}
 
-	userLookup := &userLookupAdapter{repo: userstore.NewSQLiteStore(db)}
-
 	return grouptransport.NewHandler(
 		extractUser,
 		userLookup,
 		groupcommands.NewCreateGroupHandler(store),
-		groupcommands.NewInviteMemberHandler(store, followChecker, bus),
+		groupcommands.NewInviteMemberHandler(store, followChecker, bus, users),
 		groupcommands.NewRespondInviteHandler(store),
-		groupcommands.NewRequestJoinHandler(store, bus),
+		groupcommands.NewRequestJoinHandler(store, bus, users),
 		groupcommands.NewRespondJoinHandler(store),
 		groupcommands.NewCreateGroupPostHandler(store, img),
 		groupcommands.NewCreateGroupPostCommentHandler(store, img),
@@ -58,12 +58,6 @@ func initGroup(db database.DB, isOnline func(string) bool) *grouptransport.Handl
 		groupqueries.NewListMyGroupsResolver(store),
 		groupqueries.NewGetGroupPresenceResolver(store, isOnline),
 	)
-}
-
-type groupEventBus struct{}
-
-func (b *groupEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
 }
 
 type groupFollowChecker struct{}
@@ -107,6 +101,5 @@ func (a *userLookupAdapter) GetUserByID(ctx context.Context, id string) (*groupt
 
 var (
 	_ group.FollowChecker       = (*groupFollowChecker)(nil)
-	_ group.EventBus            = (*groupEventBus)(nil)
 	_ grouptransport.UserLookup = (*userLookupAdapter)(nil)
 )

@@ -2,10 +2,13 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 var ErrNotConnected = errors.New("users are not connected: inviter must follow invitee")
@@ -19,11 +22,12 @@ type InviteMemberCommand struct {
 type InviteMemberHandler struct {
 	repo   group.Repository
 	follow group.FollowChecker
-	bus    group.EventBus
+	bus    eventbus.EventBus
+	users  user.Repository
 }
 
-func NewInviteMemberHandler(repo group.Repository, follow group.FollowChecker, bus group.EventBus) *InviteMemberHandler {
-	return &InviteMemberHandler{repo: repo, follow: follow, bus: bus}
+func NewInviteMemberHandler(repo group.Repository, follow group.FollowChecker, bus eventbus.EventBus, users user.Repository) *InviteMemberHandler {
+	return &InviteMemberHandler{repo: repo, follow: follow, bus: bus, users: users}
 }
 
 func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberCommand) (*group.Invitation, error) {
@@ -77,11 +81,24 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 		InviteeID: cmd.InviteeID,
 	}
 
-	if err := h.repo.CreateInvitation(ctx, inv); err != nil {
+	if err = h.repo.CreateInvitation(ctx, inv); err != nil {
 		return nil, err
 	}
 
-	_ = h.bus.Publish(ctx, "group.invited", inv)
+	actor, err := h.users.GetByID(ctx, cmd.InviterID)
+	if err != nil {
+		return nil, err
+	}
+
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         "group.invitation",
+		RecipientID:  cmd.InviteeID,
+		ActorID:      cmd.InviterID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "group",
+	})
+	_ = h.bus.Publish("notifications.exchange", "group.invitation", body)
 
 	return inv, nil
 }

@@ -8,9 +8,15 @@ import (
 	"social-network/internal/topic"
 )
 
+var topicWithAuthor = &mockTopicRepo{
+	getByIDFn: func(_ context.Context, id int, _ *string) (*topic.Topic, error) {
+		return &topic.Topic{ID: id, UserID: "author-1"}, nil
+	},
+}
+
 func TestCastVote_Like(t *testing.T) {
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(&mockTopicRepo{}, bus)
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u2",
@@ -20,14 +26,14 @@ func TestCastVote_Like(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.liked" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.liked")
+	if bus.routingKey != "post.liked" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked")
 	}
 }
 
 func TestCastVote_Dislike(t *testing.T) {
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(&mockTopicRepo{}, bus)
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u2",
@@ -37,13 +43,13 @@ func TestCastVote_Dislike(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.unliked" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.unliked")
+	if bus.routingKey != "post.liked.deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked.deleted")
 	}
 }
 
 func TestCastVote_EmptyUser(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		TopicID:      1,
@@ -55,7 +61,7 @@ func TestCastVote_EmptyUser(t *testing.T) {
 }
 
 func TestCastVote_ZeroTopicID(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u1",
@@ -67,7 +73,7 @@ func TestCastVote_ZeroTopicID(t *testing.T) {
 }
 
 func TestCastVote_InvalidReaction(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u1",
@@ -86,7 +92,7 @@ func TestCastVote_RepoError(t *testing.T) {
 		},
 	}
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(repo, bus)
+	h := NewCastVoteHandler(repo, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID: "u1", TopicID: 1, ReactionType: 1,
@@ -94,7 +100,7 @@ func TestCastVote_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from repo")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
 	}
 }

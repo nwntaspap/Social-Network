@@ -2,9 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/follow"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 var ErrSelfFollow = errors.New("cannot follow yourself")
@@ -27,14 +30,16 @@ type FollowUserCommand struct {
 type FollowUserHandler struct {
 	repo    follow.Repository
 	privacy follow.UserPrivacyChecker
-	bus     follow.EventBus
+	bus     eventbus.EventBus
+	users   user.Repository
 }
 
-func NewFollowUserHandler(repo follow.Repository, privacy follow.UserPrivacyChecker, bus follow.EventBus) *FollowUserHandler {
+func NewFollowUserHandler(repo follow.Repository, privacy follow.UserPrivacyChecker, bus eventbus.EventBus, users user.Repository) *FollowUserHandler {
 	return &FollowUserHandler{
 		repo:    repo,
 		privacy: privacy,
 		bus:     bus,
+		users:   users,
 	}
 }
 
@@ -48,6 +53,11 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 		return "", err
 	}
 
+	actor, err := h.users.GetByID(ctx, cmd.FollowerID)
+	if err != nil {
+		return err
+	}
+
 	if isPrivate {
 		req := &follow.Request{
 			FollowerID: cmd.FollowerID,
@@ -58,7 +68,14 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 			return "", err
 		}
 
-		err = h.bus.Publish(ctx, "follow.requested", req)
+		body, _ := json.Marshal(eventbus.Envelope{
+			Type:        "follow.requested",
+			RecipientID: cmd.TargetID,
+			ActorID:     cmd.FollowerID,
+			ActorName:   actor.Nickname,
+			ActorAvatar: actor.AvatarPath,
+		})
+		err = h.bus.Publish("notifications.exchange", "follow.requested", body)
 		if err != nil {
 			return "", err
 		}
@@ -72,7 +89,14 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 	if err != nil {
 		return "", err
 	}
-	err = h.bus.Publish(ctx, "follow.accepted", f)
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:        "follow.accepted",
+		RecipientID: cmd.TargetID,
+		ActorID:     cmd.FollowerID,
+		ActorName:   actor.Nickname,
+		ActorAvatar: actor.AvatarPath,
+	})
+	err = h.bus.Publish("notifications.exchange", "follow.accepted", body)
 	if err != nil {
 		return "", err
 	}

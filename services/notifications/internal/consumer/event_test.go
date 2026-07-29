@@ -12,14 +12,17 @@ func TestEventEnvelope_ToNotification_MapsType(t *testing.T) {
 		want      string
 	}{
 		{"post.liked", "like"},
-		{"comment.voted", "like"},
-		{"post.unliked", "unlike"},
-		{"comment.vote.deleted", "unlike"},
+		{"post.liked.deleted", "unlike"},
+		{"comment.liked", "like"},
+		{"comment.liked.deleted", "unlike"},
 		{"follow.requested", "follow_request"},
+		{"follow.requested.deleted", "follow_cancelled"},
 		{"follow.accepted", "follow_accept"},
-		{"follow.declined", "follow_decline"},
-		{"comment.created", "comment"},
-		{"post.created", "post"},
+		{"follow.accepted.deleted", "unfollow"},
+		{"group.invitation", "group_invite"},
+		{"group.invitation.deleted", "group_invite_removed"},
+		{"event.created", "event_created"},
+		{"event.created.deleted", "event_removed"},
 		{"unknown.event", "unknown.event"},
 	}
 

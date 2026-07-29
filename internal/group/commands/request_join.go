@@ -2,10 +2,13 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type RequestJoinCommand struct {
@@ -14,12 +17,13 @@ type RequestJoinCommand struct {
 }
 
 type RequestJoinHandler struct {
-	repo group.Repository
-	bus  group.EventBus
+	repo  group.Repository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewRequestJoinHandler(repo group.Repository, bus group.EventBus) *RequestJoinHandler {
-	return &RequestJoinHandler{repo: repo, bus: bus}
+func NewRequestJoinHandler(repo group.Repository, bus eventbus.EventBus, users user.Repository) *RequestJoinHandler {
+	return &RequestJoinHandler{repo: repo, bus: bus, users: users}
 }
 
 func (h *RequestJoinHandler) Execute(ctx context.Context, cmd RequestJoinCommand) (*group.JoinRequest, error) {
@@ -31,7 +35,6 @@ func (h *RequestJoinHandler) Execute(ctx context.Context, cmd RequestJoinCommand
 	if err != nil {
 		return nil, err
 	}
-	_ = g
 
 	if cmd.RequesterID == g.CreatorID {
 		return nil, group.ErrSelfJoin
@@ -59,11 +62,24 @@ func (h *RequestJoinHandler) Execute(ctx context.Context, cmd RequestJoinCommand
 		RequesterID: cmd.RequesterID,
 	}
 
-	if err := h.repo.CreateJoinRequest(ctx, jr); err != nil {
+	if err = h.repo.CreateJoinRequest(ctx, jr); err != nil {
 		return nil, err
 	}
 
-	_ = h.bus.Publish(ctx, "group.join_requested", jr)
+	actor, err := h.users.GetByID(ctx, cmd.RequesterID)
+	if err != nil {
+		return nil, err
+	}
+
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         "group.join_requested",
+		RecipientID:  g.CreatorID,
+		ActorID:      cmd.RequesterID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "group",
+	})
+	_ = h.bus.Publish("notifications.exchange", "group.join_requested", body)
 
 	return jr, nil
 }

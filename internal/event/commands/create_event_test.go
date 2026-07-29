@@ -7,7 +7,29 @@ import (
 	"time"
 
 	"social-network/internal/event"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
+
+type fakeUserRepo struct{}
+
+func (m *fakeUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (m *fakeUserRepo) GetByID(_ context.Context, id string) (*user.User, error) {
+	return &user.User{Nickname: id + "-name", AvatarPath: ""}, nil
+}
+
+var errFakeUserNotFound = errors.New("user not found")
+
+func (m *fakeUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, errFakeUserNotFound
+}
+
+func (m *fakeUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, errFakeUserNotFound
+}
+func (m *fakeUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (m *fakeUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (m *fakeUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
 
 type fakeMemberChecker struct {
 	isMember bool
@@ -22,9 +44,17 @@ type fakeEventBus struct {
 	published bool
 }
 
-func (f *fakeEventBus) Publish(_ context.Context, _ string, _ any) error {
+func (f *fakeEventBus) Publish(_ string, _ string, _ []byte) error {
 	f.published = true
 	return nil
+}
+
+func (f *fakeEventBus) InitTopology(_ context.Context) error { return nil }
+
+func (f *fakeEventBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
 }
 
 type fakeRepo struct {
@@ -40,6 +70,9 @@ func newFakeRepo() *fakeRepo {
 }
 
 func (r *fakeRepo) CreateEvent(_ context.Context, e *event.Event) error {
+	if e == nil {
+		return errors.New("event is nil")
+	}
 	r.events[e.ID] = e
 	return nil
 }
@@ -108,7 +141,7 @@ func TestCreateEventHandler_Validation(t *testing.T) {
 	bus := &fakeEventBus{}
 	member := &fakeMemberChecker{isMember: true}
 	repo := newFakeRepo()
-	handler := NewCreateEventHandler(repo, member, bus)
+	handler := NewCreateEventHandler(repo, member, bus, &fakeUserRepo{})
 
 	t.Run("empty user ID", func(t *testing.T) {
 		_, _, err := handler.Execute(ctx, CreateEventCommand{GroupID: "g1", Title: "T", Description: "D", ScheduledTime: time.Now().Add(time.Hour), Options: []string{"a", "b"}})
@@ -161,7 +194,7 @@ func TestCreateEventHandler_Validation(t *testing.T) {
 
 	t.Run("not group member", func(t *testing.T) {
 		m := &fakeMemberChecker{isMember: false}
-		h := NewCreateEventHandler(repo, m, bus)
+		h := NewCreateEventHandler(repo, m, bus, &fakeUserRepo{})
 		_, _, err := h.Execute(ctx, CreateEventCommand{UserID: "u1", GroupID: "g1", Title: "T", Description: "D", ScheduledTime: time.Now().Add(time.Hour), Options: []string{"a", "b"}})
 		if !errors.Is(err, ErrNotGroupMember) {
 			t.Errorf("expected ErrNotGroupMember, got %v", err)

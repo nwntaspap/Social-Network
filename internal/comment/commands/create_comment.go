@@ -2,12 +2,16 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 
 	"social-network/internal/comment"
 	"social-network/internal/pkg/imgutil"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/topic"
+	"social-network/internal/user"
 )
 
 var (
@@ -25,19 +29,24 @@ type CreateCommentCommand struct {
 }
 
 type CreateCommentHandler struct {
-	repo comment.Repository
-	bus  comment.EventBus
+	repo   comment.Repository
+	bus    eventbus.EventBus
+	users  user.Repository
+	topics topic.Repository
 	img  comment.ImageStorage
-}
-
-type CommentCreatedEvent struct {
-	CommentID int
-	TopicID   int
-	UserID    string
 }
 
 func NewCreateCommentHandler(repo comment.Repository, bus comment.EventBus, img comment.ImageStorage) *CreateCommentHandler {
 	return &CreateCommentHandler{repo: repo, bus: bus, img: img}
+	repo   comment.Repository
+	bus    eventbus.EventBus
+	users  user.Repository
+	topics topic.Repository
+	img  comment.ImageStorage
+}
+
+func NewCreateCommentHandler(repo comment.Repository, bus eventbus.EventBus, users user.Repository, topics topic.Repository,img comment.ImageStorage) *CreateCommentHandler {
+	return &CreateCommentHandler{repo: repo, bus: bus, users: users, topics: topics,img: img}
 }
 
 func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCommand) (*comment.Comment, error) {
@@ -71,11 +80,27 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		return nil, err
 	}
 
-	_ = h.bus.Publish(ctx, "comment.created", CommentCreatedEvent{
-		CommentID: c.ID,
-		TopicID:   cmd.TopicID,
-		UserID:    cmd.UserID,
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	recipientID := cmd.UserID
+	t, err := h.topics.GetTopicByID(ctx, cmd.TopicID, &cmd.UserID)
+	if err == nil {
+		recipientID = t.UserID
+	}
+
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         "comment.created",
+		RecipientID:  recipientID,
+		ActorID:      cmd.UserID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "comment",
+		ResourceID:   c.ID,
 	})
+	_ = h.bus.Publish("notifications.exchange", "comment.created", body)
 
 	return c, nil
 }

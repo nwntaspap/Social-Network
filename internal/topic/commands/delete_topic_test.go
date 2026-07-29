@@ -20,8 +20,8 @@ func TestDeleteTopic_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.deleted" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.deleted")
+	if bus.routingKey != "post.deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.deleted")
 	}
 }
 
@@ -57,7 +57,7 @@ func TestDeleteTopic_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from repo")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
 	}
 }

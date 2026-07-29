@@ -5,8 +5,30 @@ import (
 	"errors"
 	"testing"
 
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
+	"social-network/internal/user"
 )
+
+type mockUserRepo struct{}
+
+func (m *mockUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (m *mockUserRepo) GetByID(_ context.Context, id string) (*user.User, error) {
+	return &user.User{Nickname: id + "-name", AvatarPath: ""}, nil
+}
+
+var errUserNotFound = errors.New("user not found")
+
+func (m *mockUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+
+func (m *mockUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+func (m *mockUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (m *mockUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (m *mockUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
 
 type mockTopicRepo struct {
 	createFn     func(ctx context.Context, t *topic.Topic, allowed []string) error
@@ -91,11 +113,21 @@ func (m *mockTopicRepo) GetPostCount(_ context.Context, _ string) (int, error) {
 func (m *mockTopicRepo) GetVoteCount(_ context.Context, _ string) (int, error) { return 0, nil }
 
 type mockEventBus struct {
-	eventType string
+	routingKey string
 }
 
-func (m *mockEventBus) Publish(_ context.Context, eventType string, _ any) error {
-	m.eventType = eventType
+func (m *mockEventBus) Publish(_ string, routingKey string, _ []byte) error {
+	m.routingKey = routingKey
+	return nil
+}
+
+func (m *mockEventBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+
+func (m *mockEventBus) InitTopology(_ context.Context) error {
 	return nil
 }
 
@@ -109,8 +141,7 @@ func (m *mockImageStorage) Upload(_ context.Context, _ []byte, _ string) error {
 func (m *mockImageStorage) Delete(_ context.Context, _ string) error { return m.deleteErr }
 
 func TestCreateTopic_Success(t *testing.T) {
-	bus := &mockEventBus{}
-	h := NewCreateTopicHandler(&mockTopicRepo{}, bus, &mockImageStorage{})
+	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockImageStorage{})
 
 	top, err := h.Execute(context.Background(), CreateTopicCommand{
 		UserID:  "u1",
@@ -123,13 +154,10 @@ func TestCreateTopic_Success(t *testing.T) {
 	if top.ID == 0 {
 		t.Error("ID not set")
 	}
-	if bus.eventType != "post.created" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.created")
-	}
 }
 
 func TestCreateTopic_EmptyUser(t *testing.T) {
-	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockEventBus{}, &mockImageStorage{})
+	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockImageStorage{})
 
 	_, err := h.Execute(context.Background(), CreateTopicCommand{Title: "X", Content: "Y"})
 	if !errors.Is(err, topic.ErrUnauthorized) {
@@ -138,7 +166,7 @@ func TestCreateTopic_EmptyUser(t *testing.T) {
 }
 
 func TestCreateTopic_EmptyTitle(t *testing.T) {
-	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockEventBus{}, &mockImageStorage{})
+	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockImageStorage{})
 
 	_, err := h.Execute(context.Background(), CreateTopicCommand{UserID: "u1", Content: "Y"})
 	if err == nil {
@@ -152,16 +180,12 @@ func TestCreateTopic_RepoError(t *testing.T) {
 			return errors.New("db error")
 		},
 	}
-	bus := &mockEventBus{}
-	h := NewCreateTopicHandler(repo, bus, &mockImageStorage{})
+	h := NewCreateTopicHandler(repo, &mockImageStorage{})
 
 	_, err := h.Execute(context.Background(), CreateTopicCommand{
 		UserID: "u1", Title: "X", Content: "Y",
 	})
 	if err == nil {
 		t.Fatal("expected error from repo")
-	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
 	}
 }

@@ -2,11 +2,34 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"social-network/internal/follow"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
+
+var errUserNotFound = errors.New("user not found")
+
+type mockUserRepo struct{}
+
+func (m *mockUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (m *mockUserRepo) GetByID(_ context.Context, id string) (*user.User, error) {
+	return &user.User{Nickname: id + "-name", AvatarPath: ""}, nil
+}
+
+func (m *mockUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+
+func (m *mockUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+func (m *mockUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (m *mockUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (m *mockUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
 
 type mockRepo struct {
 	createFollowErr        error
@@ -54,22 +77,32 @@ func (m *mockPrivacy) IsPrivate(_ context.Context, _ string) (bool, error) {
 }
 
 type mockBus struct {
-	eventType  string
-	payload    any
+	routingKey string
+	body       []byte
 	publishErr error
 }
 
-func (m *mockBus) Publish(_ context.Context, eventType string, payload any) error {
-	m.eventType = eventType
-	m.payload = payload
+func (m *mockBus) Publish(exchange, routingKey string, body []byte) error {
+	m.routingKey = routingKey
+	m.body = body
 	return m.publishErr
+}
+
+func (m *mockBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+
+func (m *mockBus) InitTopology(_ context.Context) error {
+	return nil
 }
 
 func TestFollowUserHandler_PublicUser(t *testing.T) {
 	repo := &mockRepo{}
 	privacy := &mockPrivacy{isPrivate: false}
 	bus := &mockBus{}
-	h := NewFollowUserHandler(repo, privacy, bus)
+	h := NewFollowUserHandler(repo, privacy, bus, &mockUserRepo{})
 
 	result, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
@@ -81,15 +114,15 @@ func TestFollowUserHandler_PublicUser(t *testing.T) {
 	if result != FollowedDirect {
 		t.Errorf("result = %q, want %q", result, FollowedDirect)
 	}
-	if bus.eventType != "follow.accepted" {
-		t.Errorf("eventType = %q, want %q", bus.eventType, "follow.accepted")
+	if bus.routingKey != "follow.accepted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "follow.accepted")
 	}
-	f, ok := bus.payload.(*follow.Follow)
-	if !ok {
-		t.Fatalf("payload type = %T, want *follow.Follow", bus.payload)
+	var env eventbus.Envelope
+	if err := json.Unmarshal(bus.body, &env); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
 	}
-	if f.FollowerID != "user-1" || f.FolloweeID != "user-2" {
-		t.Errorf("payload = %+v, want FollowerID=user-1 FolloweeID=user-2", f)
+	if env.RecipientID != "user-2" || env.ActorID != "user-1" {
+		t.Errorf("payload = %+v, want RecipientID=user-2 ActorID=user-1", env)
 	}
 }
 
@@ -97,7 +130,7 @@ func TestFollowUserHandler_PrivateUser(t *testing.T) {
 	repo := &mockRepo{}
 	privacy := &mockPrivacy{isPrivate: true}
 	bus := &mockBus{}
-	h := NewFollowUserHandler(repo, privacy, bus)
+	h := NewFollowUserHandler(repo, privacy, bus, &mockUserRepo{})
 
 	result, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
@@ -109,20 +142,20 @@ func TestFollowUserHandler_PrivateUser(t *testing.T) {
 	if result != FollowPending {
 		t.Errorf("result = %q, want %q", result, FollowPending)
 	}
-	if bus.eventType != "follow.requested" {
-		t.Errorf("eventType = %q, want %q", bus.eventType, "follow.requested")
+	if bus.routingKey != "follow.requested" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "follow.requested")
 	}
-	r, ok := bus.payload.(*follow.Request)
-	if !ok {
-		t.Fatalf("payload type = %T, want *follow.Request", bus.payload)
+	var env eventbus.Envelope
+	if err := json.Unmarshal(bus.body, &env); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
 	}
-	if r.FollowerID != "user-1" || r.FolloweeID != "user-2" {
-		t.Errorf("payload = %+v, want FollowerID=user-1 FolloweeID=user-2", r)
+	if env.RecipientID != "user-2" || env.ActorID != "user-1" {
+		t.Errorf("payload = %+v, want RecipientID=user-2 ActorID=user-1", env)
 	}
 }
 
 func TestFollowUserHandler_SelfFollow(t *testing.T) {
-	h := NewFollowUserHandler(&mockRepo{}, &mockPrivacy{}, &mockBus{})
+	h := NewFollowUserHandler(&mockRepo{}, &mockPrivacy{}, &mockBus{}, &mockUserRepo{})
 
 	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
@@ -135,7 +168,7 @@ func TestFollowUserHandler_SelfFollow(t *testing.T) {
 
 func TestFollowUserHandler_PrivacyCheckError(t *testing.T) {
 	privacy := &mockPrivacy{err: errors.New("db down")}
-	h := NewFollowUserHandler(&mockRepo{}, privacy, &mockBus{})
+	h := NewFollowUserHandler(&mockRepo{}, privacy, &mockBus{}, &mockUserRepo{})
 
 	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
@@ -150,7 +183,7 @@ func TestFollowUserHandler_RepoCreateFollowError(t *testing.T) {
 	repo := &mockRepo{createFollowErr: errors.New("insert failed")}
 	privacy := &mockPrivacy{isPrivate: false}
 	bus := &mockBus{}
-	h := NewFollowUserHandler(repo, privacy, bus)
+	h := NewFollowUserHandler(repo, privacy, bus, &mockUserRepo{})
 
 	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
@@ -159,7 +192,7 @@ func TestFollowUserHandler_RepoCreateFollowError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Execute() expected error, got nil")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after repo error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after repo error: %q", bus.routingKey)
 	}
 }

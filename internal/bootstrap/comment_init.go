@@ -1,7 +1,6 @@
 package bootstrap
 
 import (
-	"context"
 	"net/http"
 
 	commentcommands "social-network/internal/comment/commands"
@@ -11,20 +10,17 @@ import (
 	"social-network/internal/core/middleware"
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
+	topicstore "social-network/internal/topic/store"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-type commentEventBus struct{}
-
-func (b *commentEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
-}
-
-func initComment(db database.DB) *commenttransport.Handler {
+func initComment(db database.DB, bus eventbus.EventBus) *commenttransport.Handler {
 	store := commentstore.NewSQLiteStore(db)
-	bus := &commentEventBus{}
 	img := localstorage.NewLocalStorage()
+	users := userstore.NewSQLiteStore(db)
+	topics := topicstore.NewSQLiteStore(db)
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -39,10 +35,10 @@ func initComment(db database.DB) *commenttransport.Handler {
 	return commenttransport.NewHandler(
 		extractUser,
 		userLookup,
-		commentcommands.NewCreateCommentHandler(store, bus, img),
+		commentcommands.NewCreateCommentHandler(store, bus, users, topics, img),
 		commentcommands.NewUpdateCommentHandler(store),
 		commentcommands.NewDeleteCommentHandler(store),
-		commentcommands.NewCastCommentVoteHandler(store, bus),
+		commentcommands.NewCastCommentVoteHandler(store, bus, users),
 		commentcommands.NewDeleteCommentVoteHandler(store, bus),
 		commentqueries.NewGetCommentByIDResolver(store),
 		commentqueries.NewGetCommentByIDWithVotesResolver(store),

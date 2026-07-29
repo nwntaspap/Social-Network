@@ -8,9 +8,15 @@ import (
 	"social-network/internal/topic"
 )
 
+var topicWithAuthor2 = &mockTopicRepo{
+	getByIDFn: func(_ context.Context, id int, _ *string) (*topic.Topic, error) {
+		return &topic.Topic{ID: id, UserID: "author-1"}, nil
+	},
+}
+
 func TestDeleteVote_Success(t *testing.T) {
 	bus := &mockEventBus{}
-	h := NewDeleteVoteHandler(&mockTopicRepo{}, bus)
+	h := NewDeleteVoteHandler(topicWithAuthor2, bus)
 
 	err := h.Execute(context.Background(), DeleteVoteCommand{
 		UserID:  "u2",
@@ -19,8 +25,8 @@ func TestDeleteVote_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.unliked" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.unliked")
+	if bus.routingKey != "post.liked.deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked.deleted")
 	}
 }
 
@@ -61,7 +67,7 @@ func TestDeleteVote_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from repo")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
 	}
 }

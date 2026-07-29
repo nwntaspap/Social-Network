@@ -56,6 +56,7 @@ func NewGoBroker() (*GoBroker, error) {
 	}
 	client, err := gomqSDK.Connect("localhost:5672", cfg)
 	if err != nil {
+		fmt.Println("not connected to broker")
 		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%w", err)
 	}
 

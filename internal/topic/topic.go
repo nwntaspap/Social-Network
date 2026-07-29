@@ -45,10 +45,6 @@ var (
 	ErrInvalidVoteValue = errors.New("reaction_type must be 1 (like) or -1 (dislike)")
 )
 
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
-}
-
 type ImageStorage interface {
 	Upload(ctx context.Context, data []byte, path string) error
 	Delete(ctx context.Context, path string) error

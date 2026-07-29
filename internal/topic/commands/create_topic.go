@@ -22,19 +22,11 @@ type CreateTopicCommand struct {
 
 type CreateTopicHandler struct {
 	repo topic.Repository
-	bus  topic.EventBus
 	img  topic.ImageStorage
 }
 
-func NewCreateTopicHandler(repo topic.Repository, bus topic.EventBus, img topic.ImageStorage) *CreateTopicHandler {
-	return &CreateTopicHandler{repo: repo, bus: bus, img: img}
-}
-
-type TopicCreatedEvent struct {
-	TopicID    int
-	UserID     string
-	GroupID    *string
-	Visibility topic.Visibility
+func NewCreateTopicHandler(repo topic.Repository, img topic.ImageStorage) *CreateTopicHandler {
+	return &CreateTopicHandler{repo: repo, img: img}
 }
 
 func (h *CreateTopicHandler) Execute(ctx context.Context, cmd CreateTopicCommand) (*topic.Topic, error) {
@@ -66,13 +58,6 @@ func (h *CreateTopicHandler) Execute(ctx context.Context, cmd CreateTopicCommand
 	if err := h.repo.CreateTopic(ctx, t, cmd.AllowedUserIDs); err != nil {
 		return nil, fmt.Errorf("create topic: %w", err)
 	}
-
-	_ = h.bus.Publish(ctx, "post.created", TopicCreatedEvent{
-		TopicID:    t.ID,
-		UserID:     t.UserID,
-		GroupID:    t.GroupID,
-		Visibility: t.Visibility,
-	})
 
 	return t, nil
 }

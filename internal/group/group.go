@@ -49,18 +49,18 @@ type Member struct {
 }
 
 type Invitation struct {
-	ID        string
-	GroupID   string
-	InviterID string
-	InviteeID string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	InviterID string    `json:"inviter_id"`
+	InviteeID string    `json:"invitee_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type JoinRequest struct {
-	ID          string
-	GroupID     string
-	RequesterID string
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	GroupID     string    `json:"group_id"`
+	RequesterID string    `json:"requester_id"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Post struct {
@@ -168,10 +168,6 @@ type ChatRepository interface {
 
 type FollowChecker interface {
 	AreConnected(ctx context.Context, a, b string) (bool, error)
-}
-
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
 }
 
 type ImageStorage interface {

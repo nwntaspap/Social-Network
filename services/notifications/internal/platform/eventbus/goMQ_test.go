@@ -19,8 +19,8 @@ func TestTopologyJSON_UnmarshalsCorrectly(t *testing.T) {
 	if len(topo.Queues) != 2 {
 		t.Errorf("got %d queues, want 2", len(topo.Queues))
 	}
-	if len(topo.Bindings) != 2 {
-		t.Errorf("got %d bindings, want 2", len(topo.Bindings))
+	if len(topo.Bindings) != 20 {
+		t.Errorf("got %d bindings, want 20", len(topo.Bindings))
 	}
 
 	exNames := map[string]bool{}
@@ -78,7 +78,7 @@ func TestGoBroker_SubscribePublishRoundtrip(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	payload := []byte("hello from test")
-	if err := broker.Publish("notifications.exchange", "notification.key", payload); err != nil {
+	if err := broker.Publish("notifications.exchange", "post.liked", payload); err != nil {
 		t.Fatalf("Publish failed: %v", err)
 	}
 
@@ -87,8 +87,8 @@ func TestGoBroker_SubscribePublishRoundtrip(t *testing.T) {
 		if string(msg.Body()) != string(payload) {
 			t.Errorf("Body() = %q, want %q", msg.Body(), payload)
 		}
-		if msg.RoutingKey() != "notification.key" {
-			t.Errorf("RoutingKey() = %q, want %q", msg.RoutingKey(), "notification.key")
+		if msg.RoutingKey() != "post.liked" {
+			t.Errorf("RoutingKey() = %q, want %q", msg.RoutingKey(), "post.liked")
 		}
 		if err := msg.Ack(); err != nil {
 			t.Errorf("Ack failed: %v", err)
@@ -115,7 +115,7 @@ func TestGoBroker_NackRequeuesMessage(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	payload := []byte("nack-me")
-	if err := broker.Publish("notifications.exchange", "notification.key", payload); err != nil {
+	if err := broker.Publish("notifications.exchange", "post.liked", payload); err != nil {
 		t.Fatalf("Publish failed: %v", err)
 	}
 

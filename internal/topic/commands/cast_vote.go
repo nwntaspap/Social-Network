@@ -2,9 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
+	"social-network/internal/user"
 )
 
 type CastVoteCommand struct {
@@ -14,22 +17,13 @@ type CastVoteCommand struct {
 }
 
 type CastVoteHandler struct {
-	repo topic.Repository
-	bus  topic.EventBus
+	repo  topic.Repository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewCastVoteHandler(repo topic.Repository, bus topic.EventBus) *CastVoteHandler {
-	return &CastVoteHandler{repo: repo, bus: bus}
-}
-
-type PostLikedEvent struct {
-	TopicID int
-	UserID  string
-}
-
-type PostUnlikedEvent struct {
-	TopicID int
-	UserID  string
+func NewCastVoteHandler(repo topic.Repository, bus eventbus.EventBus, users user.Repository) *CastVoteHandler {
+	return &CastVoteHandler{repo: repo, bus: bus, users: users}
 }
 
 func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) error {
@@ -43,27 +37,41 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		return topic.ErrInvalidVoteValue
 	}
 
-	vc, err := h.repo.GetVoteCounts(ctx, cmd.TopicID)
+	_, err := h.repo.GetVoteCounts(ctx, cmd.TopicID)
 	if err != nil {
 		return fmt.Errorf("get vote counts: %w", err)
 	}
-	_ = vc
 
-	if err := h.repo.CastVote(ctx, cmd.UserID, cmd.TopicID, cmd.ReactionType); err != nil {
+	if err = h.repo.CastVote(ctx, cmd.UserID, cmd.TopicID, cmd.ReactionType); err != nil {
 		return fmt.Errorf("cast vote: %w", err)
 	}
 
-	if cmd.ReactionType == 1 {
-		_ = h.bus.Publish(ctx, "post.liked", PostLikedEvent{
-			TopicID: cmd.TopicID,
-			UserID:  cmd.UserID,
-		})
-	} else {
-		_ = h.bus.Publish(ctx, "post.unliked", PostUnlikedEvent{
-			TopicID: cmd.TopicID,
-			UserID:  cmd.UserID,
-		})
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return err
 	}
+
+	t, err := h.repo.GetTopicByID(ctx, cmd.TopicID, &cmd.UserID)
+	if err != nil {
+		return err
+	}
+
+	routingKey := "post.liked"
+	if cmd.ReactionType != 1 {
+		routingKey = "post.liked.deleted"
+	}
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         routingKey,
+		RecipientID:  t.UserID,
+		ActorID:      cmd.UserID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "post",
+		ResourceID:   cmd.TopicID,
+		ContentText:  t.Content,
+		ImageURL:     t.ImagePath,
+	})
+	_ = h.bus.Publish("notifications.exchange", routingKey, body)
 
 	return nil
 }

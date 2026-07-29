@@ -2,8 +2,11 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 
 	"social-network/internal/follow"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type DeclineRequestCommand struct {
@@ -12,14 +15,16 @@ type DeclineRequestCommand struct {
 }
 
 type DeclineRequestHandler struct {
-	repo follow.Repository
-	bus  follow.EventBus
+	repo  follow.Repository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewDeclineRequestHandler(repo follow.Repository, bus follow.EventBus) *DeclineRequestHandler {
+func NewDeclineRequestHandler(repo follow.Repository, bus eventbus.EventBus, users user.Repository) *DeclineRequestHandler {
 	return &DeclineRequestHandler{
-		repo: repo,
-		bus:  bus,
+		repo:  repo,
+		bus:   bus,
+		users: users,
 	}
 }
 
@@ -29,8 +34,19 @@ func (h *DeclineRequestHandler) Execute(ctx context.Context, cmd DeclineRequestC
 		return err
 	}
 
-	return h.bus.Publish(ctx, "follow.declined", &follow.Request{
-		FollowerID: cmd.FollowerID,
-		FolloweeID: cmd.FolloweeID,
+	actor, err := h.users.GetByID(ctx, cmd.FolloweeID)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(eventbus.Envelope{
+		Type:        "follow.declined",
+		RecipientID: cmd.FollowerID,
+		ActorID:     cmd.FolloweeID,
+		ActorName:   actor.Nickname,
+		ActorAvatar: actor.AvatarPath,
 	})
+	if err != nil {
+		return err
+	}
+	return h.bus.Publish("notifications.exchange", "follow.declined", body)
 }

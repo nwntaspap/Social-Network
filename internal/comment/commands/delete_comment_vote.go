@@ -2,8 +2,10 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 
 	"social-network/internal/comment"
+	"social-network/internal/platform/eventbus"
 )
 
 type DeleteCommentVoteCommand struct {
@@ -12,16 +14,16 @@ type DeleteCommentVoteCommand struct {
 }
 
 type CommentVoteDeletedEvent struct {
-	CommentID int
-	UserID    string
+	CommentID int    `json:"comment_id"`
+	UserID    string `json:"user_id"`
 }
 
 type DeleteCommentVoteHandler struct {
 	repo comment.Repository
-	bus  comment.EventBus
+	bus  eventbus.EventBus
 }
 
-func NewDeleteCommentVoteHandler(repo comment.Repository, bus comment.EventBus) *DeleteCommentVoteHandler {
+func NewDeleteCommentVoteHandler(repo comment.Repository, bus eventbus.EventBus) *DeleteCommentVoteHandler {
 	return &DeleteCommentVoteHandler{repo: repo, bus: bus}
 }
 
@@ -36,11 +38,12 @@ func (h *DeleteCommentVoteHandler) Execute(ctx context.Context, cmd DeleteCommen
 	if err := h.repo.DeleteCommentVote(ctx, cmd.UserID, cmd.CommentID); err != nil {
 		return err
 	}
-
-	_ = h.bus.Publish(ctx, "comment.vote.deleted", CommentVoteDeletedEvent{
-		CommentID: cmd.CommentID,
-		UserID:    cmd.UserID,
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         "comment.liked.deleted",
+		ResourceType: "comment",
+		ResourceID:   cmd.CommentID,
 	})
+	_ = h.bus.Publish("notifications.exchange", "comment.liked.deleted", body)
 
 	return nil
 }

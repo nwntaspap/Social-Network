@@ -25,6 +25,7 @@ import (
 	oauthtransport "social-network/internal/oauth/transport"
 	pkgoauth "social-network/internal/pkg/oAuth"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
 	topictransport "social-network/internal/topic/transport"
 	usertransport "social-network/internal/user/transport"
 
@@ -54,7 +55,6 @@ type App struct {
 }
 
 func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
-	notifier := notifications.NewNotifier()
 	hub := ws.NewHub()
 	rtHub := realtime.NewHub()
 	sessionManager := sessionstore.NewSessionManager(db, cfg.SessionManager)
@@ -72,23 +72,25 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 	mw := middleware.NewMiddleware(sessionManager, cookieManager)
 	repos := sqlite.NewRepositories(db)
 	fileStorage := localstorage.NewLocalStorage()
-	services := app.NewServices(repos.UserRepo, repos.CategoryRepo, repos.TopicRepo, repos.CommentRepo, repos.VoteRepo, repos.OauthRepo, repos.ActivityRepo, repos.ChatRepo, repos.NotificationRepo, notifier, hub, fileStorage)
 	logger := logger.New(os.Stdout, logger.LevelInfo)
+	eventbus, err := eventbus.NewGoBroker()
+	if err != nil {
+		logger.PrintError(err, nil)
+	}
 
 	oauthHandler, legacyOAuth := initOAuth(db, coreSession, sessionCookies, cfg.OAuth, cfg.OAuth.FrontendCallbackURL)
 
 	return &App{
 		Services:       services,
 		User:           initUser(db, coreSession, sessionCookies, rtHub.IsOnline),
-		Follow:         initFollow(db),
+		Follow:         initFollow(db, eventbus),
 		Chat:           initChat(db, rtHub, repos.UserRepo),
-		Comment:        initComment(db),
-		Topic:          initTopic(db),
-		Group:          initGroup(db, rtHub.IsOnline),
-		Event:          initEvent(db),
+		Comment:        initComment(db, eventbus),
+		Topic:          initTopic(db, eventbus),
+		Group:          initGroup(db, eventbus, rtHub.IsOnline),
+		Event:          initEvent(db, eventbus),
 		OAuth:          oauthHandler,
 		LegacyOAuth:    legacyOAuth,
-		Notifier:       notifier,
 		Hub:            hub,
 		Realtime:       initRealtime(db, rtHub),
 		Middlware:      mw,

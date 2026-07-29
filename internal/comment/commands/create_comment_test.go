@@ -6,7 +6,63 @@ import (
 	"testing"
 
 	"social-network/internal/comment"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/topic"
+	"social-network/internal/user"
 )
+
+type mockUserRepo struct{}
+
+func (m *mockUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (m *mockUserRepo) GetByID(_ context.Context, id string) (*user.User, error) {
+	return &user.User{Nickname: id + "-name", AvatarPath: ""}, nil
+}
+
+func (m *mockUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+
+func (m *mockUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, errUserNotFound
+}
+func (m *mockUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (m *mockUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (m *mockUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
+
+type mockTopicRepo struct{}
+
+func (m *mockTopicRepo) CreateTopic(_ context.Context, _ *topic.Topic, _ []string) error { return nil }
+
+func (m *mockTopicRepo) UpdateTopic(_ context.Context, _ *topic.Topic, _ []string) error { return nil }
+
+func (m *mockTopicRepo) DeleteTopic(_ context.Context, _ string, _ int) error { return nil }
+
+func (m *mockTopicRepo) GetTopicByID(_ context.Context, id int, _ *string) (*topic.Topic, error) {
+	return &topic.Topic{ID: id, UserID: "author-1"}, nil
+}
+
+func (m *mockTopicRepo) GetImagePathFromTopicID(_ context.Context, _ int, _ string) (string, error) {
+	return "", nil
+}
+
+func (m *mockTopicRepo) GetFeed(_ context.Context, _ string, _, _ int, _, _, _ string) ([]topic.Topic, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockTopicRepo) GetTopicsByUserID(_ context.Context, _, _ string, _, _ int) ([]topic.Topic, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockTopicRepo) GetTopicsByGroupID(_ context.Context, _ string, _, _ int) ([]topic.Topic, int, error) {
+	return nil, 0, nil
+}
+func (m *mockTopicRepo) CastVote(_ context.Context, _ string, _ int, _ int) error { return nil }
+func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error      { return nil }
+func (m *mockTopicRepo) GetVoteCounts(_ context.Context, _ int) (*topic.VoteCounts, error) {
+	return &topic.VoteCounts{}, nil
+}
+func (m *mockTopicRepo) GetPostCount(_ context.Context, _ string) (int, error) { return 0, nil }
+func (m *mockTopicRepo) GetVoteCount(_ context.Context, _ string) (int, error) { return 0, nil }
 
 type mockRepo struct {
 	createErr error
@@ -64,11 +120,21 @@ var (
 )
 
 type mockBus struct {
-	eventType string
+	routingKey string
 }
 
-func (m *mockBus) Publish(_ context.Context, eventType string, _ any) error {
-	m.eventType = eventType
+func (m *mockBus) Publish(_ string, routingKey string, _ []byte) error {
+	m.routingKey = routingKey
+	return nil
+}
+
+func (m *mockBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+
+func (m *mockBus) InitTopology(_ context.Context) error {
 	return nil
 }
 
@@ -85,7 +151,7 @@ func (m *mockStorage) Upload(_ context.Context, _ []byte, path string) error {
 
 func TestCreateComment_Success(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",
@@ -105,8 +171,7 @@ func TestCreateComment_Success(t *testing.T) {
 
 func TestCreateComment_WithValidImage(t *testing.T) {
 	repo := &mockRepo{}
-	store := &mockStorage{}
-	h := NewCreateCommentHandler(repo, &mockBus{}, store)
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:        "u1",
@@ -134,7 +199,7 @@ func TestCreateComment_WithValidImage(t *testing.T) {
 
 func TestCreateComment_InvalidImage(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 
 	_, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:        "u1",
@@ -149,7 +214,7 @@ func TestCreateComment_InvalidImage(t *testing.T) {
 }
 
 func TestCreateComment_EmptyUserID(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{TopicID: 1, Content: "x"})
 	if !errors.Is(err, ErrEmptyUserID) {
 		t.Errorf("error = %v, want ErrEmptyUserID", err)
@@ -157,7 +222,7 @@ func TestCreateComment_EmptyUserID(t *testing.T) {
 }
 
 func TestCreateComment_ZeroTopicID(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{UserID: "u1", Content: "x"})
 	if !errors.Is(err, ErrEmptyTopicID) {
 		t.Errorf("error = %v, want ErrEmptyTopicID", err)
@@ -165,7 +230,7 @@ func TestCreateComment_ZeroTopicID(t *testing.T) {
 }
 
 func TestCreateComment_EmptyContent(t *testing.T) {
-	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(&mockRepo{}, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 	_, err := h.Execute(context.Background(), CreateCommentCommand{UserID: "u1", TopicID: 1})
 	if !errors.Is(err, ErrEmptyContent) {
 		t.Errorf("error = %v, want ErrEmptyContent", err)
@@ -174,7 +239,7 @@ func TestCreateComment_EmptyContent(t *testing.T) {
 
 func TestCreateComment_RepoError(t *testing.T) {
 	repo := &mockRepo{createErr: errors.New("db fail")}
-	h := NewCreateCommentHandler(repo, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 
 	_, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",
@@ -188,7 +253,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 
 func TestCreateComment_NoImageAllowed(t *testing.T) {
 	repo := &mockRepo{}
-	h := NewCreateCommentHandler(repo, &mockBus{}, &mockStorage{})
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &mockTopicRepo{})
 
 	c, err := h.Execute(context.Background(), CreateCommentCommand{
 		UserID:  "u1",

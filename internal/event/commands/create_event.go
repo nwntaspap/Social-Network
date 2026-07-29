@@ -2,12 +2,15 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
 	"social-network/internal/event"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 var (
@@ -42,11 +45,12 @@ type CreateEventCommand struct {
 type CreateEventHandler struct {
 	repo   event.Repository
 	member GroupMemberChecker
-	bus    event.Bus
+	bus    eventbus.EventBus
+	users  user.Repository
 }
 
-func NewCreateEventHandler(repo event.Repository, member GroupMemberChecker, bus event.Bus) *CreateEventHandler {
-	return &CreateEventHandler{repo: repo, member: member, bus: bus}
+func NewCreateEventHandler(repo event.Repository, member GroupMemberChecker, bus eventbus.EventBus, users user.Repository) *CreateEventHandler {
+	return &CreateEventHandler{repo: repo, member: member, bus: bus, users: users}
 }
 
 func (h *CreateEventHandler) Execute(ctx context.Context, cmd CreateEventCommand) (*event.Event, []event.Option, error) {
@@ -106,7 +110,7 @@ func (h *CreateEventHandler) Execute(ctx context.Context, cmd CreateEventCommand
 		ScheduledTime: cmd.ScheduledTime,
 	}
 
-	if err := h.repo.CreateEvent(ctx, e); err != nil {
+	if err = h.repo.CreateEvent(ctx, e); err != nil {
 		return nil, nil, err
 	}
 
@@ -118,11 +122,24 @@ func (h *CreateEventHandler) Execute(ctx context.Context, cmd CreateEventCommand
 			Label:   strings.TrimSpace(label),
 		}
 	}
-	if err := h.repo.CreateOptions(ctx, opts); err != nil {
+	if err = h.repo.CreateOptions(ctx, opts); err != nil {
 		return nil, nil, err
 	}
 
-	_ = h.bus.Publish(ctx, "event.created", e)
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	payload, _ := json.Marshal(eventbus.Envelope{
+		Type:         "event.created",
+		RecipientID:  cmd.UserID,
+		ActorID:      cmd.UserID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "event",
+	})
+	_ = h.bus.Publish("notifications.exchange", "event.created", payload)
 
 	return e, opts, nil
 }

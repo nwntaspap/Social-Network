@@ -5,20 +5,20 @@ import (
 	"net/http"
 
 	"social-network/internal/core/middleware"
-	"social-network/internal/event"
 	eventcommands "social-network/internal/event/commands"
 	eventqueries "social-network/internal/event/queries"
 	eventstore "social-network/internal/event/store"
 	eventtransport "social-network/internal/event/transport"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initEvent(db database.DB) *eventtransport.Handler {
+func initEvent(db database.DB, bus eventbus.EventBus) *eventtransport.Handler {
 	store := eventstore.NewSQLiteStore(db)
-	bus := &eventEventBus{}
 	groupMember := &groupMemberChecker{db: db}
+	users := userstore.NewSQLiteStore(db)
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -28,24 +28,16 @@ func initEvent(db database.DB) *eventtransport.Handler {
 		return uid, true
 	}
 
-	userLookup := &eventUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 	groupRole := &eventGroupRoleChecker{db: db}
 
 	return eventtransport.NewHandler(
 		extractUser,
-		userLookup,
-		eventcommands.NewCreateEventHandler(store, groupMember, bus),
 		eventcommands.NewUpdateEventHandler(store, groupRole),
+		eventcommands.NewCreateEventHandler(store, groupMember, bus, users),
 		eventcommands.NewRSVPHandler(store),
 		eventqueries.NewListGroupEventsResolver(store),
 		eventqueries.NewListEventRSVPsResolver(store),
 	)
-}
-
-type eventEventBus struct{}
-
-func (b *eventEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
 }
 
 type groupMemberChecker struct {
@@ -109,7 +101,6 @@ func (a *eventUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*e
 }
 
 var (
-	_ event.Bus                        = (*eventEventBus)(nil)
 	_ eventcommands.GroupMemberChecker = (*groupMemberChecker)(nil)
 	_ eventcommands.GroupRoleChecker   = (*eventGroupRoleChecker)(nil)
 	_ eventtransport.UserLookup        = (*eventUserLookupAdapter)(nil)

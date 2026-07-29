@@ -2,9 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/comment"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 var ErrInvalidReactionType = errors.New("reaction_type must be 1 (upvote) or -1 (downvote)")
@@ -15,19 +18,14 @@ type CastCommentVoteCommand struct {
 	ReactionType int
 }
 
-type CommentVotedEvent struct {
-	CommentID    int
-	UserID       string
-	ReactionType int
-}
-
 type CastCommentVoteHandler struct {
-	repo comment.Repository
-	bus  comment.EventBus
+	repo  comment.Repository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewCastCommentVoteHandler(repo comment.Repository, bus comment.EventBus) *CastCommentVoteHandler {
-	return &CastCommentVoteHandler{repo: repo, bus: bus}
+func NewCastCommentVoteHandler(repo comment.Repository, bus eventbus.EventBus, users user.Repository) *CastCommentVoteHandler {
+	return &CastCommentVoteHandler{repo: repo, bus: bus, users: users}
 }
 
 func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVoteCommand) error {
@@ -44,11 +42,27 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 		return err
 	}
 
-	_ = h.bus.Publish(ctx, "comment.voted", CommentVotedEvent{
-		CommentID:    cmd.CommentID,
-		UserID:       cmd.UserID,
-		ReactionType: cmd.ReactionType,
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return err
+	}
+
+	recipientID := cmd.UserID
+	c, err := h.repo.GetCommentByID(ctx, cmd.CommentID)
+	if err == nil {
+		recipientID = c.UserID
+	}
+
+	body, _ := json.Marshal(eventbus.Envelope{
+		Type:         "comment.liked",
+		RecipientID:  recipientID,
+		ActorID:      cmd.UserID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: "comment",
+		ResourceID:   cmd.CommentID,
 	})
+	_ = h.bus.Publish("notifications.exchange", "comment.liked", body)
 
 	return nil
 }

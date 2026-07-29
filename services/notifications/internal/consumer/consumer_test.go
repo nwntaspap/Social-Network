@@ -98,7 +98,7 @@ func TestConsumer_ProcessesValidEvent(t *testing.T) {
 		ContentText:  "Bob liked your post",
 	}
 	body, _ := json.Marshal(env)
-	msg := &mockMessage{body: body, routingKey: "notification.key"}
+	msg := &mockMessage{body: body, routingKey: "post.liked"}
 
 	consumer.handle(msg)
 
@@ -127,7 +127,7 @@ func TestConsumer_RejectsIncompleteEvent(t *testing.T) {
 
 	env := EventEnvelope{Type: "post.liked", RecipientID: "u1"}
 	body, _ := json.Marshal(env)
-	msg := &mockMessage{body: body, routingKey: "notification.key"}
+	msg := &mockMessage{body: body, routingKey: "post.liked"}
 
 	consumer.handle(msg)
 
@@ -140,7 +140,7 @@ func TestConsumer_RejectsIncompleteEvent(t *testing.T) {
 func TestConsumer_RejectsInvalidJSON(t *testing.T) {
 	consumer, repo, _ := setupConsumerTest(t)
 
-	msg := &mockMessage{body: []byte("not-json"), routingKey: "notification.key"}
+	msg := &mockMessage{body: []byte("not-json"), routingKey: "post.liked"}
 	consumer.handle(msg)
 
 	_, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)

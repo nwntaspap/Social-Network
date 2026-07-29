@@ -1,12 +1,12 @@
 package bootstrap
 
 import (
-	"context"
 	"net/http"
 
 	"social-network/internal/core/middleware"
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
 	topiccommands "social-network/internal/topic/commands"
 	topicqueries "social-network/internal/topic/queries"
 	topicstore "social-network/internal/topic/store"
@@ -15,10 +15,10 @@ import (
 	userstore "social-network/internal/user/store"
 )
 
-func initTopic(db database.DB) *topictransport.Handler {
+func initTopic(db database.DB, bus eventbus.EventBus) *topictransport.Handler {
 	store := topicstore.NewSQLiteStore(db)
-	bus := &topicEventBus{}
 	img := localstorage.NewLocalStorage()
+	users := userstore.NewSQLiteStore(db)
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -33,23 +33,17 @@ func initTopic(db database.DB) *topictransport.Handler {
 	return topictransport.NewHandler(
 		extractUser,
 		userLookup,
-		topiccommands.NewCreateTopicHandler(store, bus, img),
+		topiccommands.NewCreateTopicHandler(store, img),
 		topiccommands.NewUpdateTopicHandler(store, img),
 		topiccommands.NewDeleteTopicHandler(store, bus, img),
-		topiccommands.NewCastVoteHandler(store, bus),
 		topiccommands.NewDeleteVoteHandler(store),
+		topiccommands.NewCastVoteHandler(store, bus, users),
 		topicqueries.NewGetFeedResolver(store),
 		topicqueries.NewGetTopicResolver(store),
 		topicqueries.NewGetTopicsByUserResolver(store),
 		topicqueries.NewGetTopicsByGroupResolver(store),
 		topicqueries.NewGetVoteCountsResolver(store),
 	)
-}
-
-type topicEventBus struct{}
-
-func (b *topicEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
 }
 
 type topicUserLookupAdapter struct {

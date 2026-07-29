@@ -20,8 +20,8 @@ func TestDeleteCommentVote_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if bus.eventType != "comment.vote.deleted" {
-		t.Errorf("event = %q, want %q", bus.eventType, "comment.vote.deleted")
+	if bus.routingKey != "comment.liked.deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "comment.liked.deleted")
 	}
 }
 
@@ -58,8 +58,8 @@ func TestDeleteCommentVote_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Execute() expected error, got nil")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
 	}
 }
 
