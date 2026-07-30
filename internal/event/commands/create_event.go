@@ -131,15 +131,15 @@ func (h *CreateEventHandler) Execute(ctx context.Context, cmd CreateEventCommand
 		return nil, nil, err
 	}
 
-	payload, _ := json.Marshal(eventbus.Envelope{
-		Type:         "event.created",
+	payload, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventEvent,
 		RecipientID:  cmd.UserID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: "event",
+		ResourceType: eventbus.ResourceEvent,
 	})
-	_ = h.bus.Publish("notifications.exchange", "event.created", payload)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, payload)
 
 	return e, opts, nil
 }

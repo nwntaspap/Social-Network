@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"social-network/services/notifications/internal/platform/eventbus"
 	"social-network/services/notifications/internal/store"
 )
 
@@ -11,7 +12,7 @@ type EventEnvelope struct {
 	ActorName    string `json:"actor_name"`
 	ActorAvatar  string `json:"actor_avatar"`
 	ResourceType string `json:"resource_type"`
-	ResourceID   int    `json:"resource_id"`
+	ResourceID   string `json:"resource_id"`
 	ContentText  string `json:"content_text"`
 	ImageURL     string `json:"image_url"`
 }
@@ -32,44 +33,32 @@ func (e *EventEnvelope) ToNotification() *store.Notification {
 
 func mapEventType(eventType string) string {
 	switch eventType {
-	case "post.created":
-		return "post_created"
-	case "post.deleted":
-		return "post_deleted"
-	case "post.liked":
+	case eventbus.EventPostLiked:
 		return "like"
-	case "post.liked.deleted":
-		return "unlike"
-	case "comment.created":
-		return "comment_created"
-	case "comment.liked":
+	case eventbus.EventPostDisliked:
+		return "dislike"
+	case eventbus.EventCommentLiked:
 		return "like"
-	case "comment.liked.deleted":
-		return "unlike"
-	case "follow.requested":
+	case eventbus.EventCommentDisliked:
+		return "dislike"
+	case eventbus.EventFollowRequested:
 		return "follow_request"
 	case "follow.requested.deleted":
 		return "follow_cancelled"
-	case "follow":
-		return "follow"
-	case "follow.deleted":
-		return "follow_deleted"
-	case "follow.accepted":
+	case eventbus.EventFollowAccepted:
 		return "follow_accept"
 	case "follow.accepted.deleted":
 		return "unfollow"
-	case "follow.declined":
+	case eventbus.EventFollowDeclined:
 		return "follow_declined"
-	case "group.invitation":
+	case eventbus.EventFollowRemoved:
+		return "follow_removed"
+	case eventbus.EventGroupInvitation:
 		return "group_invite"
 	case "group.invitation.deleted":
 		return "group_invite_removed"
-	case "group.join_requested":
+	case eventbus.EventGroupJoinRequested:
 		return "group_join_request"
-	case "event.created":
-		return "event_created"
-	case "event.created.deleted":
-		return "event_removed"
 	default:
 		return eventType
 	}

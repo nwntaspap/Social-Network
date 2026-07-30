@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -13,19 +14,17 @@ CREATE TABLE notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     recipient_id TEXT NOT NULL,
     type TEXT NOT NULL,
-    resource_type TEXT NOT NULL,
-    resource_id INTEGER NOT NULL,
+    resource_type TEXT NOT NULL DEFAULT '',
+    resource_id INTEGER NOT NULL DEFAULT 0,
     actor_id TEXT NOT NULL,
     actor_name TEXT NOT NULL DEFAULT '',
     actor_avatar TEXT NOT NULL DEFAULT '',
     content_text TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_notifications_recipient ON notifications(recipient_id, created_at DESC);
-CREATE UNIQUE INDEX idx_notifications_active ON notifications(recipient_id, type, resource_type, resource_id, actor_id) WHERE deleted_at IS NULL;
 `
 
 func setupStore(t *testing.T) *SQLiteStore {
@@ -48,7 +47,7 @@ func TestCreate(t *testing.T) {
 		RecipientID:  "u1",
 		Type:         "like",
 		ResourceType: "post",
-		ResourceID:   42,
+		ResourceID:   "42",
 		ActorID:      "u2",
 		ActorName:    "Bob",
 		ActorAvatar:  "/avatars/bob.png",
@@ -71,7 +70,7 @@ func TestGetByRecipient(t *testing.T) {
 			RecipientID:  "u1",
 			Type:         "like",
 			ResourceType: "post",
-			ResourceID:   100 + i,
+			ResourceID:   strconv.Itoa(100 + i),
 			ActorID:      "u2",
 			ContentText:  "notification " + itoa(i),
 		})
@@ -97,7 +96,7 @@ func TestGetByRecipient_Pagination(t *testing.T) {
 			RecipientID:  "u1",
 			Type:         "like",
 			ResourceType: "post",
-			ResourceID:   i,
+			ResourceID:   strconv.Itoa(i),
 			ActorID:      "u2",
 		})
 	}
@@ -114,12 +113,12 @@ func TestGetByRecipient_Pagination(t *testing.T) {
 	}
 }
 
-func TestGetByRecipient_SoftDeleted(t *testing.T) {
+func TestGetByRecipient_HardDeleted(t *testing.T) {
 	s := setupStore(t)
 
-	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"}
+	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	_ = s.Create(context.Background(), n)
-	_ = s.DeleteByResource(context.Background(), "u1", "post", 1)
+	_ = s.DeleteByResource(context.Background(), "u2", "post", "1")
 
 	ns, total, err := s.GetByRecipient(context.Background(), "u1", 10, 0)
 	if err != nil {
@@ -136,8 +135,8 @@ func TestGetByRecipient_SoftDeleted(t *testing.T) {
 func TestGetUnreadCount(t *testing.T) {
 	s := setupStore(t)
 
-	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"})
-	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 2, ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "2", ActorID: "u2"})
 
 	count, err := s.GetUnreadCount(context.Background(), "u1")
 	if err != nil {
@@ -151,7 +150,7 @@ func TestGetUnreadCount(t *testing.T) {
 func TestMarkRead(t *testing.T) {
 	s := setupStore(t)
 
-	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"}
+	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	_ = s.Create(context.Background(), n)
 
 	if err := s.MarkRead(context.Background(), n.ID, "u1"); err != nil {
@@ -167,7 +166,7 @@ func TestMarkRead(t *testing.T) {
 func TestMarkRead_WrongUser(t *testing.T) {
 	s := setupStore(t)
 
-	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"}
+	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	_ = s.Create(context.Background(), n)
 
 	err := s.MarkRead(context.Background(), n.ID, "u2")
@@ -179,8 +178,8 @@ func TestMarkRead_WrongUser(t *testing.T) {
 func TestMarkAllRead(t *testing.T) {
 	s := setupStore(t)
 
-	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"})
-	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 2, ActorID: "u3"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "2", ActorID: "u3"})
 
 	if err := s.MarkAllRead(context.Background(), "u1"); err != nil {
 		t.Fatalf("MarkAllRead: %v", err)
@@ -195,9 +194,9 @@ func TestMarkAllRead(t *testing.T) {
 func TestDeleteByResource(t *testing.T) {
 	s := setupStore(t)
 
-	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 
-	if err := s.DeleteByResource(context.Background(), "u1", "post", 1); err != nil {
+	if err := s.DeleteByResource(context.Background(), "u2", "post", "1"); err != nil {
 		t.Fatalf("DeleteByResource: %v", err)
 	}
 
@@ -212,7 +211,39 @@ func TestDeleteByResource(t *testing.T) {
 
 func TestDeleteByResource_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteByResource(context.Background(), "u1", "post", 999)
+	err := s.DeleteByResource(context.Background(), "u1", "post", "999")
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteAllByResource(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u3"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u1"})
+
+	if err := s.DeleteAllByResource(context.Background(), "1"); err != nil {
+		t.Fatalf("DeleteAllByResource: %v", err)
+	}
+
+	ns1, total1, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total1 != 0 {
+		t.Errorf("u1 total = %d, want 0", total1)
+	}
+	_ = ns1
+
+	ns2, total2, _ := s.GetByRecipient(context.Background(), "u2", 10, 0)
+	if total2 != 0 {
+		t.Errorf("u2 total = %d, want 0", total2)
+	}
+	_ = ns2
+}
+
+func TestDeleteAllByResource_NotFound(t *testing.T) {
+	s := setupStore(t)
+	err := s.DeleteAllByResource(context.Background(), "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -225,7 +256,7 @@ func TestUpdateActorInfo(t *testing.T) {
 		RecipientID:  "u1",
 		Type:         "like",
 		ResourceType: "post",
-		ResourceID:   1,
+		ResourceID:   "1",
 		ActorID:      "u2",
 		ActorName:    "OldName",
 		ActorAvatar:  "/old.png",

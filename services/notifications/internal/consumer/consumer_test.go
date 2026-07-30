@@ -22,19 +22,17 @@ CREATE TABLE notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     recipient_id TEXT NOT NULL,
     type TEXT NOT NULL,
-    resource_type TEXT NOT NULL,
-    resource_id INTEGER NOT NULL,
+    resource_type TEXT NOT NULL DEFAULT '',
+    resource_id INTEGER NOT NULL DEFAULT 0,
     actor_id TEXT NOT NULL,
     actor_name TEXT NOT NULL DEFAULT '',
     actor_avatar TEXT NOT NULL DEFAULT '',
     content_text TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_notifications_recipient ON notifications(recipient_id, created_at DESC);
-CREATE UNIQUE INDEX idx_notifications_active ON notifications(recipient_id, type, resource_type, resource_id, actor_id) WHERE deleted_at IS NULL;
 `
 
 type mockMessage struct {
@@ -94,11 +92,11 @@ func TestConsumer_ProcessesValidEvent(t *testing.T) {
 		ActorID:      "u2",
 		ActorName:    "Bob",
 		ResourceType: "post",
-		ResourceID:   42,
+		ResourceID:   "42",
 		ContentText:  "Bob liked your post",
 	}
 	body, _ := json.Marshal(env)
-	msg := &mockMessage{body: body, routingKey: "post.liked"}
+	msg := &mockMessage{body: body, routingKey: "created"}
 
 	consumer.handle(msg)
 
@@ -114,8 +112,137 @@ func TestConsumer_ProcessesValidEvent(t *testing.T) {
 
 	select {
 	case n := <-ch:
-		if n.ResourceID != 42 {
-			t.Errorf("hub ResourceID = %d, want 42", n.ResourceID)
+		if n.ResourceID != "42" {
+			t.Errorf("hub ResourceID = %s, want 42", n.ResourceID)
+		}
+		if n.Deleted {
+			t.Errorf("hub Deleted = true, want false for created event")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("hub did not receive notification")
+	}
+}
+
+func TestConsumer_ProcessesDeletedEvent(t *testing.T) {
+	consumer, repo, hub := setupConsumerTest(t)
+
+	// First create a notification
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+		ActorName:    "Bob",
+	})
+
+	ch, unsubscribe := hub.Subscribe("u1")
+	defer unsubscribe()
+
+	env := EventEnvelope{
+		Type:         "post.liked",
+		RecipientID:  "u1",
+		ActorID:      "u2",
+		ActorName:    "Bob",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ContentText:  "Bob liked your post",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "deleted"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Notification should be hard-deleted from DB
+	ns, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 0 {
+		t.Errorf("total = %d, want 0 (notification should be deleted)", total)
+	}
+	_ = ns
+
+	// SSE should carry Deleted=true
+	select {
+	case n := <-ch:
+		if !n.Deleted {
+			t.Errorf("hub Deleted = false, want true for deleted event")
+		}
+		if n.ResourceID != "42" {
+			t.Errorf("hub ResourceID = %s, want 42", n.ResourceID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("hub did not receive notification")
+	}
+}
+
+func TestConsumer_ProcessesCascadeDeletedEvent(t *testing.T) {
+	consumer, repo, hub := setupConsumerTest(t)
+
+	// Create multiple notifications for the same post from different actors
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+		ActorName:    "Bob",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "comment",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u3",
+		ActorName:    "Carol",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u3",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u1",
+		ActorName:    "Alice",
+	})
+
+	ch, unsubscribe := hub.Subscribe("u1")
+	defer unsubscribe()
+
+	env := EventEnvelope{
+		Type:         eventbus.EventPost,
+		RecipientID:  "u1",
+		ActorID:      "u1",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ContentText:  "Your post was deleted",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "deleted"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	// All notifications for post 42 should be deleted (all recipients, all actors)
+	ns1, total1, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total1 != 0 {
+		t.Errorf("u1 total = %d, want 0 (all notifications for post 42 should be deleted)", total1)
+	}
+	_ = ns1
+
+	ns3, total3, _ := repo.GetByRecipient(context.Background(), "u3", 10, 0)
+	if total3 != 0 {
+		t.Errorf("u3 total = %d, want 0 (notifications for post 42 from other recipients should also be deleted)", total3)
+	}
+	_ = ns3
+
+	select {
+	case n := <-ch:
+		if !n.Deleted {
+			t.Errorf("hub Deleted = false, want true for deleted event")
+		}
+		if n.ResourceID != "42" {
+			t.Errorf("hub ResourceID = %s, want 42", n.ResourceID)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("hub did not receive notification")
@@ -127,7 +254,7 @@ func TestConsumer_RejectsIncompleteEvent(t *testing.T) {
 
 	env := EventEnvelope{Type: "post.liked", RecipientID: "u1"}
 	body, _ := json.Marshal(env)
-	msg := &mockMessage{body: body, routingKey: "post.liked"}
+	msg := &mockMessage{body: body, routingKey: "created"}
 
 	consumer.handle(msg)
 
@@ -140,11 +267,59 @@ func TestConsumer_RejectsIncompleteEvent(t *testing.T) {
 func TestConsumer_RejectsInvalidJSON(t *testing.T) {
 	consumer, repo, _ := setupConsumerTest(t)
 
-	msg := &mockMessage{body: []byte("not-json"), routingKey: "post.liked"}
+	msg := &mockMessage{body: []byte("not-json"), routingKey: "created"}
 	consumer.handle(msg)
 
 	_, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
 	if total != 0 {
 		t.Errorf("total = %d, want 0", total)
+	}
+}
+
+func TestConsumer_ProcessesUpdatedEvent(t *testing.T) {
+	consumer, repo, _ := setupConsumerTest(t)
+
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "1",
+		ActorID:      "u2",
+		ActorName:    "OldName",
+		ActorAvatar:  "/old.png",
+	})
+
+	env := EventEnvelope{
+		ActorID:     "u2",
+		ActorName:   "NewName",
+		ActorAvatar: "/new.png",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "updated"}
+	consumer.handle(msg)
+
+	ns, _, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if len(ns) != 1 {
+		t.Fatalf("got %d notifications, want 1", len(ns))
+	}
+	if ns[0].ActorName != "NewName" {
+		t.Errorf("ActorName = %q, want %q", ns[0].ActorName, "NewName")
+	}
+	if ns[0].ActorAvatar != "/new.png" {
+		t.Errorf("ActorAvatar = %q, want %q", ns[0].ActorAvatar, "/new.png")
+	}
+}
+
+func TestConsumer_RejectsIncompleteUpdateEvent(t *testing.T) {
+	consumer, repo, _ := setupConsumerTest(t)
+
+	env := EventEnvelope{ActorName: "Name", ActorAvatar: "/a.png"}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "updated"}
+	consumer.handle(msg)
+
+	ns, _, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if len(ns) != 0 {
+		t.Errorf("got %d notifications, want 0 (no update should occur)", len(ns))
 	}
 }

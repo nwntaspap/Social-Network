@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
 
 	"social-network/internal/comment"
 	"social-network/internal/pkg/imgutil"
@@ -91,16 +92,16 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		recipientID = t.UserID
 	}
 
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "comment.created",
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventComment,
 		RecipientID:  recipientID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: "comment",
-		ResourceID:   c.ID,
+		ResourceType: eventbus.ResourceComment,
+		ResourceID:   strconv.Itoa(cmd.TopicID),
 	})
-	_ = h.bus.Publish("notifications.exchange", "comment.created", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return c, nil
 }

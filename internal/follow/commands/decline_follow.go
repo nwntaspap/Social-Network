@@ -38,8 +38,8 @@ func (h *DeclineRequestHandler) Execute(ctx context.Context, cmd DeclineRequestC
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(eventbus.Envelope{
-		Type:        "follow.declined",
+	body, err := json.Marshal(eventbus.Notification{
+		Type:        eventbus.EventFollowDeclined,
 		RecipientID: cmd.FollowerID,
 		ActorID:     cmd.FolloweeID,
 		ActorName:   actor.Nickname,
@@ -48,5 +48,5 @@ func (h *DeclineRequestHandler) Execute(ctx context.Context, cmd DeclineRequestC
 	if err != nil {
 		return err
 	}
-	return h.bus.Publish("notifications.exchange", "follow.declined", body)
+	return h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 }

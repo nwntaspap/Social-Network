@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -66,7 +67,7 @@ func TestGetNotifications_Success(t *testing.T) {
 			RecipientID:  "u1",
 			Type:         "like",
 			ResourceType: "post",
-			ResourceID:   100 + i,
+			ResourceID:   strconv.Itoa(100 + i),
 			ActorID:      "u2",
 			ContentText:  "notification",
 		})
@@ -142,7 +143,7 @@ func TestGetUnreadCount_Success(t *testing.T) {
 			RecipientID:  "u1",
 			Type:         "like",
 			ResourceType: "post",
-			ResourceID:   i,
+			ResourceID:   strconv.Itoa(i),
 			ActorID:      "u2",
 		})
 	}
@@ -184,7 +185,7 @@ func TestMarkAsRead_Success(t *testing.T) {
 		RecipientID:  "u1",
 		Type:         "like",
 		ResourceType: "post",
-		ResourceID:   1,
+		ResourceID:   "1",
 		ActorID:      "u2",
 	}
 	_ = repo.Create(ctx, n)
@@ -231,7 +232,7 @@ func TestMarkAllAsRead_Success(t *testing.T) {
 			RecipientID:  "u1",
 			Type:         "like",
 			ResourceType: "post",
-			ResourceID:   i,
+			ResourceID:   strconv.Itoa(i),
 			ActorID:      "u2",
 		})
 	}

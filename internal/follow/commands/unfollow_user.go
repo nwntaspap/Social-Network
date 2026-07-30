@@ -44,12 +44,12 @@ func (h *UnfollowUserHandler) Execute(ctx context.Context, cmd UnfollowUserComma
 	if err != nil {
 		return err
 	}
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:        "follow.deleted",
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:        eventbus.EventFollow,
 		RecipientID: cmd.TargetID,
 		ActorID:     cmd.FollowerID,
 		ActorName:   actor.Nickname,
 		ActorAvatar: actor.AvatarPath,
 	})
-	return h.bus.Publish("notifications.exchange", "follow.deleted", body)
+	return h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 }

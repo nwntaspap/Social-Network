@@ -20,7 +20,7 @@ func TestStreamHub_SubscribePublish(t *testing.T) {
 
 	n := store.Notification{
 		ID: 1, RecipientID: "u1", Type: "like",
-		ResourceType: "post", ResourceID: 1, ActorID: "u2",
+		ResourceType: "post", ResourceID: "1", ActorID: "u2",
 	}
 	hub.Publish("u1", n)
 
@@ -42,7 +42,7 @@ func TestStreamHub_MultipleSubscribers(t *testing.T) {
 	ch2, unsub2 := hub.Subscribe("u1")
 	defer unsub2()
 
-	n := store.Notification{ID: 1, RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"}
+	n := store.Notification{ID: 1, RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	hub.Publish("u1", n)
 
 	select {
@@ -63,7 +63,7 @@ func TestStreamHub_UnsubscribeStopsDelivery(t *testing.T) {
 	ch, unsubscribe := hub.Subscribe("u1")
 	unsubscribe()
 
-	n := store.Notification{ID: 1, RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: 1, ActorID: "u2"}
+	n := store.Notification{ID: 1, RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	hub.Publish("u1", n)
 
 	select {

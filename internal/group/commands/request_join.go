@@ -71,15 +71,15 @@ func (h *RequestJoinHandler) Execute(ctx context.Context, cmd RequestJoinCommand
 		return nil, err
 	}
 
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "group.join_requested",
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventGroupJoinRequested,
 		RecipientID:  g.CreatorID,
 		ActorID:      cmd.RequesterID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: "group",
+		ResourceType: eventbus.ResourceGroup,
 	})
-	_ = h.bus.Publish("notifications.exchange", "group.join_requested", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return jr, nil
 }

@@ -11,6 +11,7 @@ import (
 	"social-network/internal/pkg/bcrypt"
 	"social-network/internal/pkg/uuid"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
 	topicstore "social-network/internal/topic/store"
 	usercommands "social-network/internal/user/commands"
 	userqueries "social-network/internal/user/queries"
@@ -18,7 +19,7 @@ import (
 	usertransport "social-network/internal/user/transport"
 )
 
-func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool) *usertransport.Handler {
+func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool, bus eventbus.EventBus) *usertransport.Handler {
 	userStore := userstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	topicStore := topicstore.NewSQLiteStore(db)
@@ -34,7 +35,7 @@ func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewar
 		usercommands.NewRegisterHandler(userStore, uuidProvider, bcryptProvider),
 		usercommands.NewLoginHandler(userStore, bcryptProvider, sessionMgr),
 		usercommands.NewLogoutHandler(sessionMgr),
-		usercommands.NewUpdateProfileHandler(userStore),
+		usercommands.NewUpdateProfileHandler(userStore, bus),
 		usercommands.NewTogglePrivacyHandler(userStore),
 		userqueries.NewGetProfileResolver(userStore, fc, followStore),
 		userqueries.NewGetActivityResolver(userStore, topicStore, commentStore, topicStore, followStore),

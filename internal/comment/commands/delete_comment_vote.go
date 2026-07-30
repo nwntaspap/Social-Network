@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 
 	"social-network/internal/comment"
 	"social-network/internal/platform/eventbus"
@@ -38,12 +39,12 @@ func (h *DeleteCommentVoteHandler) Execute(ctx context.Context, cmd DeleteCommen
 	if err := h.repo.DeleteCommentVote(ctx, cmd.UserID, cmd.CommentID); err != nil {
 		return err
 	}
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "comment.liked.deleted",
-		ResourceType: "comment",
-		ResourceID:   cmd.CommentID,
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventCommentLiked,
+		ResourceType: eventbus.ResourceComment,
+		ResourceID:   strconv.Itoa(cmd.CommentID),
 	})
-	_ = h.bus.Publish("notifications.exchange", "comment.liked.deleted", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 
 	return nil
 }

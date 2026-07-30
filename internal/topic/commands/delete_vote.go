@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
@@ -35,12 +36,12 @@ func (h *DeleteVoteHandler) Execute(ctx context.Context, cmd DeleteVoteCommand) 
 		return fmt.Errorf("delete vote: %w", err)
 	}
 
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "post.liked.deleted",
-		ResourceType: "post",
-		ResourceID:   cmd.TopicID,
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventPostLiked,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   strconv.Itoa(cmd.TopicID),
 	})
-	_ = h.bus.Publish("notifications.exchange", "post.liked.deleted", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 
 	return nil
 }

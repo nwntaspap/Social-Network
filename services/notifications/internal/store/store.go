@@ -13,7 +13,7 @@ type Notification struct {
 	RecipientID  string
 	Type         string
 	ResourceType string
-	ResourceID   int
+	ResourceID   string
 	ActorID      string
 	ActorName    string
 	ActorAvatar  string
@@ -21,7 +21,7 @@ type Notification struct {
 	ImageURL     string
 	IsRead       bool
 	CreatedAt    time.Time
-	DeletedAt    *time.Time
+	Deleted      bool
 }
 
 type Repository interface {
@@ -30,6 +30,7 @@ type Repository interface {
 	GetUnreadCount(ctx context.Context, recipientID string) (int, error)
 	MarkRead(ctx context.Context, id int, recipientID string) error
 	MarkAllRead(ctx context.Context, recipientID string) error
-	DeleteByResource(ctx context.Context, recipientID, resourceType string, resourceID int) error
+	DeleteByResource(ctx context.Context, actorID, resourceType string, resourceID string) error
+	DeleteAllByResource(ctx context.Context, resourceID string) error
 	UpdateActorInfo(ctx context.Context, actorID, name, avatar string) error
 }

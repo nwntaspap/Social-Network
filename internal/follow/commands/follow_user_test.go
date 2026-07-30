@@ -114,10 +114,10 @@ func TestFollowUserHandler_PublicUser(t *testing.T) {
 	if result != FollowedDirect {
 		t.Errorf("result = %q, want %q", result, FollowedDirect)
 	}
-	if bus.routingKey != "follow.accepted" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "follow.accepted")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
-	var env eventbus.Envelope
+	var env eventbus.Notification
 	if err := json.Unmarshal(bus.body, &env); err != nil {
 		t.Fatalf("unmarshal body: %v", err)
 	}
@@ -142,10 +142,10 @@ func TestFollowUserHandler_PrivateUser(t *testing.T) {
 	if result != FollowPending {
 		t.Errorf("result = %q, want %q", result, FollowPending)
 	}
-	if bus.routingKey != "follow.requested" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "follow.requested")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
-	var env eventbus.Envelope
+	var env eventbus.Notification
 	if err := json.Unmarshal(bus.body, &env); err != nil {
 		t.Fatalf("unmarshal body: %v", err)
 	}

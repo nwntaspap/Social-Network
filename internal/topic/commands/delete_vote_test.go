@@ -25,8 +25,8 @@ func TestDeleteVote_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.routingKey != "post.liked.deleted" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked.deleted")
+	if bus.routingKey != "deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "deleted")
 	}
 }
 

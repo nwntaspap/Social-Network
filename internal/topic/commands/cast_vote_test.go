@@ -26,8 +26,8 @@ func TestCastVote_Like(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.routingKey != "post.liked" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
 }
 
@@ -43,8 +43,8 @@ func TestCastVote_Dislike(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.routingKey != "post.liked.deleted" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "post.liked.deleted")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
 }
 

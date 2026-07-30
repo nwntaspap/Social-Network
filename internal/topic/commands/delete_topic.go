@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
@@ -32,6 +33,11 @@ func (h *DeleteTopicHandler) Execute(ctx context.Context, cmd DeleteTopicCommand
 		return topic.ErrTopicNotFound
 	}
 
+	t, err := h.repo.GetTopicByID(ctx, cmd.TopicID, nil)
+	if err != nil {
+		return topic.ErrTopicNotFound
+	}
+
 	imagePath, _ := h.repo.GetImagePathFromTopicID(ctx, cmd.TopicID, cmd.UserID)
 	if imagePath != "" {
 		_ = h.img.Delete(ctx, imagePath)
@@ -41,12 +47,14 @@ func (h *DeleteTopicHandler) Execute(ctx context.Context, cmd DeleteTopicCommand
 		return fmt.Errorf("delete topic: %w", err)
 	}
 
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "post.deleted",
-		ResourceType: "post",
-		ResourceID:   cmd.TopicID,
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventPost,
+		RecipientID:  t.UserID,
+		ActorID:      cmd.UserID,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   strconv.Itoa(cmd.TopicID),
 	})
-	_ = h.bus.Publish("notifications.exchange", "post.deleted", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 
 	return nil
 }

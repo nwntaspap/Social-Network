@@ -49,8 +49,8 @@ func (h *AcceptRequestHandler) Execute(ctx context.Context, cmd AcceptRequestCom
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(eventbus.Envelope{
-		Type:        "follow.accepted",
+	body, err := json.Marshal(eventbus.Notification{
+		Type:        eventbus.EventFollowAccepted,
 		RecipientID: cmd.FollowerID,
 		ActorID:     cmd.FolloweeID,
 		ActorName:   actor.Nickname,
@@ -59,5 +59,5 @@ func (h *AcceptRequestHandler) Execute(ctx context.Context, cmd AcceptRequestCom
 	if err != nil {
 		return err
 	}
-	return h.bus.Publish("notifications.exchange", "follow.accepted", body)
+	return h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 }

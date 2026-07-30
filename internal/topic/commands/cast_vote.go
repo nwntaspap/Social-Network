@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
@@ -56,18 +57,20 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		return err
 	}
 
-	routingKey := "post.liked"
+	eventType := eventbus.EventPostLiked
+	routingKey := eventbus.RoutingCreated
 	if cmd.ReactionType != 1 {
-		routingKey = "post.liked.deleted"
+		eventType = eventbus.EventPostDisliked
+		routingKey = eventbus.RoutingCreated
 	}
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         routingKey,
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventType,
 		RecipientID:  t.UserID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: "post",
-		ResourceID:   cmd.TopicID,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   strconv.Itoa(cmd.TopicID),
 		ContentText:  t.Content,
 		ImageURL:     t.ImagePath,
 	})

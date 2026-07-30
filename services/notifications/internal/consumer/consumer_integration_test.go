@@ -16,7 +16,7 @@ import (
 	"social-network/services/notifications/internal/store"
 )
 
-func TestConsumer_Integration_AllRoutingKeys(t *testing.T) {
+func TestConsumer_Integration_CreatedRoutingKey(t *testing.T) {
 	broker, err := eventbus.NewGoBroker()
 	if err != nil {
 		t.Skipf("broker not available: %v", err)
@@ -57,171 +57,87 @@ func TestConsumer_Integration_AllRoutingKeys(t *testing.T) {
 	}{
 		{
 			name:       "post_liked",
-			routingKey: "post.liked",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "post.liked",
 				RecipientID:  "int-u1",
 				ActorID:      "int-u2",
 				ActorName:    "Alice",
 				ResourceType: "post",
-				ResourceID:   1,
+				ResourceID:   "1",
 				ContentText:  "Alice liked your post",
 			},
 			wantType: "like",
 		},
 		{
-			name:       "post_liked_deleted",
-			routingKey: "post.liked.deleted",
-			envelope: EventEnvelope{
-				Type:         "post.liked.deleted",
-				RecipientID:  "int-u2",
-				ActorID:      "int-u1",
-				ActorName:    "Bob",
-				ResourceType: "post",
-				ResourceID:   1,
-				ContentText:  "Bob removed their like",
-			},
-			wantType: "unlike",
-		},
-		{
 			name:       "comment_liked",
-			routingKey: "comment.liked",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "comment.liked",
 				RecipientID:  "int-u3",
 				ActorID:      "int-u4",
 				ActorName:    "Carol",
 				ResourceType: "comment",
-				ResourceID:   10,
+				ResourceID:   "10",
 				ContentText:  "Carol liked your comment",
 			},
 			wantType: "like",
 		},
 		{
-			name:       "comment_liked_deleted",
-			routingKey: "comment.liked.deleted",
-			envelope: EventEnvelope{
-				Type:         "comment.liked.deleted",
-				RecipientID:  "int-u4",
-				ActorID:      "int-u3",
-				ActorName:    "Dave",
-				ResourceType: "comment",
-				ResourceID:   10,
-				ContentText:  "Dave removed their comment like",
-			},
-			wantType: "unlike",
-		},
-		{
 			name:       "follow_requested",
-			routingKey: "follow.requested",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "follow.requested",
 				RecipientID:  "int-u5",
 				ActorID:      "int-u6",
 				ActorName:    "Eve",
 				ResourceType: "user",
-				ResourceID:   6,
+				ResourceID:   "6",
 				ContentText:  "Eve wants to follow you",
 			},
 			wantType: "follow_request",
 		},
 		{
-			name:       "follow_requested_deleted",
-			routingKey: "follow.requested.deleted",
-			envelope: EventEnvelope{
-				Type:         "follow.requested.deleted",
-				RecipientID:  "int-u6",
-				ActorID:      "int-u5",
-				ActorName:    "Frank",
-				ResourceType: "user",
-				ResourceID:   5,
-				ContentText:  "Frank cancelled follow request",
-			},
-			wantType: "follow_cancelled",
-		},
-		{
 			name:       "follow_accepted",
-			routingKey: "follow.accepted",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "follow.accepted",
 				RecipientID:  "int-u7",
 				ActorID:      "int-u8",
 				ActorName:    "Grace",
 				ResourceType: "user",
-				ResourceID:   8,
+				ResourceID:   "8",
 				ContentText:  "Grace accepted your follow request",
 			},
 			wantType: "follow_accept",
 		},
 		{
-			name:       "follow_accepted_deleted",
-			routingKey: "follow.accepted.deleted",
-			envelope: EventEnvelope{
-				Type:         "follow.accepted.deleted",
-				RecipientID:  "int-u8",
-				ActorID:      "int-u7",
-				ActorName:    "Heidi",
-				ResourceType: "user",
-				ResourceID:   7,
-				ContentText:  "Heidi unfollowed you",
-			},
-			wantType: "unfollow",
-		},
-		{
 			name:       "group_invitation",
-			routingKey: "group.invitation",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "group.invitation",
 				RecipientID:  "int-u9",
 				ActorID:      "int-u10",
 				ActorName:    "Ivan",
 				ResourceType: "group",
-				ResourceID:   20,
+				ResourceID:   "20",
 				ContentText:  "Ivan invited you to Group",
 			},
 			wantType: "group_invite",
 		},
 		{
-			name:       "group_invitation_deleted",
-			routingKey: "group.invitation.deleted",
-			envelope: EventEnvelope{
-				Type:         "group.invitation.deleted",
-				RecipientID:  "int-u10",
-				ActorID:      "int-u9",
-				ActorName:    "Judy",
-				ResourceType: "group",
-				ResourceID:   20,
-				ContentText:  "Judy removed group invitation",
-			},
-			wantType: "group_invite_removed",
-		},
-		{
 			name:       "event_created",
-			routingKey: "event.created",
+			routingKey: "created",
 			envelope: EventEnvelope{
 				Type:         "event.created",
 				RecipientID:  "int-u11",
 				ActorID:      "int-u12",
 				ActorName:    "Karl",
 				ResourceType: "event",
-				ResourceID:   30,
+				ResourceID:   "30",
 				ContentText:  "Karl created a new event",
 			},
 			wantType: "event_created",
-		},
-		{
-			name:       "event_created_deleted",
-			routingKey: "event.created.deleted",
-			envelope: EventEnvelope{
-				Type:         "event.created.deleted",
-				RecipientID:  "int-u12",
-				ActorID:      "int-u11",
-				ActorName:    "Laura",
-				ResourceType: "event",
-				ResourceID:   30,
-				ContentText:  "Laura removed an event",
-			},
-			wantType: "event_removed",
 		},
 	}
 
@@ -251,7 +167,10 @@ func TestConsumer_Integration_AllRoutingKeys(t *testing.T) {
 					t.Errorf("hub actor_id = %q, want %q", n.ActorID, tt.envelope.ActorID)
 				}
 				if n.ResourceID != tt.envelope.ResourceID {
-					t.Errorf("hub resource_id = %d, want %d", n.ResourceID, tt.envelope.ResourceID)
+					t.Errorf("hub resource_id = %s, want %s", n.ResourceID, tt.envelope.ResourceID)
+				}
+				if n.Deleted {
+					t.Errorf("hub Deleted = true for created event, want false")
 				}
 			case <-time.After(5 * time.Second):
 				t.Fatal("timed out waiting for notification on hub")
@@ -309,7 +228,7 @@ func TestConsumer_Integration_RejectsInvalidJSON(t *testing.T) {
 
 	invalidJSON := []byte(`not-json`)
 
-	if err := broker.Publish("notifications.exchange", "post.liked", invalidJSON); err != nil {
+	if err := broker.Publish("notifications.exchange", "created", invalidJSON); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 
@@ -360,7 +279,7 @@ func TestConsumer_Integration_RejectsIncompleteEvent(t *testing.T) {
 	env := EventEnvelope{Type: "post.liked", RecipientID: "int-missing"}
 	body, _ := json.Marshal(env)
 
-	if err := broker.Publish("notifications.exchange", "post.liked", body); err != nil {
+	if err := broker.Publish("notifications.exchange", "created", body); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 

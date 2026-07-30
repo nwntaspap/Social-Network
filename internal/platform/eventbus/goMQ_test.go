@@ -19,7 +19,7 @@ func TestTopologyJSON_UnmarshalsCorrectly(t *testing.T) {
 	if len(topo.Queues) != 2 {
 		t.Errorf("got %d queues, want 2", len(topo.Queues))
 	}
-	if len(topo.Bindings) != 20 {
+	if len(topo.Bindings) != 4 {
 		t.Errorf("got %d bindings, want 20", len(topo.Bindings))
 	}
 

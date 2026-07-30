@@ -68,14 +68,16 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 			return "", err
 		}
 
-		body, _ := json.Marshal(eventbus.Envelope{
-			Type:        "follow.requested",
-			RecipientID: cmd.TargetID,
-			ActorID:     cmd.FollowerID,
-			ActorName:   actor.Nickname,
-			ActorAvatar: actor.AvatarPath,
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventFollowRequested,
+			RecipientID:  cmd.TargetID,
+			ActorID:      cmd.FollowerID,
+			ActorName:    actor.Nickname,
+			ActorAvatar:  actor.AvatarPath,
+			ResourceType: eventbus.ResourceUser,
+			ResourceID:   cmd.TargetID,
 		})
-		err = h.bus.Publish("notifications.exchange", "follow.requested", body)
+		err = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 		if err != nil {
 			return "", err
 		}
@@ -89,14 +91,14 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 	if err != nil {
 		return "", err
 	}
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:        "follow.accepted",
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:        eventbus.EventFollow,
 		RecipientID: cmd.TargetID,
 		ActorID:     cmd.FollowerID,
 		ActorName:   actor.Nickname,
 		ActorAvatar: actor.AvatarPath,
 	})
-	err = h.bus.Publish("notifications.exchange", "follow.accepted", body)
+	err = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 	if err != nil {
 		return "", err
 	}

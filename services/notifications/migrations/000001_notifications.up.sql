@@ -3,7 +3,7 @@ CREATE TABLE notifications (
     recipient_id TEXT NOT NULL,
     type TEXT NOT NULL,
     resource_type TEXT NOT NULL,
-    resource_id INTEGER NOT NULL,
+    resource_id TEXT NOT NULL,
     actor_id TEXT NOT NULL,
     actor_name TEXT NOT NULL DEFAULT '',
     actor_avatar TEXT NOT NULL DEFAULT '',

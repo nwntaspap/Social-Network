@@ -2,18 +2,6 @@ package eventbus
 
 import "context"
 
-type Envelope struct {
-	Type         string `json:"type"`
-	RecipientID  string `json:"recipient_id"`
-	ActorID      string `json:"actor_id"`
-	ActorName    string `json:"actor_name"`
-	ActorAvatar  string `json:"actor_avatar"`
-	ResourceType string `json:"resource_type"`
-	ResourceID   int    `json:"resource_id"`
-	ContentText  string `json:"content_text"`
-	ImageURL     string `json:"image_url"`
-}
-
 type EventBus interface {
 	Subscribe(ctx context.Context, queue string) (incoming <-chan Message, err error)
 	Publish(exchange, routingkey string, body []byte) error

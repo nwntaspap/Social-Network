@@ -2,8 +2,10 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/user"
 )
 
@@ -19,10 +21,14 @@ type UpdateProfileCommand struct {
 
 type UpdateProfileHandler struct {
 	repo user.Repository
+	bus  eventbus.EventBus
 }
 
-func NewUpdateProfileHandler(repo user.Repository) *UpdateProfileHandler {
-	return &UpdateProfileHandler{repo: repo}
+func NewUpdateProfileHandler(repo user.Repository, bus eventbus.EventBus) *UpdateProfileHandler {
+	return &UpdateProfileHandler{
+		repo: repo,
+		bus:  bus,
+	}
 }
 
 func (h *UpdateProfileHandler) Execute(ctx context.Context, cmd UpdateProfileCommand) error {
@@ -36,5 +42,15 @@ func (h *UpdateProfileHandler) Execute(ctx context.Context, cmd UpdateProfileCom
 	u.Nickname = cmd.Nickname
 	u.AboutMe = cmd.AboutMe
 
-	return h.repo.Update(ctx, u)
+	if err = h.repo.Update(ctx, u); err != nil {
+		return err
+	}
+
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:        eventbus.ResourceUser,
+		ActorID:     cmd.UserID,
+		ActorName:   u.Nickname,
+		ActorAvatar: u.AvatarPath,
+	})
+	return h.bus.Publish("notifications.exchange", eventbus.RoutingUpdated, body)
 }

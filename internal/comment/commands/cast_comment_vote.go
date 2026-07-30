@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	"social-network/internal/comment"
 	"social-network/internal/platform/eventbus"
@@ -53,16 +54,21 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 		recipientID = c.UserID
 	}
 
-	body, _ := json.Marshal(eventbus.Envelope{
-		Type:         "comment.liked",
+	eventType := eventbus.EventCommentLiked
+	if cmd.ReactionType != 1 {
+		eventType = eventbus.EventCommentDisliked
+	}
+
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventType,
 		RecipientID:  recipientID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: "comment",
-		ResourceID:   cmd.CommentID,
+		ResourceType: eventbus.ResourceComment,
+		ResourceID:   strconv.Itoa(cmd.CommentID),
 	})
-	_ = h.bus.Publish("notifications.exchange", "comment.liked", body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return nil
 }

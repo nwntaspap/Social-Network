@@ -20,8 +20,8 @@ func TestDeleteCommentVote_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if bus.routingKey != "comment.liked.deleted" {
-		t.Errorf("routingKey = %q, want %q", bus.routingKey, "comment.liked.deleted")
+	if bus.routingKey != "deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "deleted")
 	}
 }
 
