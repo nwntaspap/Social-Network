@@ -15,6 +15,11 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
 export interface Profile extends User {
   followersCount: number;
   followingCount: number;

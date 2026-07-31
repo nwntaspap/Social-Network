@@ -116,16 +116,16 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
 
     setSubmitting(true);
     try {
-      let me: User;
+      let res: Awaited<ReturnType<typeof loginEmail>>;
       if (loginType === 'email') {
-        me = await loginEmail(email, password);
+        res = await loginEmail(email, password);
       } else {
         // Backend reads field "username" — mirrors the old api.post call
-        me = await loginUsername(nickname, password);
+        res = await loginUsername(nickname, password);
       }
 
       // Update auth context so Navbar re-renders immediately
-      setUser(me);
+      setUser(res.user);
       router.push('/');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : String(err);

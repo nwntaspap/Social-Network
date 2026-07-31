@@ -8,6 +8,7 @@ import (
 	chattransport "social-network/internal/chat/transport"
 	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/config"
+	coremiddleware "social-network/internal/core/middleware"
 	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/domain/session"
 	eventtransport "social-network/internal/event/transport"
@@ -57,6 +58,14 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 	coreSession := &coreSessionAdapter{inner: sessionManager}
 	cookieManager := authcookies.NewManager(cfg.SessionManager)
 	coreSessionStore := coresessionstore.NewSessionStore(db, coresessionstore.WithExpiry(cfg.SessionManager.DefaultExpiry))
+	sessionCookies := coremiddleware.NewSessionCookies(coremiddleware.CookieConfig{
+		Name:     cfg.SessionManager.AccessCookieName,
+		Path:     cfg.SessionManager.CookiePath,
+		Domain:   cfg.SessionManager.CookieDomain,
+		Secure:   cfg.SessionManager.SecureCookie,
+		HTTPOnly: cfg.SessionManager.HTTPOnlyCookie,
+		SameSite: coremiddleware.ParseSameSite(cfg.SessionManager.SameSite),
+	})
 	mw := middleware.NewMiddleware(sessionManager, cookieManager)
 	repos := sqlite.NewRepositories(db)
 	fileStorage := localstorage.NewLocalStorage()
@@ -67,7 +76,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 
 	return &App{
 		Services:       services,
-		User:           initUser(db, coreSession),
+		User:           initUser(db, coreSession, sessionCookies),
 		Follow:         initFollow(db),
 		Chat:           initChat(db, hub, repos.UserRepo),
 		Comment:        initComment(db),

@@ -38,11 +38,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.sessionCookies.SetAccessCookie(w, result.Token, result.ExpiresAt)
+
 	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
 		"token": result.Token,
-		"user": map[string]any{
-			"id":    result.User.ID,
-			"email": result.User.Email,
-		},
+		"user":  userResponse(result.User),
 	})
 }

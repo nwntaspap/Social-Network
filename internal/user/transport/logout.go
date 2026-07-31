@@ -25,5 +25,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.sessionCookies.DeleteAccessCookie(w)
 	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"message": "logged out"})
 }

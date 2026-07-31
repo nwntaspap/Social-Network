@@ -179,11 +179,25 @@ func TestRegister_InternalError(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
+	createdAt := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+	expiresAt := createdAt.Add(24 * time.Hour)
 	h := newTestHandler(func(h *Handler) {
 		h.login = &stubLogin{
 			result: &commands.LoginResult{
-				User:  &user.User{ID: "u1", Email: "a@b.com"},
-				Token: "tok123",
+				User: &user.User{
+					ID:          "u1",
+					Email:       "a@b.com",
+					FirstName:   "Alice",
+					LastName:    "Smith",
+					DateOfBirth: time.Date(1990, 5, 20, 0, 0, 0, 0, time.UTC),
+					Nickname:    "alice",
+					AboutMe:     "hello there",
+					AvatarPath:  "/avatars/a.png",
+					IsPrivate:   true,
+					CreatedAt:   createdAt,
+				},
+				Token:     "tok123",
+				ExpiresAt: expiresAt,
 			},
 		}
 	})
@@ -209,6 +223,68 @@ func TestLogin_Success(t *testing.T) {
 	_ = json.Unmarshal(data, &dataMap)
 	if dataMap["token"] != "tok123" {
 		t.Errorf("data.token = %v, want tok123", dataMap["token"])
+	}
+
+	userMap, ok := dataMap["user"].(map[string]any)
+	if !ok {
+		t.Fatalf("data.user = %#v, want map[string]any", dataMap["user"])
+	}
+	wantUser := map[string]any{
+		"id":          "u1",
+		"email":       "a@b.com",
+		"username":    "alice",
+		"nickname":    "alice",
+		"firstName":   "Alice",
+		"lastName":    "Smith",
+		"aboutMe":     "hello there",
+		"dateOfBirth": "1990-05-20",
+		"avatarUrl":   "/avatars/a.png",
+		"isPublic":    false,
+		"createdAt":   createdAt.Format(time.RFC3339),
+	}
+	for k, want := range wantUser {
+		if userMap[k] != want {
+			t.Errorf("data.user.%s = %v, want %v", k, userMap[k], want)
+		}
+	}
+}
+
+func TestLogin_SetsAccessCookie(t *testing.T) {
+	expiresAt := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC).Add(24 * time.Hour)
+	writer := &stubCookieWriter{}
+	h := newTestHandler(func(h *Handler) {
+		h.login = &stubLogin{
+			result: &commands.LoginResult{
+				User:      &user.User{ID: "u1", Email: "a@b.com"},
+				Token:     "tok123",
+				ExpiresAt: expiresAt,
+			},
+		}
+		h.sessionCookies = writer
+	})
+	withDefaults(h)
+
+	body, _ := json.Marshal(map[string]string{
+		"identifier": "a@b.com",
+		"password":   "pass",
+	})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.Login(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if !writer.setCalled {
+		t.Fatal("SetAccessCookie not called")
+	}
+	if writer.setToken != "tok123" {
+		t.Errorf("SetAccessCookie token = %q, want tok123", writer.setToken)
+	}
+	if !writer.setExpiry.Equal(expiresAt) {
+		t.Errorf("SetAccessCookie expiry = %v, want %v", writer.setExpiry, expiresAt)
 	}
 }
 
@@ -266,5 +342,26 @@ func TestLogout_Success(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestLogout_DeletesCookie(t *testing.T) {
+	writer := &stubCookieWriter{}
+	h := newTestHandler(func(h *Handler) {
+		h.sessionCookies = writer
+	})
+	withDefaults(h)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/logout", nil)
+	req = middleware.WithSessionToken(req, "tok123")
+	rr := httptest.NewRecorder()
+
+	h.Logout(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if !writer.deleteCalled {
+		t.Error("DeleteAccessCookie not called")
 	}
 }

@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
@@ -45,16 +46,22 @@ type ListUsersResolver interface {
 	Resolve(ctx context.Context, q queries.ListUsersQuery) (*queries.ListUsersResult, error)
 }
 
+type SessionCookieWriter interface {
+	SetAccessCookie(w http.ResponseWriter, token string, expiresAt time.Time)
+	DeleteAccessCookie(w http.ResponseWriter)
+}
+
 type Handler struct {
-	auth          AuthUserExtractor
-	register      RegisterExecutor
-	login         LoginExecutor
-	logout        LogoutExecutor
-	updateProfile UpdateProfileExecutor
-	togglePrivacy TogglePrivacyExecutor
-	getProfile    ProfileResolver
-	getActivity   ActivityResolver
-	listUsers     ListUsersResolver
+	auth           AuthUserExtractor
+	register       RegisterExecutor
+	login          LoginExecutor
+	logout         LogoutExecutor
+	updateProfile  UpdateProfileExecutor
+	togglePrivacy  TogglePrivacyExecutor
+	getProfile     ProfileResolver
+	getActivity    ActivityResolver
+	listUsers      ListUsersResolver
+	sessionCookies SessionCookieWriter
 }
 
 func NewHandler(
@@ -67,16 +74,18 @@ func NewHandler(
 	getProfile ProfileResolver,
 	getActivity ActivityResolver,
 	listUsers ListUsersResolver,
+	sessionCookies SessionCookieWriter,
 ) *Handler {
 	return &Handler{
-		auth:          auth,
-		register:      register,
-		login:         login,
-		logout:        logout,
-		updateProfile: updateProfile,
-		togglePrivacy: togglePrivacy,
-		getProfile:    getProfile,
-		getActivity:   getActivity,
-		listUsers:     listUsers,
+		auth:           auth,
+		register:       register,
+		login:          login,
+		logout:         logout,
+		updateProfile:  updateProfile,
+		togglePrivacy:  togglePrivacy,
+		getProfile:     getProfile,
+		getActivity:    getActivity,
+		listUsers:      listUsers,
+		sessionCookies: sessionCookies,
 	}
 }

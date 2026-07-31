@@ -8,6 +8,7 @@
 import { RegisterBody } from '@/app/register/page';
 import type {
   User,
+  LoginResponse,
   Post,
   Comment,
   Group,
@@ -174,12 +175,12 @@ export const api = {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function loginEmail(email: string, password: string): Promise<User> {
-  return api.post<User>('/login/email', { identifier: email, password });
+export async function loginEmail(email: string, password: string): Promise<LoginResponse> {
+  return api.post<LoginResponse>('/login/email', { identifier: email, password });
 }
 
-export async function loginUsername(username: string, password: string): Promise<User> {
-  return api.post<User>('/login/username', { identifier: username, password });
+export async function loginUsername(username: string, password: string): Promise<LoginResponse> {
+  return api.post<LoginResponse>('/login/username', { identifier: username, password });
 }
 
 export async function register(body: RegisterBody): Promise<void> {

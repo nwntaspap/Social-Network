@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
@@ -90,6 +91,23 @@ func (s *stubAuth) Extract(_ *http.Request) (string, bool) {
 	return s.userID, s.ok
 }
 
+type stubCookieWriter struct {
+	setToken     string
+	setExpiry    time.Time
+	setCalled    bool
+	deleteCalled bool
+}
+
+func (s *stubCookieWriter) SetAccessCookie(_ http.ResponseWriter, token string, expiresAt time.Time) {
+	s.setToken = token
+	s.setExpiry = expiresAt
+	s.setCalled = true
+}
+
+func (s *stubCookieWriter) DeleteAccessCookie(_ http.ResponseWriter) {
+	s.deleteCalled = true
+}
+
 func newTestHandler(opts ...func(*Handler)) *Handler {
 	h := &Handler{}
 	for _, o := range opts {
@@ -126,6 +144,9 @@ func withDefaults(h *Handler) {
 	if h.listUsers == nil {
 		h.listUsers = &stubListUsers{}
 	}
+	if h.sessionCookies == nil {
+		h.sessionCookies = &stubCookieWriter{}
+	}
 }
 
 func TestNewHandler(t *testing.T) {
@@ -134,6 +155,7 @@ func TestNewHandler(t *testing.T) {
 		&stubRegister{}, &stubLogin{}, &stubLogout{},
 		&stubUpdateProfile{}, &stubTogglePrivacy{},
 		&stubGetProfile{}, &stubGetActivity{}, &stubListUsers{},
+		&stubCookieWriter{},
 	)
 	if h == nil {
 		t.Fatal("NewHandler() returned nil")
