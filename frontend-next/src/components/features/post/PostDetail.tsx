@@ -30,9 +30,9 @@ export default function PostDetail() {
     return foundPost ?? null;
   }, [postId]);
 
-  const [post, setPost] = useState<Post | null>(resolvedPost);
-  const [comments, setComments] = useState<Comment[]>(mockComments[postId] || defaultComments);
-  const [loading, setLoading] = useState(false);
+  const [post] = useState<Post | null>(resolvedPost);
+  const [comments] = useState<Comment[]>(mockComments[postId] || defaultComments);
+  const [loading] = useState(false);
   const [liked, setLiked] = useState(resolvedPost?.isLiked ?? false);
   const [likesCount, setLikesCount] = useState(resolvedPost?.likesCount ?? 0);
 

@@ -4,27 +4,29 @@
 > and the backend handlers in `internal/*/transport/`.
 >
 > Branch: `geoikonomou/front-backend-synchronization`
+>
+> Status: only **unresolved** mismatches are listed below. Resolved: #6, #7, #9,
+> #15, #17.
 
 ---
 
-## 1. REGISTER — field names & types don't match
+## 1. REGISTER — `dateOfBirth` format mismatch
 
-| Side                | Fields                                                            |
-| ------------------- | ----------------------------------------------------------------- |
-| **Frontend sends**  | `{ firstname, lastname, age, gender, email, password }`           |
-| **Backend expects** | `{ firstName, lastName, dateOfBirth (RFC3339), email, password }` |
+| Side                | Fields                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| **Frontend sends**  | `{ nickname, firstName, lastName, dateOfBirth (YYYY-MM-DD), gender, email, password }` |
+| **Backend expects** | `{ firstName, lastName, dateOfBirth (RFC3339), email, password }`                      |
 
 **Issues:**
 
-- `firstname` → `firstName` (camelCase)
-- `lastname` → `lastName` (camelCase)
-- `age` + `gender` sent but ignored by backend
-- `dateOfBirth` missing — backend parses RFC3339, will fail
+- `dateOfBirth` comes from `<input type="date">` → `YYYY-MM-DD`, but backend parses
+  `time.RFC3339` and will reject it (`register.go` line ~33)
+- `gender` still sent but ignored by backend (harmless)
 
-| Option | Side     | Change                                                              |
-| ------ | -------- | ------------------------------------------------------------------- |
-| **A**  | Backend  | Accept `firstname`/`lastname`/`age`/`gender`, compute `dateOfBirth` |
-| **B**  | Frontend | Send `firstName`/`lastName`/`dateOfBirth` (e.g. compute from age)   |
+| Option | Side     | Change                                               |
+| ------ | -------- | ---------------------------------------------------- |
+| **A**  | Backend  | Accept `YYYY-MM-DD` in addition to RFC3339           |
+| **B**  | Frontend | Send `new Date(dateOfBirth).toISOString()` (RFC3339) |
 
 ---
 
@@ -104,34 +106,7 @@
 
 ---
 
-## 6. TOPIC DELETE / LIKE / UNLIKE — body vs query param
-
-| Side         | How ID is sent                                                   |
-| ------------ | ---------------------------------------------------------------- |
-| **Frontend** | `{ id }` in request body                                         |
-| **Backend**  | `helpers.GetQueryInt(r, "id")` — reads query param, ignores body |
-
-**Issue:** ID is never parsed. Requests silently fail.
-
-| Option | Side     | Change                                                                         |
-| ------ | -------- | ------------------------------------------------------------------------------ |
-| **A**  | Backend  | Read ID from request body                                                      |
-| **B**  | Frontend | Send ID as query param: `DELETE /topics/delete?id=X`, `POST /topics/vote?id=X` |
-
----
-
-## 7. COMMENT DELETE — body vs query param
-
-Same issue as #6.
-
-| Option | Side     | Change                                                 |
-| ------ | -------- | ------------------------------------------------------ |
-| **A**  | Backend  | Read ID from request body                              |
-| **B**  | Frontend | Send ID as query param: `DELETE /comments/delete?id=X` |
-
----
-
-## 8. GROUP RESPONSE — missing `membershipStatus`
+## 6. GROUP RESPONSE — missing `membershipStatus`
 
 | Side                      | Shape                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------ |
@@ -147,26 +122,7 @@ Same issue as #6.
 
 ---
 
-## 9. EVENT RESPONSE — extra `options`, missing `creator`
-
-| Side                      | Shape                                                                                    |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
-| **Backend EventResponse** | `{ id, groupId, creatorId, creator, title, description, eventDate, createdAt, options }` |
-| **Frontend Event type**   | `{ id, groupId, creatorId, creator, title, description, eventDate, createdAt }`          |
-
-**Issues:**
-
-- Backend has `options: OptionResponse[]` — frontend doesn't expect it
-- `ListGroupEvents` doesn't return `creator` (only `CreateEvent` does)
-
-| Option | Side     | Change                                                         |
-| ------ | -------- | -------------------------------------------------------------- |
-| **A**  | Backend  | Remove `options` from response, add `creator` to list endpoint |
-| **B**  | Frontend | Adapter ignores `options` field                                |
-
----
-
-## 10. CHAT USER — snake_case, wrong field names
+## 7. CHAT USER — snake_case, wrong field names
 
 | Side                  | Shape                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -187,7 +143,7 @@ Same issue as #6.
 
 ---
 
-## 11. CHAT MESSAGE — snake_case, int ID, missing fields
+## 8. CHAT MESSAGE — snake_case, int ID, missing fields
 
 | Side                     | Shape                                                               |
 | ------------------------ | ------------------------------------------------------------------- |
@@ -207,7 +163,7 @@ Same issue as #6.
 
 ---
 
-## 12. FOLLOW / REQUEST — flat, no nested User
+## 9. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -225,7 +181,7 @@ Same issue as #6.
 
 ---
 
-## 13. SEARCH USERS — no-op, no pagination
+## 10. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -245,7 +201,7 @@ Same issue as #6.
 
 ---
 
-## 14. SEARCH GROUPS — no-op
+## 11. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -259,26 +215,7 @@ Same issue as #6.
 
 ---
 
-## 15. GROUP ROUTES — path mismatch
-
-| Frontend calls                            | Backend route                            |
-| ----------------------------------------- | ---------------------------------------- |
-| `GET /groups/${groupId}`                  | `GET /groups/{groupId}`                  |
-| `PUT /groups/${groupId}`                  | `PUT /groups/{groupId}`                  |
-| `DELETE /groups/${groupId}`               | `DELETE /groups/{groupId}`               |
-| `POST /groups/${groupId}/invite`          | `POST /groups/{groupId}/invite`          |
-| `POST /groups/${groupId}/request`         | `POST /groups/{groupId}/request`         |
-| `DELETE /groups/${groupId}/leave`         | `DELETE /groups/{groupId}/leave`         |
-| `PUT /groups/requests/${requestId}`       | `PUT /groups/requests/{requestId}`       |
-| `GET /groups/${groupId}/posts`            | `GET /groups/{groupId}/posts`            |
-| `GET /groups/${groupId}/members`          | `GET /groups/{groupId}/members`          |
-| `GET /groups/${groupId}/requests/pending` | `GET /groups/{groupId}/requests/pending` |
-
-**Note:** Routes actually match. Go 1.22+ `{var}` syntax works with `HandleFunc`.
-
----
-
-## 16. PAGINATION ENVELOPE — different structure
+## 12. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -298,23 +235,12 @@ Same issue as #6.
 
 ---
 
-## 17. CHAT ROUTES — auth middleware mismatch
-
-| Frontend calls               | Backend route                                |
-| ---------------------------- | -------------------------------------------- |
-| `GET /chat/users`            | `GET /chat/users` (auth required)            |
-| `GET /chat/history?chatId=X` | `GET /chat/history?chatId=X` (auth required) |
-
-**Note:** Routes match. The `apiFetch` unwraps `{ data }` envelope correctly.
-
----
-
 ## Summary: Recommended Strategy
 
 **Backend adapts to frontend** — backend changes where data is genuinely missing; frontend only handles type conversions via a thin adapter layer.
 
-| Category               | Changes                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Backend (10 files)** | register, login, me, topic response, comment response, group list, event list, chat queries, follow queries, list users/groups search |
-| **Frontend (2 files)** | `api.ts` — query params for delete/like/unlike; new `transformers.ts` for field mappings                                              |
-| **No changes**         | `types.ts` — backend will match frontend types                                                                                        |
+| Category       | Changes                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Backend**    | register date format, login, me, topic response, comment response, group list, chat queries, follow queries, list users/groups search |
+| **Frontend**   | `api.ts` — register `dateOfBirth` format; new `transformers.ts` for field mappings / pagination unwrap                                |
+| **No changes** | `types.ts` — backend will match frontend types                                                                                        |
