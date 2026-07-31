@@ -31,6 +31,12 @@ CREATE TABLE topic_allowed_users (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (topic_id, user_id)
 );
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER REFERENCES topics(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    content TEXT NOT NULL
+);
 CREATE TABLE votes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -277,6 +283,36 @@ func TestGetFeed_Filter(t *testing.T) {
 	}
 	if len(topics) != 1 || topics[0].Title != "Alpha" {
 		t.Errorf("topics = %v, want [Alpha]", topics)
+	}
+}
+
+func TestCommentsCount(t *testing.T) {
+	s := setupTopicStore(t)
+
+	top := &topic.Topic{UserID: "u1", Title: "Commented", Content: "x"}
+	if err := s.CreateTopic(context.Background(), top, nil); err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	if _, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO comments (topic_id, user_id, content) VALUES (?, 'u2', 'c1'), (?, 'u2', 'c2')`,
+		top.ID, top.ID); err != nil {
+		t.Fatalf("insert comments: %v", err)
+	}
+
+	topics, _, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if len(topics) != 1 || topics[0].CommentsCount != 2 {
+		t.Errorf("GetFeed CommentsCount = %d, want 2", topics[0].CommentsCount)
+	}
+
+	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	if err != nil {
+		t.Fatalf("GetTopicByID: %v", err)
+	}
+	if got.CommentsCount != 2 {
+		t.Errorf("GetTopicByID CommentsCount = %d, want 2", got.CommentsCount)
 	}
 }
 

@@ -8,32 +8,12 @@
 > Status: only **unresolved** mismatches are listed below, renumbered after pruning.
 > Resolved so far: topic/comment delete & vote query params, event list creator,
 > group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie),
-> `/me` (full user via `userResponse`).
+> `/me` (full user via `userResponse`), topic response (string id, nested `user`,
+> `imageUrl`, `commentsCount`).
 
 ---
 
-## 1. TOPIC RESPONSE — int IDs, missing user object
-
-| Side                      | Shape                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Backend TopicResponse** | `{ id (int), userId, imagePath, ownerUsername, privacy, likesCount, isLiked, ... }`               |
-| **Frontend Post type**    | `{ id (string), userId, user: User, imageUrl, privacy, commentsCount, likesCount, isLiked, ... }` |
-
-**Issues:**
-
-- `id` is `int` → should be `string`
-- `imagePath` → should be `imageUrl`
-- `ownerUsername` → should be `user: User` (nested object)
-- Missing: `commentsCount`, `user`
-
-| Option | Side     | Change                                                                    |
-| ------ | -------- | ------------------------------------------------------------------------- |
-| **A**  | Backend  | Add `user` object, convert `id` to string, rename fields                  |
-| **B**  | Frontend | Adapter maps `ownerUsername`→`user`, `imagePath`→`imageUrl`, `String(id)` |
-
----
-
-## 2. COMMENT RESPONSE — int IDs, wrong field names
+## 1. COMMENT RESPONSE — int IDs, wrong field names
 
 | Side                        | Shape                                                                |
 | --------------------------- | -------------------------------------------------------------------- |
@@ -53,7 +33,7 @@
 
 ---
 
-## 3. GROUP RESPONSE — missing `membershipStatus`
+## 2. GROUP RESPONSE — missing `membershipStatus`
 
 | Side                      | Shape                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------ |
@@ -69,7 +49,7 @@
 
 ---
 
-## 4. CHAT USER — snake_case, wrong field names
+## 3. CHAT USER — snake_case, wrong field names
 
 | Side                  | Shape                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -90,7 +70,7 @@
 
 ---
 
-## 5. CHAT MESSAGE — snake_case, int ID, missing fields
+## 4. CHAT MESSAGE — snake_case, int ID, missing fields
 
 | Side                     | Shape                                                               |
 | ------------------------ | ------------------------------------------------------------------- |
@@ -110,7 +90,7 @@
 
 ---
 
-## 6. FOLLOW / REQUEST — flat, no nested User
+## 5. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -128,7 +108,7 @@
 
 ---
 
-## 7. SEARCH USERS — no-op, no pagination
+## 6. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -148,7 +128,7 @@
 
 ---
 
-## 8. SEARCH GROUPS — no-op
+## 7. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -162,7 +142,7 @@
 
 ---
 
-## 9. PAGINATION ENVELOPE — different structure
+## 8. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |

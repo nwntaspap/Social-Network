@@ -28,6 +28,7 @@ type Topic struct {
 	UpvoteCount   int
 	DownvoteCount int
 	VoteScore     int
+	CommentsCount int
 	UserVote      *int
 	AllowedUsers  []string
 }

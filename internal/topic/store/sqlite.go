@@ -143,7 +143,8 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 			COALESCE(t.visibility, 0), t.group_id,
 			t.created_at, t.updated_at,
 			COALESCE(u.username, ''),
-			COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0)`
+			COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0),
+			COALESCE(cc.comments_count, 0)`
 
 	if userID != nil {
 		query += `, uv.reaction_type`
@@ -158,7 +159,8 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 				COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes,
 				COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score
 			FROM votes WHERE comment_id IS NULL GROUP BY topic_id
-		) vc ON t.id = vc.topic_id`
+		) vc ON t.id = vc.topic_id
+		LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id`
 
 	if userID != nil {
 		query += `
@@ -184,6 +186,7 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 		&t.CreatedAt, &updatedAt,
 		&t.OwnerUsername,
 		&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
+		&t.CommentsCount,
 	}
 	if userID != nil {
 		scanFields = append(scanFields, &userVote)

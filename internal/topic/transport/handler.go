@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"social-network/internal/topic"
@@ -11,6 +12,10 @@ import (
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
+
+type UserLookup interface {
+	GetUserByID(ctx context.Context, id string) (*UserResult, error)
+}
 
 type CreateTopicExecutor interface {
 	Execute(ctx context.Context, cmd commands.CreateTopicCommand) (*topic.Topic, error)
@@ -48,19 +53,45 @@ type GetVoteCountsResolver interface {
 	Resolve(ctx context.Context, q queries.GetVoteCountsQuery) (*topic.VoteCounts, error)
 }
 
+type UserResult struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Username    string `json:"username"`
+	FirstName   string `json:"firstName"`
+	LastName    string `json:"lastName"`
+	Nickname    string `json:"nickname,omitempty"`
+	AboutMe     string `json:"aboutMe,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
+	DateOfBirth string `json:"dateOfBirth"`
+	IsPublic    bool   `json:"isPublic"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {
+	if h.userLookup == nil || userID == "" {
+		return nil
+	}
+	u, err := h.userLookup.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	return u
+}
+
 type TopicResponse struct {
-	ID            int     `json:"id"`
-	UserID        string  `json:"userId"`
-	GroupID       *string `json:"groupId"`
-	Title         string  `json:"title"`
-	Content       string  `json:"content"`
-	ImagePath     string  `json:"imagePath,omitempty"`
-	Visibility    string  `json:"privacy"`
-	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     string  `json:"updatedAt"`
-	OwnerUsername string  `json:"ownerUsername,omitempty"`
-	UpvoteCount   int     `json:"likesCount"`
-	UserVote      *int    `json:"isLiked"`
+	ID            string      `json:"id"`
+	UserID        string      `json:"userId"`
+	User          *UserResult `json:"user"`
+	GroupID       *string     `json:"groupId"`
+	Title         string      `json:"title"`
+	Content       string      `json:"content"`
+	ImageURL      string      `json:"imageUrl,omitempty"`
+	Visibility    string      `json:"privacy"`
+	CreatedAt     string      `json:"createdAt"`
+	UpdatedAt     string      `json:"updatedAt"`
+	UpvoteCount   int         `json:"likesCount"`
+	CommentsCount int         `json:"commentsCount"`
+	UserVote      *int        `json:"isLiked"`
 }
 
 type VoteCountsResponse struct {
@@ -69,7 +100,7 @@ type VoteCountsResponse struct {
 	Score     int `json:"score"`
 }
 
-func toTopicResponse(t *topic.Topic) TopicResponse {
+func toTopicResponse(t *topic.Topic, user *UserResult) TopicResponse {
 	var vis string
 	switch t.Visibility {
 	case topic.VisibilityPublic:
@@ -82,17 +113,18 @@ func toTopicResponse(t *topic.Topic) TopicResponse {
 		vis = "public"
 	}
 	return TopicResponse{
-		ID:            t.ID,
+		ID:            strconv.Itoa(t.ID),
 		UserID:        t.UserID,
+		User:          user,
 		GroupID:       t.GroupID,
 		Title:         t.Title,
 		Content:       t.Content,
-		ImagePath:     t.ImagePath,
+		ImageURL:      t.ImagePath,
 		Visibility:    vis,
 		CreatedAt:     t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     t.UpdatedAt.Format(time.RFC3339),
-		OwnerUsername: t.OwnerUsername,
 		UpvoteCount:   t.UpvoteCount,
+		CommentsCount: t.CommentsCount,
 		UserVote:      t.UserVote,
 	}
 }
@@ -107,11 +139,13 @@ type Handler struct {
 	getByUser   GetTopicsByUserResolver
 	getByGroup  GetTopicsByGroupResolver
 	getVotes    GetVoteCountsResolver
+	userLookup  UserLookup
 	extractUser UserExtractor
 }
 
 func NewHandler(
 	extractUser UserExtractor,
+	userLookup UserLookup,
 	createTopic CreateTopicExecutor,
 	updateTopic UpdateTopicExecutor,
 	deleteTopic DeleteTopicExecutor,
@@ -132,6 +166,7 @@ func NewHandler(
 		getByUser:   getByUser,
 		getByGroup:  getByGroup,
 		getVotes:    getVotes,
+		userLookup:  userLookup,
 		extractUser: extractUser,
 	}
 }

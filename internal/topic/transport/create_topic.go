@@ -100,6 +100,6 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toTopicResponse(top)
+	resp := toTopicResponse(top, h.lookupUser(r.Context(), userID))
 	helpers.RespondWithJSON(w, http.StatusCreated, nil, resp)
 }

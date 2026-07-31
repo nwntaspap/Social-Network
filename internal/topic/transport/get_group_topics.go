@@ -33,7 +33,8 @@ func (h *Handler) GetGroupTopics(w http.ResponseWriter, r *http.Request) {
 
 	topics := make([]TopicResponse, 0, len(res.Topics))
 	for i := range res.Topics {
-		topics = append(topics, toTopicResponse(&res.Topics[i]))
+		author := h.lookupUser(r.Context(), res.Topics[i].UserID)
+		topics = append(topics, toTopicResponse(&res.Topics[i], author))
 	}
 
 	totalPages := res.Total / pagination.Limit

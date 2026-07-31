@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"mime/multipart"
 	"net/http"
@@ -94,6 +95,21 @@ func (m *mockGetVotes) Resolve(_ context.Context, q queries.GetVoteCountsQuery) 
 	return m.result, m.err
 }
 
+type mockUserLookup struct {
+	result *UserResult
+	err    error
+}
+
+func (m *mockUserLookup) GetUserByID(_ context.Context, id string) (*UserResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return &UserResult{ID: id, Username: "alice", Nickname: "alice"}, nil
+}
+
 func fixedTime() time.Time {
 	return time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
 }
@@ -104,12 +120,14 @@ func testTopic() *topic.Topic {
 		UserID:        "user-1",
 		Title:         "Test Post",
 		Content:       "Test content",
+		ImagePath:     "/images/photo.jpg",
 		Visibility:    topic.VisibilityPublic,
 		CreatedAt:     fixedTime(),
 		UpdatedAt:     fixedTime(),
 		UpvoteCount:   3,
 		DownvoteCount: 1,
 		VoteScore:     2,
+		CommentsCount: 2,
 	}
 }
 
@@ -168,6 +186,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var getByUser GetTopicsByUserResolver
 	var getByGroup GetTopicsByGroupResolver
 	var getVotes GetVoteCountsResolver
+	var lookup UserLookup
 
 	for _, m := range mocks {
 		switch v := m.(type) {
@@ -189,10 +208,16 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			getByGroup = v
 		case *mockGetVotes:
 			getVotes = v
+		case *mockUserLookup:
+			lookup = v
 		}
 	}
 
-	return NewHandler(extractor, create, update, del, cast, getFeed, getTopic, getByUser, getByGroup, getVotes)
+	if lookup == nil {
+		lookup = &mockUserLookup{}
+	}
+
+	return NewHandler(extractor, lookup, create, update, del, cast, getFeed, getTopic, getByUser, getByGroup, getVotes)
 }
 
 func doMultipartReq(t *testing.T, srv *httptest.Server, method, path string, fields map[string]string) *http.Response {
@@ -346,5 +371,45 @@ func TestGetTopic_Error(t *testing.T) {
 
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestTopicResponse_MatchesFrontendPost(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockGetTopic{result: testTopic()})
+	srv := httptest.NewServer(mux(h))
+	defer srv.Close()
+
+	resp := doReq(t, srv, http.MethodGet, "/api/posts/get?id=1")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	d := body.Data
+
+	if got, ok := d["id"].(string); !ok || got != "1" {
+		t.Errorf("id = %#v, want string \"1\"", d["id"])
+	}
+	if _, ok := d["user"].(map[string]any); !ok {
+		t.Errorf("user = %#v, want nested object", d["user"])
+	}
+	if got, ok := d["imageUrl"].(string); !ok || got != "/images/photo.jpg" {
+		t.Errorf("imageUrl = %#v, want %q", d["imageUrl"], "/images/photo.jpg")
+	}
+	if got, ok := d["commentsCount"].(float64); !ok || got != 2 {
+		t.Errorf("commentsCount = %#v, want 2", d["commentsCount"])
+	}
+	if _, ok := d["ownerUsername"]; ok {
+		t.Error("ownerUsername should be removed from the response")
+	}
+	if _, ok := d["imagePath"]; ok {
+		t.Error("imagePath should be renamed to imageUrl")
 	}
 }

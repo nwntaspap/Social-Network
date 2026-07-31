@@ -34,6 +34,7 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
 		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0), " +
 		"uv.reaction_type " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
@@ -42,6 +43,7 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		"LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL " +
 		whereClause + " ORDER BY " + orderByCol + " " + orderDir + " LIMIT ? OFFSET ?"
 
@@ -79,6 +81,7 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
 		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0), " +
 		"uv.reaction_type " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
@@ -87,6 +90,7 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		"LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL " +
 		whereClause + " ORDER BY t.created_at DESC LIMIT ? OFFSET ?"
 
@@ -122,7 +126,8 @@ func (s *SQLiteStore) GetTopicsByGroupID(ctx context.Context, groupID string, pa
 		"COALESCE(t.visibility, 0), t.group_id, " +
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
-		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0) " +
+		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0) " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
 		"LEFT JOIN (SELECT topic_id, " +
@@ -130,6 +135,7 @@ func (s *SQLiteStore) GetTopicsByGroupID(ctx context.Context, groupID string, pa
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		whereClause + " ORDER BY t.created_at DESC LIMIT ? OFFSET ?"
 
 	offset := (page - 1) * size
@@ -161,6 +167,7 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 			&t.CreatedAt, &updatedAt,
 			&t.OwnerUsername,
 			&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
+			&t.CommentsCount,
 		}
 		if includeUserVote {
 			var userVote sql.NullInt32

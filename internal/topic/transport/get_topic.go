@@ -33,6 +33,6 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toTopicResponse(top)
+	resp := toTopicResponse(top, h.lookupUser(r.Context(), top.UserID))
 	helpers.RespondWithJSON(w, http.StatusOK, nil, resp)
 }

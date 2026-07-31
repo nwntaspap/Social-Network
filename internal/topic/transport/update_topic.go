@@ -93,6 +93,6 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toTopicResponse(top)
+	resp := toTopicResponse(top, h.lookupUser(r.Context(), userID))
 	helpers.RespondWithJSON(w, http.StatusOK, nil, resp)
 }
