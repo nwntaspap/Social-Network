@@ -30,12 +30,13 @@ const (
 )
 
 type Group struct {
-	ID          string
-	Title       string
-	Description string
-	CreatorID   string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID               string
+	Title            string
+	Description      string
+	CreatorID        string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	MembershipStatus string
 }
 
 type Member struct {

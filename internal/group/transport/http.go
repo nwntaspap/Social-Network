@@ -72,7 +72,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	creator := h.lookupUser(r.Context(), userID)
 	membersCount := 1
-	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupResponse(g, creator, membersCount))
+	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupResponse(g, creator, membersCount, "member"))
 }
 
 func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
@@ -83,9 +83,15 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 
 	pagination := helpers.GetPagination(r)
 
+	var userID string
+	if uid, ok := h.extractUser(r); ok {
+		userID = uid
+	}
+
 	res, err := h.listGroups.Resolve(r.Context(), queries.ListGroupsQuery{
-		Page: pagination.Page,
-		Size: pagination.Limit,
+		Page:   pagination.Page,
+		Size:   pagination.Limit,
+		UserID: userID,
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
@@ -102,7 +108,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		if count != nil {
 			membersCount = count.Total
 		}
-		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount))
+		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount, res.Groups[i].MembershipStatus))
 	}
 
 	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), groups)
@@ -125,9 +131,9 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 		userID = uid
 	}
 
-	_ = userID
 	res, err := h.getGroup.Resolve(r.Context(), queries.GetGroupQuery{
 		GroupID: groupID,
+		UserID:  userID,
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusNotFound, err.Error())
@@ -180,7 +186,7 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	if count != nil {
 		membersCount = count.Total
 	}
-	helpers.RespondWithJSON(w, http.StatusOK, nil, toGroupResponse(g, creator, membersCount))
+	helpers.RespondWithJSON(w, http.StatusOK, nil, toGroupResponse(g, creator, membersCount, "member"))
 }
 
 func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {

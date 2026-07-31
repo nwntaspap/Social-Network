@@ -19,6 +19,7 @@ func RegisterRoutes(s *Server) {
 	}
 
 	require := s.requireAuth
+	optional := s.optionalAuth
 
 	// User routes
 	if h := s.handlers.User; h != nil {
@@ -85,7 +86,7 @@ func RegisterRoutes(s *Server) {
 	// Group routes
 	if h := s.handlers.Group; h != nil {
 		s.mux.HandleFunc("POST "+api+"/groups", require(h.CreateGroup))
-		s.mux.HandleFunc("GET "+api+"/groups", h.ListGroups)
+		s.mux.HandleFunc("GET "+api+"/groups", optional(h.ListGroups))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}", require(h.GetGroup))
 		s.mux.HandleFunc("PUT "+api+"/groups/{groupId}", require(h.UpdateGroup))
 		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}", require(h.DeleteGroup))
@@ -111,6 +112,13 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 		return next
 	}
 	return s.auth.Required(next)
+}
+
+func (s *Server) optionalAuth(next http.HandlerFunc) http.HandlerFunc {
+	if s.auth == nil {
+		return next
+	}
+	return s.auth.Optional(next)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {

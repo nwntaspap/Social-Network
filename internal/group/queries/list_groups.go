@@ -7,8 +7,9 @@ import (
 )
 
 type ListGroupsQuery struct {
-	Page int
-	Size int
+	Page   int
+	Size   int
+	UserID string
 }
 
 type ListGroupsResult struct {
@@ -29,5 +30,10 @@ func (r *ListGroupsResolver) Resolve(ctx context.Context, q ListGroupsQuery) (*L
 	if err != nil {
 		return nil, err
 	}
+
+	for i := range groups {
+		groups[i].MembershipStatus = computeMembershipStatus(ctx, r.repo, groups[i].ID, q.UserID)
+	}
+
 	return &ListGroupsResult{Groups: groups, Total: total}, nil
 }

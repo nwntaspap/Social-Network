@@ -22,14 +22,15 @@ type UserResult struct {
 }
 
 type GroupResponse struct {
-	ID           string      `json:"id"`
-	Title        string      `json:"title"`
-	Description  string      `json:"description"`
-	CreatorID    string      `json:"creatorId"`
-	Creator      *UserResult `json:"creator"`
-	MembersCount int         `json:"membersCount"`
-	CreatedAt    string      `json:"createdAt"`
-	UpdatedAt    string      `json:"updatedAt"`
+	ID               string      `json:"id"`
+	Title            string      `json:"title"`
+	Description      string      `json:"description"`
+	CreatorID        string      `json:"creatorId"`
+	Creator          *UserResult `json:"creator"`
+	MembersCount     int         `json:"membersCount"`
+	MembershipStatus string      `json:"membershipStatus"`
+	CreatedAt        string      `json:"createdAt"`
+	UpdatedAt        string      `json:"updatedAt"`
 }
 
 type GroupDetailResponse struct {
@@ -102,16 +103,17 @@ type GroupBrief struct {
 	Title string `json:"title"`
 }
 
-func toGroupResponse(g *group.Group, creator *UserResult, membersCount int) GroupResponse {
+func toGroupResponse(g *group.Group, creator *UserResult, membersCount int, membershipStatus string) GroupResponse {
 	return GroupResponse{
-		ID:           g.ID,
-		Title:        g.Title,
-		Description:  g.Description,
-		CreatorID:    g.CreatorID,
-		Creator:      creator,
-		MembersCount: membersCount,
-		CreatedAt:    formatTime(g.CreatedAt),
-		UpdatedAt:    formatTime(g.UpdatedAt),
+		ID:               g.ID,
+		Title:            g.Title,
+		Description:      g.Description,
+		CreatorID:        g.CreatorID,
+		Creator:          creator,
+		MembersCount:     membersCount,
+		MembershipStatus: membershipStatus,
+		CreatedAt:        formatTime(g.CreatedAt),
+		UpdatedAt:        formatTime(g.UpdatedAt),
 	}
 }
 

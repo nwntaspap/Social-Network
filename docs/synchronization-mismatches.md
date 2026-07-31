@@ -10,27 +10,11 @@
 > group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie),
 > `/me` (full user via `userResponse`), topic response (string id, nested `user`,
 > `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
-> `imageUrl`).
+> `imageUrl`), group response (`membershipStatus` in list + detail).
 
 ---
 
-## 1. GROUP RESPONSE — missing `membershipStatus`
-
-| Side                      | Shape                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| **Backend GroupResponse** | `{ id, title, description, creatorId, creator, membersCount, createdAt, updatedAt }` |
-| **Frontend Group type**   | `{ ..., membershipStatus?: 'none' \| 'pending' \| 'member' }`                        |
-
-**Issue:** `membershipStatus` only exists in `GroupDetailResponse`, not in list response.
-
-| Option | Side     | Change                                     |
-| ------ | -------- | ------------------------------------------ |
-| **A**  | Backend  | Add membership check query to `ListGroups` |
-| **B**  | Frontend | Default to `'none'` when missing           |
-
----
-
-## 2. CHAT USER — snake_case, wrong field names
+## 1. CHAT USER — snake_case, wrong field names
 
 | Side                  | Shape                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -51,7 +35,7 @@
 
 ---
 
-## 3. CHAT MESSAGE — snake_case, int ID, missing fields
+## 2. CHAT MESSAGE — snake_case, int ID, missing fields
 
 | Side                     | Shape                                                               |
 | ------------------------ | ------------------------------------------------------------------- |
@@ -71,7 +55,7 @@
 
 ---
 
-## 4. FOLLOW / REQUEST — flat, no nested User
+## 3. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -89,7 +73,7 @@
 
 ---
 
-## 5. SEARCH USERS — no-op, no pagination
+## 4. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -109,7 +93,7 @@
 
 ---
 
-## 6. SEARCH GROUPS — no-op
+## 5. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -123,7 +107,7 @@
 
 ---
 
-## 7. PAGINATION ENVELOPE — different structure
+## 6. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -149,6 +133,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | group list, chat queries, follow queries, list users/groups search                                        |
+| **Backend**    | chat queries, follow queries, list users/groups search                                                    |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |
