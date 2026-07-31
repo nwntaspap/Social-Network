@@ -93,6 +93,21 @@ func (m *mockGetCommentVotes) Resolve(_ context.Context, q queries.GetVoteCounts
 	return m.result, m.err
 }
 
+type mockUserLookup struct {
+	result *UserResult
+	err    error
+}
+
+func (m *mockUserLookup) GetUserByID(_ context.Context, id string) (*UserResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return &UserResult{ID: id, Username: "alice", Nickname: "alice"}, nil
+}
+
 func fixedTime() time.Time {
 	return time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
 }
@@ -103,7 +118,7 @@ func testComment() *comment.Comment {
 		UserID:        "user-1",
 		TopicID:       10,
 		Content:       "test content",
-		ImagePath:     "",
+		ImagePath:     "/images/comment.jpg",
 		CreatedAt:     fixedTime(),
 		UpdatedAt:     fixedTime(),
 		UpvoteCount:   3,
@@ -216,6 +231,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var getByTopic GetCommentsByTopicResolver
 	var getByTopicWV GetCommentsByTopicWithVotesResolver
 	var getVotes GetVoteCountsResolver
+	var lookup UserLookup
 
 	for _, m := range mocks {
 		switch v := m.(type) {
@@ -237,10 +253,16 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			getByTopicWV = v
 		case *mockGetCommentVotes:
 			getVotes = v
+		case *mockUserLookup:
+			lookup = v
 		}
 	}
 
-	return NewHandler(extractor, create, update, del, cast, get, getWV, getByTopic, getByTopicWV, getVotes)
+	if lookup == nil {
+		lookup = &mockUserLookup{}
+	}
+
+	return NewHandler(extractor, lookup, create, update, del, cast, get, getWV, getByTopic, getByTopicWV, getVotes)
 }
 
 func TestCreateComment_Success(t *testing.T) {
@@ -373,5 +395,48 @@ func TestDeleteComment_BadID(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestCommentResponse_MatchesFrontendComment(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockGetByTopic{results: []comment.Comment{*testComment()}})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
+
+	resp := doRequest(t, srv, http.MethodGet, "/api/comments/topic?topicId=10", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Data) != 1 {
+		t.Fatalf("len(data) = %d, want 1", len(body.Data))
+	}
+	d := body.Data[0]
+
+	if got, ok := d["id"].(string); !ok || got != "1" {
+		t.Errorf("id = %#v, want string \"1\"", d["id"])
+	}
+	if got, ok := d["postId"].(string); !ok || got != "10" {
+		t.Errorf("postId = %#v, want string \"10\"", d["postId"])
+	}
+	if _, ok := d["user"].(map[string]any); !ok {
+		t.Errorf("user = %#v, want nested object", d["user"])
+	}
+	if got, ok := d["imageUrl"].(string); !ok || got != "/images/comment.jpg" {
+		t.Errorf("imageUrl = %#v, want %q", d["imageUrl"], "/images/comment.jpg")
+	}
+	if _, ok := d["topicId"]; ok {
+		t.Error("topicId should be renamed to postId")
+	}
+	if _, ok := d["imagePath"]; ok {
+		t.Error("imagePath should be renamed to imageUrl")
 	}
 }

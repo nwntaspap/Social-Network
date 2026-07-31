@@ -10,6 +10,8 @@ import (
 	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/core/middleware"
 	"social-network/internal/platform/database"
+	"social-network/internal/user"
+	userstore "social-network/internal/user/store"
 )
 
 type commentEventBus struct{}
@@ -30,8 +32,11 @@ func initComment(db database.DB) *commenttransport.Handler {
 		return uid, true
 	}
 
+	userLookup := &commentUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+
 	return commenttransport.NewHandler(
 		extractUser,
+		userLookup,
 		commentcommands.NewCreateCommentHandler(store, bus),
 		commentcommands.NewUpdateCommentHandler(store),
 		commentcommands.NewDeleteCommentHandler(store),
@@ -43,3 +48,38 @@ func initComment(db database.DB) *commenttransport.Handler {
 		commentqueries.NewGetVoteCountsResolver(store),
 	)
 }
+
+type commentUserLookupAdapter struct {
+	repo user.Repository
+}
+
+func (a *commentUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*commenttransport.UserResult, error) {
+	u, err := a.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &commenttransport.UserResult{
+		ID:        u.ID,
+		Email:     u.Email,
+		Username:  u.Nickname,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Nickname:  u.Nickname,
+		AboutMe:   u.AboutMe,
+		IsPublic:  !u.IsPrivate,
+		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if !u.DateOfBirth.IsZero() {
+		result.DateOfBirth = u.DateOfBirth.Format("2006-01-02")
+	}
+
+	if u.AvatarPath != "" {
+		result.AvatarURL = u.AvatarPath
+	}
+
+	return result, nil
+}
+
+var _ commenttransport.UserLookup = (*commentUserLookupAdapter)(nil)

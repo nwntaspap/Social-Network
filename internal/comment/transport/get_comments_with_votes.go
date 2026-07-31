@@ -36,7 +36,7 @@ func (h *Handler) GetCommentsByTopicWithVotes(w http.ResponseWriter, r *http.Req
 
 	responses := make([]CommentResponse, len(comments))
 	for i, c := range comments {
-		responses[i] = toCommentResponse(&c)
+		responses[i] = toCommentResponse(&c, h.lookupUser(r.Context(), c.UserID))
 	}
 
 	helpers.RespondWithJSON(w, http.StatusOK, nil, responses)

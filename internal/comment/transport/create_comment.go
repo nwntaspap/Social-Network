@@ -39,6 +39,6 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := toCommentResponse(c)
+	resp := toCommentResponse(c, h.lookupUser(r.Context(), c.UserID))
 	helpers.RespondWithJSON(w, http.StatusCreated, nil, resp)
 }
