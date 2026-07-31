@@ -13,9 +13,11 @@ import (
 type stubRegister struct {
 	user *user.User
 	err  error
+	got  commands.RegisterCommand
 }
 
-func (s *stubRegister) Execute(_ context.Context, _ commands.RegisterCommand) (*user.User, error) {
+func (s *stubRegister) Execute(_ context.Context, cmd commands.RegisterCommand) (*user.User, error) {
+	s.got = cmd
 	return s.user, s.err
 }
 

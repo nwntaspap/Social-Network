@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"social-network/internal/core/middleware"
 	"social-network/internal/user"
@@ -44,6 +45,61 @@ func TestRegister_Success(t *testing.T) {
 	_ = json.Unmarshal(data, &dataMap)
 	if dataMap["id"] != "u1" {
 		t.Errorf("data.id = %v, want u1", dataMap["id"])
+	}
+}
+
+func TestRegister_DateOnlyAccepted(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.register = &stubRegister{user: &user.User{ID: "u1", Email: "a@b.com"}}
+	})
+	withDefaults(h)
+
+	body, _ := json.Marshal(map[string]string{
+		"email":       "a@b.com",
+		"password":    "password123",
+		"nickname":    "nick",
+		"dateOfBirth": "2000-01-15",
+	})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.Register(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusCreated)
+	}
+	stub, ok := h.register.(*stubRegister)
+	if !ok {
+		t.Fatal("register handler is not a *stubRegister")
+	}
+	got := stub.got
+	want := time.Date(2000, 1, 15, 0, 0, 0, 0, time.UTC)
+	if !got.DateOfBirth.Equal(want) {
+		t.Errorf("dateOfBirth = %v, want %v", got.DateOfBirth, want)
+	}
+}
+
+func TestRegister_InvalidDateFormat(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.register = &stubRegister{user: &user.User{ID: "u1", Email: "a@b.com"}}
+	})
+	withDefaults(h)
+
+	body, _ := json.Marshal(map[string]string{
+		"email":       "a@b.com",
+		"password":    "password123",
+		"nickname":    "nick",
+		"dateOfBirth": "not-a-date",
+	})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.Register(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadRequest)
 	}
 }
 

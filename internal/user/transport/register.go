@@ -32,8 +32,11 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	dob, err := time.Parse(time.RFC3339, req.DateOfBirth)
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "invalid dateOfBirth format, use RFC3339")
-		return
+		dob, err = time.Parse("2006-01-02", req.DateOfBirth)
+		if err != nil {
+			helpers.RespondWithError(w, http.StatusBadRequest, "invalid dateOfBirth format, use RFC3339 or YYYY-MM-DD")
+			return
+		}
 	}
 
 	u, err := h.register.Execute(r.Context(), commands.RegisterCommand{

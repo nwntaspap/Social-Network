@@ -5,32 +5,13 @@
 >
 > Branch: `geoikonomou/front-backend-synchronization`
 >
-> Status: only **unresolved** mismatches are listed below. Resolved: #6, #7, #9,
-> #15, #17.
+> Status: only **unresolved** mismatches are listed below, renumbered after pruning.
+> Resolved so far: topic/comment delete & vote query params, event list creator,
+> group routes, chat routes, register `dateOfBirth` format.
 
 ---
 
-## 1. REGISTER — `dateOfBirth` format mismatch
-
-| Side                | Fields                                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| **Frontend sends**  | `{ nickname, firstName, lastName, dateOfBirth (YYYY-MM-DD), gender, email, password }` |
-| **Backend expects** | `{ firstName, lastName, dateOfBirth (RFC3339), email, password }`                      |
-
-**Issues:**
-
-- `dateOfBirth` comes from `<input type="date">` → `YYYY-MM-DD`, but backend parses
-  `time.RFC3339` and will reject it (`register.go` line ~33)
-- `gender` still sent but ignored by backend (harmless)
-
-| Option | Side     | Change                                               |
-| ------ | -------- | ---------------------------------------------------- |
-| **A**  | Backend  | Accept `YYYY-MM-DD` in addition to RFC3339           |
-| **B**  | Frontend | Send `new Date(dateOfBirth).toISOString()` (RFC3339) |
-
----
-
-## 2. LOGIN — response too minimal
+## 1. LOGIN — response too minimal
 
 | Side                | Shape                                                    |
 | ------------------- | -------------------------------------------------------- |
@@ -46,7 +27,7 @@
 
 ---
 
-## 3. `/me` — missing fields, wrong key names
+## 2. `/me` — missing fields, wrong key names
 
 | Side                   | Fields                                                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -65,7 +46,7 @@
 
 ---
 
-## 4. TOPIC RESPONSE — int IDs, missing user object
+## 3. TOPIC RESPONSE — int IDs, missing user object
 
 | Side                      | Shape                                                                                             |
 | ------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -86,7 +67,7 @@
 
 ---
 
-## 5. COMMENT RESPONSE — int IDs, wrong field names
+## 4. COMMENT RESPONSE — int IDs, wrong field names
 
 | Side                        | Shape                                                                |
 | --------------------------- | -------------------------------------------------------------------- |
@@ -106,7 +87,7 @@
 
 ---
 
-## 6. GROUP RESPONSE — missing `membershipStatus`
+## 5. GROUP RESPONSE — missing `membershipStatus`
 
 | Side                      | Shape                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------ |
@@ -122,7 +103,7 @@
 
 ---
 
-## 7. CHAT USER — snake_case, wrong field names
+## 6. CHAT USER — snake_case, wrong field names
 
 | Side                  | Shape                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -143,7 +124,7 @@
 
 ---
 
-## 8. CHAT MESSAGE — snake_case, int ID, missing fields
+## 7. CHAT MESSAGE — snake_case, int ID, missing fields
 
 | Side                     | Shape                                                               |
 | ------------------------ | ------------------------------------------------------------------- |
@@ -163,7 +144,7 @@
 
 ---
 
-## 9. FOLLOW / REQUEST — flat, no nested User
+## 8. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -181,7 +162,7 @@
 
 ---
 
-## 10. SEARCH USERS — no-op, no pagination
+## 9. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -201,7 +182,7 @@
 
 ---
 
-## 11. SEARCH GROUPS — no-op
+## 10. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -215,7 +196,7 @@
 
 ---
 
-## 12. PAGINATION ENVELOPE — different structure
+## 11. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -239,8 +220,8 @@
 
 **Backend adapts to frontend** — backend changes where data is genuinely missing; frontend only handles type conversions via a thin adapter layer.
 
-| Category       | Changes                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Backend**    | register date format, login, me, topic response, comment response, group list, chat queries, follow queries, list users/groups search |
-| **Frontend**   | `api.ts` — register `dateOfBirth` format; new `transformers.ts` for field mappings / pagination unwrap                                |
-| **No changes** | `types.ts` — backend will match frontend types                                                                                        |
+| Category       | Changes                                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Backend**    | login, me, topic response, comment response, group list, chat queries, follow queries, list users/groups search |
+| **Frontend**   | `api.ts` — login `setUser(me.user)`; new `transformers.ts` for field mappings / pagination unwrap               |
+| **No changes** | `types.ts` — backend will match frontend types                                                                  |
