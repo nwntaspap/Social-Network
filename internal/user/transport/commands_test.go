@@ -13,6 +13,7 @@ import (
 	"social-network/internal/core/middleware"
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
+	"social-network/internal/user/queries"
 )
 
 func TestRegister_Success(t *testing.T) {
@@ -363,5 +364,77 @@ func TestLogout_DeletesCookie(t *testing.T) {
 	}
 	if !writer.deleteCalled {
 		t.Error("DeleteAccessCookie not called")
+	}
+}
+
+func TestGetMe_Success(t *testing.T) {
+	createdAt := time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)
+	h := newTestHandler(func(h *Handler) {
+		h.getProfile = &stubGetProfile{
+			result: &queries.ProfileResult{
+				User: user.User{
+					ID:          "u1",
+					Email:       "a@b.com",
+					FirstName:   "Alice",
+					LastName:    "Smith",
+					DateOfBirth: time.Date(1990, 5, 20, 0, 0, 0, 0, time.UTC),
+					Nickname:    "alice",
+					AboutMe:     "hello there",
+					AvatarPath:  "/avatars/a.png",
+					IsPrivate:   true,
+					CreatedAt:   createdAt,
+				},
+			},
+		}
+	})
+	withDefaults(h)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/me", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetMe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	var resp map[string]any
+	_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+	data, _ := json.Marshal(resp["data"])
+	var userMap map[string]any
+	_ = json.Unmarshal(data, &userMap)
+
+	wantUser := map[string]any{
+		"id":          "u1",
+		"email":       "a@b.com",
+		"username":    "alice",
+		"nickname":    "alice",
+		"firstName":   "Alice",
+		"lastName":    "Smith",
+		"aboutMe":     "hello there",
+		"dateOfBirth": "1990-05-20",
+		"avatarUrl":   "/avatars/a.png",
+		"isPublic":    false,
+		"createdAt":   createdAt.Format(time.RFC3339),
+	}
+	for k, want := range wantUser {
+		if userMap[k] != want {
+			t.Errorf("data.%s = %v, want %v", k, userMap[k], want)
+		}
+	}
+}
+
+func TestGetMe_Unauthorized(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.auth = &stubAuth{ok: false}
+	})
+	withDefaults(h)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/me", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetMe(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusUnauthorized)
 	}
 }

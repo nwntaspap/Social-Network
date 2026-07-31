@@ -28,12 +28,5 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
-		"id":         result.User.ID,
-		"nickname":   result.User.Nickname,
-		"email":      result.User.Email,
-		"firstName":  result.User.FirstName,
-		"lastName":   result.User.LastName,
-		"avatarPath": result.User.AvatarPath,
-	})
+	helpers.RespondWithJSON(w, http.StatusOK, nil, userResponse(&result.User))
 }

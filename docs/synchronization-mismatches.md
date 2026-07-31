@@ -7,30 +7,12 @@
 >
 > Status: only **unresolved** mismatches are listed below, renumbered after pruning.
 > Resolved so far: topic/comment delete & vote query params, event list creator,
-> group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie).
+> group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie),
+> `/me` (full user via `userResponse`).
 
 ---
 
-## 1. `/me` — missing fields, wrong key names
-
-| Side                   | Fields                                                                                                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Backend returns**    | `{ id, nickname, email, firstName, lastName, avatarPath }`                                                                   |
-| **Frontend User type** | `{ id, email, username, firstName, lastName, dateOfBirth, avatarUrl, nickname?, aboutMe?, isPublic, createdAt, updatedAt? }` |
-
-**Issues:**
-
-- `avatarPath` → should be `avatarUrl`
-- Missing: `username`, `dateOfBirth`, `aboutMe`, `isPublic`, `createdAt`
-
-| Option | Side     | Change                                                                               |
-| ------ | -------- | ------------------------------------------------------------------------------------ |
-| **A**  | Backend  | Add all User fields to `/me` response (reuse `userResponse`)                         |
-| **B**  | Frontend | Synthesize missing fields with defaults (`username=nickname`, `isPublic=true`, etc.) |
-
----
-
-## 2. TOPIC RESPONSE — int IDs, missing user object
+## 1. TOPIC RESPONSE — int IDs, missing user object
 
 | Side                      | Shape                                                                                             |
 | ------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -51,7 +33,7 @@
 
 ---
 
-## 3. COMMENT RESPONSE — int IDs, wrong field names
+## 2. COMMENT RESPONSE — int IDs, wrong field names
 
 | Side                        | Shape                                                                |
 | --------------------------- | -------------------------------------------------------------------- |
@@ -71,7 +53,7 @@
 
 ---
 
-## 4. GROUP RESPONSE — missing `membershipStatus`
+## 3. GROUP RESPONSE — missing `membershipStatus`
 
 | Side                      | Shape                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------ |
@@ -87,7 +69,7 @@
 
 ---
 
-## 5. CHAT USER — snake_case, wrong field names
+## 4. CHAT USER — snake_case, wrong field names
 
 | Side                  | Shape                                                                      |
 | --------------------- | -------------------------------------------------------------------------- |
@@ -108,7 +90,7 @@
 
 ---
 
-## 6. CHAT MESSAGE — snake_case, int ID, missing fields
+## 5. CHAT MESSAGE — snake_case, int ID, missing fields
 
 | Side                     | Shape                                                               |
 | ------------------------ | ------------------------------------------------------------------- |
@@ -128,7 +110,7 @@
 
 ---
 
-## 7. FOLLOW / REQUEST — flat, no nested User
+## 6. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -146,7 +128,7 @@
 
 ---
 
-## 8. SEARCH USERS — no-op, no pagination
+## 7. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -166,7 +148,7 @@
 
 ---
 
-## 9. SEARCH GROUPS — no-op
+## 8. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -180,7 +162,7 @@
 
 ---
 
-## 10. PAGINATION ENVELOPE — different structure
+## 9. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -206,6 +188,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | me, topic response, comment response, group list, chat queries, follow queries, list users/groups search  |
+| **Backend**    | topic response, comment response, group list, chat queries, follow queries, list users/groups search      |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |
