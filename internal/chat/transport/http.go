@@ -26,7 +26,12 @@ func (h *Handler) GetConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, result)
+	responses := make([]ConversationResponse, len(result))
+	for i, c := range result {
+		responses[i] = toConversationResponse(c)
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, responses)
 }
 
 func (h *Handler) GetChatHistory(w http.ResponseWriter, r *http.Request) {

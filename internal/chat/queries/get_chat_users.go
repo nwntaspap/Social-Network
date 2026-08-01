@@ -2,7 +2,6 @@ package queries
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"social-network/internal/chat"
@@ -12,13 +11,13 @@ type GetChatUsersRequest struct {
 	MeID string
 }
 
-type ChatUser struct {
-	LastMessageAt *time.Time `json:"last_message_at"`
-	UserID        string     `json:"user_id"`
-	Nickname      string     `json:"nickname"`
-	ChatID        string     `json:"chat_id,omitempty"`
-	UnreadCount   int        `json:"unread_count"`
-	IsOnline      bool       `json:"is_online"`
+type Conversation struct {
+	ID            string
+	OtherUser     chat.UserRef
+	UnreadCount   int
+	IsOnline      bool
+	LastMessageAt *time.Time
+	CreatedAt     time.Time
 }
 
 type GetChatUsersResolver struct {
@@ -35,10 +34,15 @@ func NewGetChatUsersResolver(chatRepo chat.Repository, userRepo chat.UserReposit
 	}
 }
 
-func (r *GetChatUsersResolver) Resolve(ctx context.Context, req GetChatUsersRequest) ([]ChatUser, error) {
+func (r *GetChatUsersResolver) Resolve(ctx context.Context, req GetChatUsersRequest) ([]Conversation, error) {
 	allUsers, err := r.userRepo.GetAll(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	usersByID := make(map[string]chat.UserRef, len(allUsers))
+	for _, u := range allUsers {
+		usersByID[u.ID] = *u
 	}
 
 	myChats, err := r.chatRepo.GetChatsForUser(ctx, req.MeID)
@@ -46,45 +50,27 @@ func (r *GetChatUsersResolver) Resolve(ctx context.Context, req GetChatUsersRequ
 		return nil, err
 	}
 
-	lastMsgAt := make(map[string]*time.Time)
-	chatIDs := make(map[string]string)
-	unreadPerChat := make(map[string]int)
+	conversations := make([]Conversation, 0, len(myChats))
 	for _, c := range myChats {
 		otherID := c.UserTwoID
 		if otherID == req.MeID {
 			otherID = c.UserOneID
 		}
-		lastMsgAt[otherID] = c.LastMessageAt
-		chatIDs[otherID] = c.ID
-		unreadPerChat[otherID] = c.UnreadCount
+
+		other, ok := usersByID[otherID]
+		if !ok {
+			other = chat.UserRef{ID: otherID}
+		}
+
+		conversations = append(conversations, Conversation{
+			ID:            c.ID,
+			OtherUser:     other,
+			UnreadCount:   c.UnreadCount,
+			IsOnline:      r.broadcaster.IsOnline(otherID),
+			LastMessageAt: c.LastMessageAt,
+			CreatedAt:     c.CreatedAt,
+		})
 	}
 
-	var withMsg []ChatUser
-	var withoutMsg []ChatUser
-
-	for _, u := range allUsers {
-		if u.ID == req.MeID {
-			continue
-		}
-		cu := ChatUser{
-			UserID:        u.ID,
-			Nickname:      u.Nickname,
-			IsOnline:      r.broadcaster.IsOnline(u.ID),
-			LastMessageAt: lastMsgAt[u.ID],
-		}
-		if cu.LastMessageAt != nil {
-			cu.ChatID = chatIDs[u.ID]
-			cu.UnreadCount = unreadPerChat[u.ID]
-			withMsg = append(withMsg, cu)
-		} else {
-			withoutMsg = append(withoutMsg, cu)
-		}
-	}
-
-	sort.Slice(withoutMsg, func(i, j int) bool {
-		return withoutMsg[i].Nickname < withoutMsg[j].Nickname
-	})
-
-	result := append(withMsg, withoutMsg...)
-	return result, nil
+	return conversations, nil
 }

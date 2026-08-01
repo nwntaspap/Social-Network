@@ -28,7 +28,11 @@ func initChat(db database.DB, hub *ws.Hub, userRepo user.Repository) *chattransp
 			}
 			result := make([]*chat.UserRef, len(users))
 			for i, u := range users {
-				result[i] = &chat.UserRef{ID: u.ID, Nickname: u.Nickname}
+				ref := &chat.UserRef{ID: u.ID, Nickname: u.Nickname}
+				if u.AvatarURL != nil {
+					ref.AvatarURL = *u.AvatarURL
+				}
+				result[i] = ref
 			}
 			return result, nil
 		},

@@ -15,7 +15,7 @@ type ChatHistoryResolver interface {
 }
 
 type ChatUsersResolver interface {
-	Resolve(ctx context.Context, q queries.GetChatUsersRequest) ([]queries.ChatUser, error)
+	Resolve(ctx context.Context, q queries.GetChatUsersRequest) ([]queries.Conversation, error)
 }
 
 type Handler struct {

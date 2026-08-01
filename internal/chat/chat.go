@@ -72,8 +72,9 @@ type UserRepository interface {
 }
 
 type UserRef struct {
-	ID       string
-	Nickname string
+	ID        string
+	Nickname  string
+	AvatarURL string
 }
 
 // FollowAdapter wraps a function to satisfy FollowChecker.
