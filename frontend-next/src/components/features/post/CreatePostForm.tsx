@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { createPost } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { PostPrivacy } from '@/lib/types';
 
@@ -92,38 +93,25 @@ export default function CreatePostForm() {
 
     setIsSubmitting(true);
 
-    // TODO: Replace with real API call when backend is ready
-    // try {
-    //   const formData = new FormData();
-    //   formData.append('content', content);
-    //   formData.append('privacy', privacy);
-    //   if (image) formData.append('image', image);
-    //   if (privacy === 'private') {
-    //     formData.append('allowedUsers', JSON.stringify(allowedUsers));
-    //   }
-    //
-    //   await createPost(formData, groupId || undefined);
-    //   resetForm();
-    //   router.push(groupId ? `/groups/${groupId}` : '/');
-    // } catch (err) {
-    //   setError('Failed to create post. Please try again.');
-    // } finally {
-    //   setIsSubmitting(false);
-    // }
+    try {
+      const formData = new FormData();
+      formData.append('title', content);
+      formData.append('content', content);
+      formData.append('privacy', privacy);
+      if (image) formData.append('image', image);
+      if (groupId) formData.append('groupId', groupId);
+      if (privacy === 'private' && allowedUsers.length > 0) {
+        formData.append('allowedUserIds', JSON.stringify(allowedUsers));
+      }
 
-    console.log('Post submitted:', {
-      content,
-      privacy,
-      image,
-      allowedUsers,
-      groupId,
-    });
-
-    resetForm();
-    setIsSubmitting(false);
-
-    // Redirect after successful post
-    router.push(groupId ? `/groups/${groupId}` : '/');
+      await createPost(formData);
+      resetForm();
+      router.push(groupId ? `/groups/${groupId}` : '/');
+    } catch {
+      setError('Failed to create post. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (!user) {

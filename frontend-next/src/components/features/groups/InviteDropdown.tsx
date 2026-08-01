@@ -3,13 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import SearchDropdown from '@/components/ui/SearchDropdown';
-// import { getGroupMembers, getPendingInvitations } from '@/lib/api';
-import { searchResults, suggestedUsers } from '@/mocks/users';
+import { getGroupMembers, inviteToGroup, searchUsers } from '@/lib/api';
 import type { User } from '@/lib/types';
 import Image from 'next/image';
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
-import { mockGroupInvitations } from '@/mocks/group-invitations';
-import { mockGroups } from '@/mocks/groups';
 
 interface InviteDropdownProps {
   groupId: string;
@@ -25,43 +22,10 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
   useEffect(() => {
     async function fetchData() {
       try {
-        // TODO: Replace with real API calls when backend is ready
-        // const [membersResponse, invitations] = await Promise.all([
-        //   getGroupMembers(groupId),
-        //   getPendingInvitations(groupId)
-        // ]);
-        // setMemberIds(new Set(membersResponse.data.map(m => m.id)));
-        // setPendingInviteIds(new Set(invitations.map(inv => inv.inviteeId)));
-
-        // Mock data logic
-        await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate network delay
-
-        const group = mockGroups.find((g) => g.id === groupId);
-        if (!group) throw new Error('Group not found');
-
-        // Mock members: creator + some suggested users based on group ID
-        const mockMemberIds = new Set<string>([group.creatorId]);
-
-        // Add some suggested users as members (different per group)
-        if (groupId === '1') {
-          mockMemberIds.add('2'); // Jane Doe
-          mockMemberIds.add('3'); // Bob Smith
-        } else if (groupId === '5') {
-          mockMemberIds.add('2'); // Jane Doe
-          mockMemberIds.add('4'); // Alice Johnson
-        } else {
-          // For other groups, add some random members
-          mockMemberIds.add('2'); // Jane Doe
-          mockMemberIds.add('6'); // Sarah Connor
-        }
-
-        setMemberIds(mockMemberIds);
-
-        // Mock pending invitations
-        const invitations = mockGroupInvitations[groupId] || [];
-        setPendingInviteIds(new Set(invitations.map((inv) => inv.inviteeId)));
+        const membersResponse = await getGroupMembers(groupId);
+        setMemberIds(new Set(membersResponse.data.map((m) => m.userId)));
       } catch (err) {
-        console.error('Failed to fetch group data:', err);
+        console.error('Failed to fetch group members:', err);
       } finally {
         setIsLoading(false);
       }
@@ -85,12 +49,7 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
 
   async function handleInvite(userId: string) {
     try {
-      // TODO: Replace with real API call when backend is ready
-      // await inviteToGroup(groupId, userId);
-
-      console.log('invite', userId, 'to group', groupId);
-
-      // Optimistic update
+      await inviteToGroup(groupId, userId);
       setPendingInviteIds((prev) => new Set([...prev, userId]));
     } catch (err) {
       console.error('Failed to invite user:', err);
@@ -111,9 +70,6 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
     );
   }
 
-  // Combine ALL users for search: suggested users + search results
-  const allUsers = [...suggestedUsers, ...searchResults];
-
   return (
     <div className="group-dropdown details-user">
       <div className="group-dropdown-header">
@@ -125,13 +81,7 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
 
       <SearchDropdown<User>
         placeholder="Search users to invite..."
-        items={allUsers}
-        filterFn={(searchUser, q) =>
-          searchUser.id !== user?.id &&
-          (searchUser.username.toLowerCase().includes(q.toLowerCase()) ||
-            searchUser.firstName.toLowerCase().includes(q.toLowerCase()) ||
-            searchUser.lastName.toLowerCase().includes(q.toLowerCase()))
-        }
+        onSearch={(query) => searchUsers(query).then((res) => res.data)}
         renderItem={(searchUser) => {
           const { label, className, disabled } = getButtonConfig(searchUser.id);
 
@@ -154,7 +104,7 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (!disabled) {
+                  if (!disabled && searchUser.id !== user?.id) {
                     handleInvite(searchUser.id);
                   }
                 }}

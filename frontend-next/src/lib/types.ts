@@ -21,9 +21,9 @@ export interface LoginResponse {
 }
 
 export interface Profile extends User {
-  followersCount: number;
-  followingCount: number;
-  postsCount: number;
+  followersCount?: number;
+  followingCount?: number;
+  postsCount?: number;
   isFollowing?: boolean;
   isPending?: boolean;
 }
@@ -121,6 +121,11 @@ export interface Event {
   description: string;
   eventDate: string;
   createdAt: string;
+}
+
+export interface GroupEventsResponse {
+  events: Event[];
+  nextCursor?: string;
 }
 
 export interface EventResponse {

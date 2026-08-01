@@ -8,6 +8,7 @@
 import { RegisterBody } from '@/app/register/page';
 import type {
   User,
+  Profile,
   LoginResponse,
   Post,
   Comment,
@@ -15,6 +16,7 @@ import type {
   GroupMember,
   GroupJoinRequest,
   Event,
+  GroupEventsResponse,
   Chat,
   ChatMessage,
   Notification,
@@ -198,8 +200,8 @@ export async function getCurrentUser(): Promise<User> {
 
 // ─── Users / Profiles ─────────────────────────────────────────────────────────
 
-export async function getUserProfile(userId: string): Promise<User> {
-  return api.get<User>(`/user/profile`, { user_id: userId });
+export async function getUserProfile(userId: string): Promise<Profile> {
+  return api.get<Profile>(`/user/profile`, { user_id: userId });
 }
 
 export async function updateProfile(body: Partial<User>): Promise<User> {
@@ -211,7 +213,7 @@ export async function toggleProfilePrivacy(): Promise<void> {
 }
 
 export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>('/users', { query, page });
+  return api.get<PaginatedResponse<User>>('/users', { query, page, pageSize: 10 });
 }
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
@@ -267,7 +269,7 @@ export async function createPost(formData: FormData): Promise<Post> {
 }
 
 export async function getFeed(page = 1, size = 10): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>('/topics/feed', { page, size });
+  return api.get<PaginatedResponse<Post>>('/topics/feed', { page, limit: size });
 }
 
 export async function getUserPosts(
@@ -275,7 +277,7 @@ export async function getUserPosts(
   page = 1,
   size = 10
 ): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>('/topics/user', { userId, page, size });
+  return api.get<PaginatedResponse<Post>>('/topics/user', { userId, page, limit: size });
 }
 
 export async function getPost(postId: number): Promise<Post> {
@@ -327,7 +329,7 @@ export async function deleteGroup(groupId: string): Promise<void> {
 }
 
 export async function browseGroups(query?: string, page = 1): Promise<PaginatedResponse<Group>> {
-  return api.get<PaginatedResponse<Group>>('/groups', { query, page });
+  return api.get<PaginatedResponse<Group>>('/groups', { query, page, limit: 20 });
 }
 
 export async function inviteToGroup(groupId: string, userId: string): Promise<void> {
@@ -349,15 +351,23 @@ export async function leaveGroup(groupId: string): Promise<void> {
   return api.delete<void>(`/groups/${groupId}/leave`);
 }
 
-export async function getGroupPosts(groupId: string, page = 1): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>(`/groups/${groupId}/posts`, { page });
+export async function getGroupPosts(
+  groupId: string,
+  page = 1,
+  size = 10
+): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>(`/groups/${groupId}/posts`, { page, limit: size });
 }
 
 export async function getGroupMembers(
   groupId: string,
-  page = 1
+  page = 1,
+  size = 20
 ): Promise<PaginatedResponse<GroupMember>> {
-  return api.get<PaginatedResponse<GroupMember>>(`/groups/${groupId}/members`, { page });
+  return api.get<PaginatedResponse<GroupMember>>(`/groups/${groupId}/members`, {
+    page,
+    limit: size,
+  });
 }
 
 export async function getPendingJoinRequests(groupId: string): Promise<GroupJoinRequest[]> {
@@ -373,8 +383,11 @@ export async function createEvent(
   return api.post<Event>(`/groups/${groupId}/events`, data);
 }
 
-export async function getGroupEvents(groupId: string, page = 1): Promise<PaginatedResponse<Event>> {
-  return api.get<PaginatedResponse<Event>>(`/groups/${groupId}/events`, { page });
+export async function getGroupEvents(
+  groupId: string,
+  cursor?: string
+): Promise<GroupEventsResponse> {
+  return api.get<GroupEventsResponse>(`/groups/${groupId}/events`, { cursor, size: 10 });
 }
 
 export async function respondToEvent(eventId: string, response: string): Promise<void> {

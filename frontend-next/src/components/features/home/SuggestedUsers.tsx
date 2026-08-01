@@ -1,39 +1,66 @@
 'use client';
 
-/**
- * components/features/home/SuggestedUsers.tsx
- *
- * Suggested users grid with follow button.
- * Extracted from app/page.tsx HomeContent.
- *
- * When the backend is ready, replace mock data with:
- *   const users = await getSuggestedUsers();
- * and wire the follow button to sendFollowRequest(user.id).
- */
-
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { searchUsers, sendFollowRequest } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { getDisplayName, getFileUrl, truncateText } from '@/lib/helpers';
-import { suggestedUsers } from '@/mocks/users';
 import type { User } from '@/lib/types';
 
 export default function SuggestedUsers() {
+  const { user } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const response = await searchUsers('', 1);
+        setUsers(response.data.filter((u) => u.id !== user?.id).slice(0, 6));
+      } catch (err) {
+        console.error('Failed to load suggested users:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <section className="suggested-section">
+        <h2 className="section-title">Suggested Users</h2>
+        <p className="suggested-empty">Loading...</p>
+      </section>
+    );
+  }
+
   return (
     <section className="suggested-section">
       <h2 className="section-title">Suggested Users</h2>
       <div className="suggested-users-grid">
-        {suggestedUsers.map((user) => (
-          <SuggestedUserCard key={user.id} user={user} />
-        ))}
+        {users.length > 0 ? (
+          users.map((u) => <SuggestedUserCard key={u.id} user={u} />)
+        ) : (
+          <p className="suggested-empty">No suggested users found.</p>
+        )}
       </div>
     </section>
   );
 }
 
 function SuggestedUserCard({ user }: { user: User }) {
-  // TODO: wire to sendFollowRequest(user.id) — optimistic toggle like PostCard likes
-  function handleFollow() {
-    console.log('follow', user.id);
+  const [pending, setPending] = useState(false);
+
+  async function handleFollow() {
+    setPending(true);
+    try {
+      await sendFollowRequest(user.id);
+    } catch (err) {
+      console.error('Failed to send follow request:', err);
+      setPending(false);
+    }
   }
 
   return (
@@ -52,8 +79,8 @@ function SuggestedUserCard({ user }: { user: User }) {
           {user.aboutMe && <p className="suggested-user-bio">{truncateText(user.aboutMe, 60)}</p>}
         </div>
       </Link>
-      <button className="follow-btn" onClick={handleFollow}>
-        Follow
+      <button className="follow-btn" onClick={handleFollow} disabled={pending}>
+        {pending ? 'Requested' : 'Follow'}
       </button>
     </div>
   );

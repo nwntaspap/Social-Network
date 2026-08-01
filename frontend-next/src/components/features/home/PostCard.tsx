@@ -15,12 +15,15 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { likePost, unlikePost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Post } from '@/lib/types';
 
 export default function PostCard({ post }: { post: Post }) {
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
+
+  const canLike = !post.groupId;
 
   async function handleLike() {
     // Optimistic update — flip immediately, revert on error
@@ -29,7 +32,11 @@ export default function PostCard({ post }: { post: Post }) {
     setLikesCount((prev) => (wasLiked ? prev - 1 : prev + 1));
 
     try {
-      // TODO: wasLiked ? await unlikePost(post.id) : await likePost(post.id)
+      if (wasLiked) {
+        await unlikePost(Number(post.id));
+      } else {
+        await likePost(Number(post.id));
+      }
     } catch {
       // Revert on failure
       setLiked(wasLiked);
@@ -81,16 +88,18 @@ export default function PostCard({ post }: { post: Post }) {
 
       {/* Actions */}
       <div className="post-actions">
-        <button className="post-action-btn" onClick={handleLike}>
-          <Image
-            src="/images/icons/heart.png"
-            alt={liked ? 'Unlike' : 'Like'}
-            width={20}
-            height={20}
-            className={liked ? 'icon-liked' : 'icon-not-liked'}
-          />
-          <span>{likesCount}</span>
-        </button>
+        {canLike && (
+          <button className="post-action-btn" onClick={handleLike}>
+            <Image
+              src="/images/icons/heart.png"
+              alt={liked ? 'Unlike' : 'Like'}
+              width={20}
+              height={20}
+              className={liked ? 'icon-liked' : 'icon-not-liked'}
+            />
+            <span>{likesCount}</span>
+          </button>
+        )}
         <Link href={`/post/${post.id}`} className="post-action-btn">
           <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
           <span>{post.commentsCount}</span>

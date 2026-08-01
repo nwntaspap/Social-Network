@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { requestToJoinGroup, leaveGroup } from '@/lib/api';
 import { formatRelativeDate } from '@/lib/helpers';
 import type { Group, MembershipStatus } from '@/lib/types';
 import InviteDropdown from './InviteDropdown';
@@ -16,11 +17,8 @@ interface GroupHeaderProps {
 export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderProps) {
   const [showInvite, setShowInvite] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
-  // TODO: Wire to real API when backend is ready
-  // const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
-  // const [isLoading, setIsLoading] = useState(false);
-
-  const status: MembershipStatus = group.membershipStatus || 'none';
+  const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
+  const [isLoading, setIsLoading] = useState(false);
 
   const buttonConfig = {
     none: { label: 'Join', className: 'group-btn--join', disabled: false },
@@ -29,6 +27,30 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
   };
 
   const { label, className, disabled } = buttonConfig[status];
+
+  async function handleJoin() {
+    try {
+      setIsLoading(true);
+      await requestToJoinGroup(group.id);
+      setStatus('pending');
+    } catch (error) {
+      console.error('Failed to request join:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleLeave() {
+    try {
+      setIsLoading(true);
+      await leaveGroup(group.id);
+      setStatus('none');
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="group-detail-header">
@@ -45,7 +67,11 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
 
       <div className="group-detail-actions">
         {!isCreator && (
-          <button className={`group-btn ${className}`} disabled={disabled}>
+          <button
+            className={`group-btn ${className}`}
+            disabled={disabled || isLoading}
+            onClick={status === 'member' ? handleLeave : handleJoin}
+          >
             {label}
           </button>
         )}

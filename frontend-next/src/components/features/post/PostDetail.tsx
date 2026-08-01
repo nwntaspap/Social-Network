@@ -1,95 +1,65 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getPost, getComments, createComment, likePost, unlikePost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
-import { feedPosts } from '@/mocks/posts';
-import { mockGroupPosts, defaultGroupPosts } from '@/mocks/group-posts';
-import { mockGroups } from '@/mocks/groups';
-import { mockComments, defaultComments } from '@/mocks/comments';
-import type { Post, Comment } from '@/lib/types';
+import type { Comment, Post } from '@/lib/types';
 
 export default function PostDetail() {
   const { id: postId } = useParams<{ id: string }>();
 
-  const resolvedPost = useMemo(() => {
-    const allGroupPosts = Object.values(mockGroupPosts).flat();
-    const allPosts = [...feedPosts, ...allGroupPosts, ...defaultGroupPosts];
-
-    let foundPost = allPosts.find((p) => p.id === postId);
-
-    if (foundPost?.groupId && !foundPost.group) {
-      const group = mockGroups.find((g) => g.id === foundPost!.groupId);
-      if (group) {
-        foundPost = { ...foundPost, group: { id: group.id, title: group.title } };
-      }
-    }
-
-    return foundPost ?? null;
-  }, [postId]);
-
-  const [post] = useState<Post | null>(resolvedPost);
-  const [comments] = useState<Comment[]>(mockComments[postId] || defaultComments);
-  const [loading] = useState(false);
-  const [liked, setLiked] = useState(resolvedPost?.isLiked ?? false);
-  const [likesCount, setLikesCount] = useState(resolvedPost?.likesCount ?? 0);
+  const [post, setPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
 
   // Comment form
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [commentContent, setCommentContent] = useState('');
-  const [commentImage, setCommentImage] = useState<File | null>(null);
-  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
   const [commentError, setCommentError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    Promise.all([getPost(Number(postId)), getComments(Number(postId))])
+      .then(([postData, commentsData]) => {
+        if (ignore) return;
+        setPost(postData);
+        setLiked(!!postData.isLiked);
+        setLikesCount(postData.likesCount ?? 0);
+        setComments(commentsData);
+      })
+      .catch(() => {
+        if (!ignore) setError('Post not found.');
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [postId]);
 
   async function handleLike() {
+    if (!post) return;
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikesCount((prev) => (wasLiked ? prev - 1 : prev + 1));
 
     try {
-      // TODO: wasLiked ? await unlikePost(postId) : await likePost(postId)
+      if (wasLiked) {
+        await unlikePost(Number(post.id));
+      } else {
+        await likePost(Number(post.id));
+      }
     } catch {
       setLiked(wasLiked);
       setLikesCount((prev) => (wasLiked ? prev + 1 : prev - 1));
-    }
-  }
-
-  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setCommentError('Please select an image file (JPG, PNG, or GIF).');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setCommentError('Image size must be smaller than 5MB');
-      return;
-    }
-
-    if (commentImagePreview) {
-      URL.revokeObjectURL(commentImagePreview);
-    }
-
-    setCommentImage(file);
-    setCommentImagePreview(URL.createObjectURL(file));
-    setCommentError('');
-  }
-
-  function removeImage() {
-    if (commentImagePreview) {
-      URL.revokeObjectURL(commentImagePreview);
-    }
-
-    setCommentImage(null);
-    setCommentImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   }
 
@@ -97,7 +67,6 @@ export default function PostDetail() {
     setShowCommentForm(false);
     setCommentContent('');
     setCommentError('');
-    removeImage();
   }
 
   async function handleSubmitComment(e: React.FormEvent) {
@@ -111,23 +80,15 @@ export default function PostDetail() {
 
     setIsSubmitting(true);
 
-    // TODO: When backend is ready, replace with:
-    // try {
-    //   const { data: newComment } = await createComment(postId, {
-    //     content: commentContent,
-    //     image: commentImage,
-    //   });
-    //   setComments((prev) => [newComment, ...prev]);
-    //   resetForm();
-    // } catch {
-    //   setCommentError('Failed to post comment. Please try again.');
-    // } finally {
-    //   setIsSubmitting(false);
-    // }
-
-    console.log('Comment submitted:', { postId, content: commentContent, image: commentImage });
-    resetForm();
-    setIsSubmitting(false);
+    try {
+      const newComment = await createComment(Number(postId), commentContent);
+      setComments((prev) => [newComment, ...prev]);
+      resetForm();
+    } catch {
+      setCommentError('Failed to post comment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (loading) {
@@ -138,10 +99,10 @@ export default function PostDetail() {
     );
   }
 
-  if (!post) {
+  if (error || !post) {
     return (
       <div className="post-detail-container">
-        <p className="post-detail-not-found">Post not found.</p>
+        <p className="post-detail-not-found">{error || 'Post not found.'}</p>
       </div>
     );
   }
@@ -154,7 +115,7 @@ export default function PostDetail() {
         <div className="post-header">
           <Link href={`/profile/${post.userId}`} className="post-user-link">
             <Image
-              src={getFileUrl(post.user.avatarUrl)}
+              src={getFileUrl(post.user?.avatarUrl)}
               alt={getDisplayName(post.user)}
               width={48}
               height={48}
@@ -163,7 +124,7 @@ export default function PostDetail() {
             <div className="post-user-info">
               <span className="post-user-name">{getDisplayName(post.user)}</span>
               <span className="post-meta">
-                @{post.user.username} · {formatRelativeDate(post.createdAt)} ·{' '}
+                @{post.user?.username} · {formatRelativeDate(post.createdAt)} ·{' '}
                 {post.group ? (
                   <Link href={`/groups/${post.group.id}`} className="post-meta-group">
                     {post.group.title}
@@ -196,22 +157,24 @@ export default function PostDetail() {
         </div>
 
         {/* Actions */}
-        <div className="post-actions">
-          <button className="post-action-btn" onClick={handleLike}>
-            <Image
-              src="/images/icons/heart.png"
-              alt={liked ? 'Unlike' : 'Like'}
-              width={20}
-              height={20}
-              className={liked ? 'icon-liked' : 'icon-not-liked'}
-            />
-            <span>{likesCount}</span>
-          </button>
-          <div className="post-action-btn">
-            <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
-            <span>{post.commentsCount}</span>
+        {!post.groupId && (
+          <div className="post-actions">
+            <button className="post-action-btn" onClick={handleLike}>
+              <Image
+                src="/images/icons/heart.png"
+                alt={liked ? 'Unlike' : 'Like'}
+                width={20}
+                height={20}
+                className={liked ? 'icon-liked' : 'icon-not-liked'}
+              />
+              <span>{likesCount}</span>
+            </button>
+            <div className="post-action-btn">
+              <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
+              <span>{post.commentsCount}</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Create Comment */}
@@ -232,30 +195,9 @@ export default function PostDetail() {
               />
             </div>
 
-            {commentImagePreview && (
-              <div className="comment-image-preview">
-                <Image src={commentImagePreview} alt="Preview" width={200} height={150} />
-                <button type="button" className="comment-image-remove" onClick={removeImage}>
-                  ✕
-                </button>
-              </div>
-            )}
-
             {commentError && <p className="comment-error">{commentError}</p>}
 
             <div className="create-comment-actions">
-              <label className="comment-upload-btn">
-                <Image src="/images/icons/upload-icon.png" alt="Upload" width={20} height={20} />
-                <span>Image/GIF</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  style={{ display: 'none' }}
-                />
-              </label>
-
               <div className="create-comment-buttons">
                 <button type="button" className="create-comment-cancel" onClick={resetForm}>
                   Cancel
@@ -278,7 +220,7 @@ export default function PostDetail() {
               <div key={comment.id} className="comment-card">
                 <Link href={`/profile/${comment.userId}`} className="comment-avatar-link">
                   <Image
-                    src={getFileUrl(comment.user.avatarUrl)}
+                    src={getFileUrl(comment.user?.avatarUrl)}
                     alt={getDisplayName(comment.user)}
                     width={36}
                     height={36}
@@ -289,7 +231,7 @@ export default function PostDetail() {
                   <div className="comment-header">
                     <Link href={`/profile/${comment.userId}`} className="comment-user-link">
                       <span className="comment-user-name">{getDisplayName(comment.user)}</span>
-                      <span className="comment-username">@{comment.user.username}</span>
+                      <span className="comment-username">@{comment.user?.username}</span>
                     </Link>
                     <span className="comment-time">{formatRelativeDate(comment.createdAt)}</span>
                   </div>

@@ -1,31 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import GroupHeader from './GroupHeader';
 import GroupContent from './GroupContent';
 import GroupSidebar from './GroupSidebar';
-import { mockGroups } from '@/mocks/groups';
+import { getGroup } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import type { Group } from '@/lib/types';
 
 export type tabView = 'posts' | 'events';
 
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<tabView>('posts');
+  const [group, setGroup] = useState<Group | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // TODO: Fetch group from API when backend is ready
-  const group = mockGroups.find((g) => g.id === id);
+  useEffect(() => {
+    let cancelled = false;
+    getGroup(id)
+      .then((g) => {
+        if (!cancelled) setGroup(g);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Group not found.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  if (!group) {
+  if (loading) {
     return (
       <div className="groups-container">
-        <p>Group not found.</p>
+        <p>Loading group...</p>
+      </div>
+    );
+  }
+
+  if (error || !group) {
+    return (
+      <div className="groups-container">
+        <p>{error || 'Group not found.'}</p>
       </div>
     );
   }
 
   const isMember = group.membershipStatus === 'member';
-  const isCreator = group.creatorId === '1'; // TODO: compare with actual current user ID
+  const isCreator = user?.id === group.creatorId;
 
   if (!isMember) {
     return (

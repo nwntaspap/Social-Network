@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import { createEvent } from '@/lib/api';
 
 interface CreateEventFormProps {
   groupId: string;
@@ -20,6 +21,7 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const [titleError, setTitleError] = useState('');
   const [descriptionError, setDescriptionError] = useState('');
@@ -43,14 +45,21 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
 
     setSubmitting(true);
 
-    // TODO: await createEvent(groupId, { title, description, eventDate });
-    console.log('create event', { groupId, title, description, eventDate });
-
-    setSubmitting(false);
-    setTitle('');
-    setDescription('');
-    setEventDate('');
-    onClose();
+    try {
+      await createEvent(groupId, {
+        title,
+        description,
+        eventDate: new Date(eventDate).toISOString(),
+      });
+      setTitle('');
+      setDescription('');
+      setEventDate('');
+      setError('');
+      onClose();
+    } catch {
+      setError('Failed to create event. Please try again.');
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -109,6 +118,8 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
           />
           {eventDateError && <p>{eventDateError}</p>}
         </div>
+
+        {error && <p className="create-post-error">{error}</p>}
 
         <button type="submit" className="group-action-btn" disabled={submitting}>
           {submitting ? 'Creating...' : 'Create Event'}
