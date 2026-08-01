@@ -5,7 +5,7 @@ import { browseGroups } from '@/lib/api';
 import type { Group, MembershipStatus } from '@/lib/types';
 import GroupCard from './GroupCard';
 
-export default function GroupList() {
+export default function GroupList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,7 +43,7 @@ export default function GroupList() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   const handleStatusChange = (groupId: string, newStatus: MembershipStatus) => {
     setGroups((prevGroups) =>

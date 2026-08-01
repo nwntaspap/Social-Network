@@ -1,26 +1,21 @@
 'use client';
 
-/**
- * components/features/groups/CreateGroupForm.tsx
- *
- * Simple form to create a group with title and description.
- *
- * TODO: Wire to createGroup API when backend is ready.
- */
-
 import { useState } from 'react';
+import { createGroup } from '@/lib/api';
 
 interface CreateGroupFormProps {
   onClose: () => void;
+  onCreated?: () => void;
 }
 
-export default function CreateGroupForm({ onClose }: CreateGroupFormProps) {
+export default function CreateGroupForm({ onClose, onCreated }: CreateGroupFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [titleError, setTitleError] = useState('');
   const [descriptionError, setDescriptionError] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,14 +31,19 @@ export default function CreateGroupForm({ onClose }: CreateGroupFormProps) {
     }
 
     setSubmitting(true);
+    setSubmitError('');
 
-    // TODO: await createGroup(title, description);
-    console.log('create group', { title, description });
-
-    setSubmitting(false);
-    setTitle('');
-    setDescription('');
-    onClose();
+    try {
+      await createGroup(title.trim(), description.trim());
+      setTitle('');
+      setDescription('');
+      onCreated?.();
+      onClose();
+    } catch {
+      setSubmitError('Failed to create group. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -80,6 +80,8 @@ export default function CreateGroupForm({ onClose }: CreateGroupFormProps) {
           />
           {descriptionError && <p>{descriptionError}</p>}
         </div>
+
+        {submitError && <p className="create-group-error">{submitError}</p>}
 
         <div className="create-group-actions">
           <button type="button" className="create-group-cancel" onClick={onClose}>
