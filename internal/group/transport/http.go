@@ -20,16 +20,17 @@ func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {
 	return u
 }
 
-func paginatedInfo(total, page, limit int) *helpers.Info {
+func paginatedPayload(data any, total, page, limit int) map[string]any {
 	totalPages := total / limit
 	if total%limit > 0 {
 		totalPages++
 	}
-	return &helpers.Info{
-		TotalRecords: total,
-		CurrentPage:  page,
-		PageSize:     limit,
-		TotalPages:   totalPages,
+	return map[string]any{
+		"data":       data,
+		"page":       page,
+		"pageSize":   limit,
+		"totalCount": total,
+		"totalPages": totalPages,
 	}
 }
 
@@ -112,18 +113,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount, res.Groups[i].MembershipStatus))
 	}
 
-	totalPages := res.Total / pagination.Limit
-	if res.Total%pagination.Limit > 0 {
-		totalPages++
-	}
-
-	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
-		"data":       groups,
-		"page":       pagination.Page,
-		"pageSize":   pagination.Limit,
-		"totalCount": res.Total,
-		"totalPages": totalPages,
-	})
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(groups, res.Total, pagination.Page, pagination.Limit))
 }
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {

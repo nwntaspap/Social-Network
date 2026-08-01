@@ -52,7 +52,7 @@ func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 		posts = append(posts, toGroupPostResponse(p, user, commentsCount))
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), posts)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(posts, res.Total, pagination.Page, pagination.Limit))
 }
 
 func (h *Handler) GetGroupChat(w http.ResponseWriter, r *http.Request) {
@@ -165,5 +165,5 @@ func (h *Handler) GetGroupPostComments(w http.ResponseWriter, r *http.Request) {
 		c := &res.Comments[i]
 		comments = append(comments, toGroupPostCommentResponse(c, h.lookupUser(ctx, c.AuthorID)))
 	}
-	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), comments)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(comments, res.Total, pagination.Page, pagination.Limit))
 }

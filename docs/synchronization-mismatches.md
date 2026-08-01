@@ -17,27 +17,10 @@
 > `createdAt`),
 > user search (`GET /users` — SQL LIKE filter + pagination, flat `PaginatedResponse<User>`
 > with full `User` fields),
-> group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`).
-
----
-
-## 1. PAGINATION ENVELOPE — different structure
-
-| Side                           | Shape                                                                        |
-| ------------------------------ | ---------------------------------------------------------------------------- |
-| **Backend**                    | `{ info: { totalRecords, currentPage, pageSize, totalPages }, data: [...] }` |
-| **Frontend PaginatedResponse** | `{ data, page, pageSize, totalCount, totalPages }`                           |
-
-**Issues:**
-
-- `info.totalRecords` → `totalCount`
-- `info.currentPage` → `page`
-- `info` wrapper not expected by frontend
-
-| Option | Side     | Change                                              |
-| ------ | -------- | --------------------------------------------------- |
-| **A**  | Backend  | Match frontend's `PaginatedResponse` shape directly |
-| **B**  | Frontend | Adapter unwraps `info` → `PaginatedResponse` fields |
+> group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`),
+> pagination envelope (all paginated endpoints now return the flat `PaginatedResponse`
+> shape: `{ data, page, pageSize, totalCount, totalPages }` — `/users`, `/groups`,
+> group members/posts/comments, topic feeds).
 
 ---
 
@@ -47,6 +30,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | flatten remaining paginated responses to `PaginatedResponse` (group members/posts/comments, topic feeds)  |
+| **Backend**    | pagination envelope aligned to frontend `PaginatedResponse` (all endpoints flat)                          |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |

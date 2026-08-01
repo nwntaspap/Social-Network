@@ -12,6 +12,7 @@ import type {
   Post,
   Comment,
   Group,
+  GroupMember,
   GroupJoinRequest,
   Event,
   Chat,
@@ -265,16 +266,16 @@ export async function createPost(formData: FormData): Promise<Post> {
   return body.data;
 }
 
-export async function getFeed(page = 1, size = 10): Promise<{ data: Post[]; total: number }> {
-  return api.get<{ data: Post[]; total: number }>('/topics/feed', { page, size });
+export async function getFeed(page = 1, size = 10): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>('/topics/feed', { page, size });
 }
 
 export async function getUserPosts(
   userId: string,
   page = 1,
   size = 10
-): Promise<{ data: Post[]; total: number }> {
-  return api.get<{ data: Post[]; total: number }>('/topics/user', { userId, page, size });
+): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>('/topics/user', { userId, page, size });
 }
 
 export async function getPost(postId: number): Promise<Post> {
@@ -352,8 +353,11 @@ export async function getGroupPosts(groupId: string, page = 1): Promise<Paginate
   return api.get<PaginatedResponse<Post>>(`/groups/${groupId}/posts`, { page });
 }
 
-export async function getGroupMembers(groupId: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>(`/groups/${groupId}/members`, { page });
+export async function getGroupMembers(
+  groupId: string,
+  page = 1
+): Promise<PaginatedResponse<GroupMember>> {
+  return api.get<PaginatedResponse<GroupMember>>(`/groups/${groupId}/members`, { page });
 }
 
 export async function getPendingJoinRequests(groupId: string): Promise<GroupJoinRequest[]> {

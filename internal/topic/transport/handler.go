@@ -100,6 +100,20 @@ type VoteCountsResponse struct {
 	Score     int `json:"score"`
 }
 
+func paginatedPayload(data any, total, page, limit int) map[string]any {
+	totalPages := total / limit
+	if total%limit > 0 {
+		totalPages++
+	}
+	return map[string]any{
+		"data":       data,
+		"page":       page,
+		"pageSize":   limit,
+		"totalCount": total,
+		"totalPages": totalPages,
+	}
+}
+
 func toTopicResponse(t *topic.Topic, user *UserResult) TopicResponse {
 	var vis string
 	switch t.Visibility {

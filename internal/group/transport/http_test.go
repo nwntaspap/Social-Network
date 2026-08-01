@@ -27,15 +27,40 @@ func (m *mockListGroups) Resolve(_ context.Context, q queries.ListGroupsQuery) (
 }
 
 type mockGroupMembers struct {
-	total int
-	err   error
+	members []group.Member
+	total   int
+	err     error
 }
 
 func (m *mockGroupMembers) Resolve(_ context.Context, _ queries.GetGroupMembersQuery) (*queries.GetGroupMembersResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return &queries.GetGroupMembersResult{Total: m.total}, nil
+	return &queries.GetGroupMembersResult{Members: m.members, Total: m.total}, nil
+}
+
+type mockGetGroupFeed struct {
+	result *queries.GetGroupFeedResult
+	err    error
+}
+
+func (m *mockGetGroupFeed) Resolve(_ context.Context, _ queries.GetGroupFeedQuery) (*queries.GetGroupFeedResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.result, nil
+}
+
+type mockGetGroupPostComments struct {
+	result *queries.GetGroupPostCommentsResult
+	err    error
+}
+
+func (m *mockGetGroupPostComments) Resolve(_ context.Context, _ queries.GetGroupPostCommentsQuery) (*queries.GetGroupPostCommentsResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.result, nil
 }
 
 type mockGroupUserLookup struct {
@@ -49,13 +74,16 @@ func (m *mockGroupUserLookup) GetUserByID(_ context.Context, _ string) (*UserRes
 	return &UserResult{ID: "u2", Username: "creator"}, nil
 }
 
-func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, members GetGroupMembersResolver) *Handler {
+func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, members GetGroupMembersResolver, feed GetGroupFeedResolver, comments GetGroupPostCommentsResolver) *Handler {
 	return NewHandler(
 		extractUser,
 		&mockGroupUserLookup{},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		list,
-		nil, nil, nil, nil,
+		nil,
+		feed,
+		nil,
+		comments,
 		members,
 	)
 }
@@ -66,6 +94,7 @@ func TestListGroups_IncludesMembershipStatus(t *testing.T) {
 		func(_ *http.Request) (string, bool) { return "u1", true },
 		&mockListGroups{result: &queries.ListGroupsResult{Groups: []group.Group{g}, Total: 1}},
 		&mockGroupMembers{total: 3},
+		nil, nil,
 	)
 	srv := httptest.NewServer(http.HandlerFunc(h.ListGroups))
 	defer srv.Close()
@@ -111,6 +140,7 @@ func TestListGroups_ForwardsQueryParam(t *testing.T) {
 		func(_ *http.Request) (string, bool) { return "u1", true },
 		mock,
 		&mockGroupMembers{},
+		nil, nil,
 	)
 	srv := httptest.NewServer(http.HandlerFunc(h.ListGroups))
 	defer srv.Close()
@@ -146,6 +176,7 @@ func TestListGroups_MatchesFrontendPaginatedResponse(t *testing.T) {
 		func(_ *http.Request) (string, bool) { return "u1", true },
 		&mockListGroups{result: &queries.ListGroupsResult{Groups: []group.Group{g}, Total: 1}},
 		&mockGroupMembers{total: 3},
+		nil, nil,
 	)
 	srv := httptest.NewServer(http.HandlerFunc(h.ListGroups))
 	defer srv.Close()
@@ -182,6 +213,164 @@ func TestListGroups_MatchesFrontendPaginatedResponse(t *testing.T) {
 	}
 	if body.Data.Page != 1 {
 		t.Errorf("page = %d, want 1", body.Data.Page)
+	}
+	if body.Data.PageSize != 20 {
+		t.Errorf("pageSize = %d, want 20 (default limit)", body.Data.PageSize)
+	}
+	if body.Data.TotalCount != 1 {
+		t.Errorf("totalCount = %d, want 1", body.Data.TotalCount)
+	}
+	if body.Data.TotalPages != 1 {
+		t.Errorf("totalPages = %d, want 1", body.Data.TotalPages)
+	}
+}
+
+type flatPaginatedBody struct {
+	Data struct {
+		Data       []map[string]any `json:"data"`
+		Page       int              `json:"page"`
+		PageSize   int              `json:"pageSize"`
+		TotalCount int              `json:"totalCount"`
+		TotalPages int              `json:"totalPages"`
+	} `json:"data"`
+}
+
+func decodeFlatPaginated(t *testing.T, resp *http.Response) flatPaginatedBody {
+	t.Helper()
+	var body flatPaginatedBody
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return body
+}
+
+func groupRoutesMux(h *Handler) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/groups/{groupId}/members", h.GetGroupMembers)
+	mux.HandleFunc("GET /api/groups/{groupId}/posts", h.GetGroupFeed)
+	mux.HandleFunc("GET /api/groups/{groupId}/posts/{postId}/comments", h.GetGroupPostComments)
+	return mux
+}
+
+func TestGetGroupMembers_MatchesFrontendPaginatedResponse(t *testing.T) {
+	member := group.Member{GroupID: "g1", UserID: "u2", Role: group.RoleMember, JoinedAt: time.Now()}
+	h := newGroupTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockListGroups{result: &queries.ListGroupsResult{}},
+		&mockGroupMembers{members: []group.Member{member}, total: 1},
+		nil, nil,
+	)
+	srv := httptest.NewServer(groupRoutesMux(h))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/groups/g1/members?page=2", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	body := decodeFlatPaginated(t, resp)
+	if len(body.Data.Data) != 1 {
+		t.Errorf("len(data.data) = %d, want 1", len(body.Data.Data))
+	}
+	if body.Data.Page != 2 {
+		t.Errorf("page = %d, want 2", body.Data.Page)
+	}
+	if body.Data.PageSize != 20 {
+		t.Errorf("pageSize = %d, want 20 (default limit)", body.Data.PageSize)
+	}
+	if body.Data.TotalCount != 1 {
+		t.Errorf("totalCount = %d, want 1", body.Data.TotalCount)
+	}
+	if body.Data.TotalPages != 1 {
+		t.Errorf("totalPages = %d, want 1", body.Data.TotalPages)
+	}
+}
+
+func TestGetGroupFeed_MatchesFrontendPaginatedResponse(t *testing.T) {
+	post := group.Post{ID: "p1", GroupID: "g1", AuthorID: "u2", Title: "Hello", Content: "World", CreatedAt: time.Now()}
+	h := newGroupTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockListGroups{result: &queries.ListGroupsResult{}},
+		&mockGroupMembers{},
+		&mockGetGroupFeed{result: &queries.GetGroupFeedResult{Posts: []group.Post{post}, Total: 1}},
+		&mockGetGroupPostComments{result: &queries.GetGroupPostCommentsResult{}},
+	)
+	srv := httptest.NewServer(groupRoutesMux(h))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/groups/g1/posts?page=2", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	body := decodeFlatPaginated(t, resp)
+	if len(body.Data.Data) != 1 {
+		t.Errorf("len(data.data) = %d, want 1", len(body.Data.Data))
+	}
+	if body.Data.Page != 2 {
+		t.Errorf("page = %d, want 2", body.Data.Page)
+	}
+	if body.Data.PageSize != 20 {
+		t.Errorf("pageSize = %d, want 20 (default limit)", body.Data.PageSize)
+	}
+	if body.Data.TotalCount != 1 {
+		t.Errorf("totalCount = %d, want 1", body.Data.TotalCount)
+	}
+	if body.Data.TotalPages != 1 {
+		t.Errorf("totalPages = %d, want 1", body.Data.TotalPages)
+	}
+}
+
+func TestGetGroupPostComments_MatchesFrontendPaginatedResponse(t *testing.T) {
+	comment := group.PostComment{ID: "c1", PostID: "p1", AuthorID: "u2", Content: "Nice", CreatedAt: time.Now()}
+	h := newGroupTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockListGroups{result: &queries.ListGroupsResult{}},
+		&mockGroupMembers{},
+		nil,
+		&mockGetGroupPostComments{result: &queries.GetGroupPostCommentsResult{Comments: []group.PostComment{comment}, Total: 1}},
+	)
+	srv := httptest.NewServer(groupRoutesMux(h))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/groups/g1/posts/p1/comments?page=2", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	body := decodeFlatPaginated(t, resp)
+	if len(body.Data.Data) != 1 {
+		t.Errorf("len(data.data) = %d, want 1", len(body.Data.Data))
+	}
+	if body.Data.Page != 2 {
+		t.Errorf("page = %d, want 2", body.Data.Page)
 	}
 	if body.Data.PageSize != 20 {
 		t.Errorf("pageSize = %d, want 20 (default limit)", body.Data.PageSize)

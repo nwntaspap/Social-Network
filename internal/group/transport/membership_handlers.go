@@ -198,5 +198,5 @@ func (h *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 		m := &res.Members[i]
 		members = append(members, toGroupMemberResponse(m, h.lookupUser(ctx, m.UserID)))
 	}
-	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), members)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(members, res.Total, pagination.Page, pagination.Limit))
 }

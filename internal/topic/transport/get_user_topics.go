@@ -39,16 +39,5 @@ func (h *Handler) GetUserTopics(w http.ResponseWriter, r *http.Request) {
 		topics = append(topics, toTopicResponse(&res.Topics[i], author))
 	}
 
-	totalPages := res.Total / pagination.Limit
-	if res.Total%pagination.Limit > 0 {
-		totalPages++
-	}
-
-	info := &helpers.Info{
-		TotalRecords: res.Total,
-		CurrentPage:  pagination.Page,
-		PageSize:     pagination.Limit,
-		TotalPages:   totalPages,
-	}
-	helpers.RespondWithJSON(w, http.StatusOK, info, topics)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(topics, res.Total, pagination.Page, pagination.Limit))
 }
