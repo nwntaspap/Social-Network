@@ -159,10 +159,11 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 	for rows.Next() {
 		var t topic.Topic
 		var groupID sql.NullString
+		var imagePath sql.NullString
 		var updatedAt sql.NullTime
 
 		scanArgs := []any{
-			&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
+			&t.ID, &t.UserID, &t.Title, &t.Content, &imagePath,
 			&t.Visibility, &groupID,
 			&t.CreatedAt, &updatedAt,
 			&t.OwnerUsername,
@@ -185,6 +186,7 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 			}
 		}
 		t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
+		t.ImagePath = imagePath.String
 		if groupID.Valid {
 			t.GroupID = &groupID.String
 		}

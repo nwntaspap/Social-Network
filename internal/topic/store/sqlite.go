@@ -178,10 +178,11 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 	var t topic.Topic
 	var userVote sql.NullInt32
 	var groupID sql.NullString
+	var imagePath sql.NullString
 	var updatedAt sql.NullTime
 
 	scanFields := []any{
-		&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
+		&t.ID, &t.UserID, &t.Title, &t.Content, &imagePath,
 		&t.Visibility, &groupID,
 		&t.CreatedAt, &updatedAt,
 		&t.OwnerUsername,
@@ -203,6 +204,7 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 	if groupID.Valid {
 		t.GroupID = &groupID.String
 	}
+	t.ImagePath = imagePath.String
 	t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
 	if userID != nil && userVote.Valid {
 		v := int(userVote.Int32)

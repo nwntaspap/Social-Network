@@ -128,3 +128,85 @@ func TestSearchGroups_Paginates(t *testing.T) {
 		t.Errorf("groups[0].ID = %q, want g1", groups[0].ID)
 	}
 }
+
+const groupPostsSchema = `
+CREATE TABLE group_posts (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    image_path TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME
+);
+CREATE TABLE group_post_comments (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    image_path TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`
+
+func setupGroupPostStore(t *testing.T) *SQLiteStore {
+	t.Helper()
+	db, err := database.NewDB(database.Config{Driver: "sqlite3", Path: ":memory:"})
+	if err != nil {
+		t.Fatalf("NewDB() error = %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), groupPostsSchema); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	return NewSQLiteStore(db)
+}
+
+func TestGetPostsByGroupID_NullImagePath(t *testing.T) {
+	s := setupGroupPostStore(t)
+	ctx := context.Background()
+
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO group_posts (id, group_id, author_id, title, content, image_path)
+		 VALUES ('p1', 'g1', 'u1', 'Post', 'content', NULL)`); err != nil {
+		t.Fatalf("seed group post: %v", err)
+	}
+
+	posts, _, err := s.GetPostsByGroupID(ctx, "g1", 1, 10)
+	if err != nil {
+		t.Fatalf("GetPostsByGroupID: %v", err)
+	}
+	if len(posts) != 1 {
+		t.Fatalf("len = %d, want 1", len(posts))
+	}
+	if posts[0].ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", posts[0].ImagePath)
+	}
+}
+
+func TestGetPostComments_NullImagePath(t *testing.T) {
+	s := setupGroupPostStore(t)
+	ctx := context.Background()
+
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO group_posts (id, group_id, author_id, title, content, image_path)
+		 VALUES ('p1', 'g1', 'u1', 'Post', 'content', NULL)`); err != nil {
+		t.Fatalf("seed group post: %v", err)
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO group_post_comments (id, post_id, author_id, content, image_path)
+		 VALUES ('c1', 'p1', 'u1', 'comment', NULL)`); err != nil {
+		t.Fatalf("seed post comment: %v", err)
+	}
+
+	comments, _, err := s.GetPostComments(ctx, "p1", 1, 10)
+	if err != nil {
+		t.Fatalf("GetPostComments: %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("len = %d, want 1", len(comments))
+	}
+	if comments[0].ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", comments[0].ImagePath)
+	}
+}

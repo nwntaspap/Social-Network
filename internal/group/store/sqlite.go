@@ -184,10 +184,12 @@ func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID string, pag
 	var posts []group.Post
 	for rows.Next() {
 		var p group.Post
+		var imagePath sql.NullString
 		var updatedAt sql.NullTime
-		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &p.ImagePath, &p.CreatedAt, &updatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &imagePath, &p.CreatedAt, &updatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan group post: %w", err)
 		}
+		p.ImagePath = imagePath.String
 		p.UpdatedAt = database.ResolveTime(updatedAt, p.CreatedAt)
 		posts = append(posts, p)
 	}
@@ -223,9 +225,11 @@ func (s *SQLiteStore) GetPostComments(ctx context.Context, postID string, page, 
 	var comments []group.PostComment
 	for rows.Next() {
 		var c group.PostComment
-		if err := rows.Scan(&c.ID, &c.PostID, &c.AuthorID, &c.Content, &c.ImagePath, &c.CreatedAt); err != nil {
+		var imagePath sql.NullString
+		if err := rows.Scan(&c.ID, &c.PostID, &c.AuthorID, &c.Content, &imagePath, &c.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan post comment: %w", err)
 		}
+		c.ImagePath = imagePath.String
 		comments = append(comments, c)
 	}
 	return comments, total, rows.Err()

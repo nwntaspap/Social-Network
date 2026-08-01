@@ -417,3 +417,43 @@ func TestGetTopicsByUserID(t *testing.T) {
 		t.Errorf("len = %d, want 2", len(topics))
 	}
 }
+
+func TestGetTopicByID_NullImagePath(t *testing.T) {
+	s := setupTopicStore(t)
+
+	result, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO topics (user_id, title, content, image_path) VALUES ('u1', 'No Image', 'x', NULL)`)
+	if err != nil {
+		t.Fatalf("seed topic: %v", err)
+	}
+	id, _ := result.LastInsertId()
+
+	got, err := s.GetTopicByID(context.Background(), int(id), nil)
+	if err != nil {
+		t.Fatalf("GetTopicByID: %v", err)
+	}
+	if got.ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", got.ImagePath)
+	}
+}
+
+func TestGetFeed_NullImagePath(t *testing.T) {
+	s := setupTopicStore(t)
+
+	_, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO topics (user_id, title, content, image_path) VALUES ('u1', 'No Image', 'x', NULL)`)
+	if err != nil {
+		t.Fatalf("seed topic: %v", err)
+	}
+
+	topics, _, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if len(topics) != 1 {
+		t.Fatalf("len = %d, want 1", len(topics))
+	}
+	if topics[0].ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", topics[0].ImagePath)
+	}
+}
