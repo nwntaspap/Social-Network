@@ -27,5 +27,14 @@ func (h *Handler) GetPendingRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, requests)
+	responses := make([]FollowRequestResponse, len(requests))
+	for i, req := range requests {
+		responses[i] = toFollowRequestResponse(
+			req,
+			h.lookupUser(r.Context(), req.FollowerID),
+			h.lookupUser(r.Context(), req.FolloweeID),
+		)
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, responses)
 }

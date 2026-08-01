@@ -11,6 +11,25 @@ import (
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
 
+type UserResult struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Username    string `json:"username"`
+	FirstName   string `json:"firstName"`
+	LastName    string `json:"lastName"`
+	Nickname    string `json:"nickname,omitempty"`
+	AboutMe     string `json:"aboutMe,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
+	DateOfBirth string `json:"dateOfBirth"`
+	IsPublic    bool   `json:"isPublic"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// UserLookup is a local interface for nested user lookups (avoids importing domain/user).
+type UserLookup interface {
+	GetUserByID(ctx context.Context, id string) (*UserResult, error)
+}
+
 type FollowUserExecutor interface {
 	Execute(ctx context.Context, cmd commands.FollowUserCommand) error
 }
@@ -53,10 +72,12 @@ type Handler struct {
 	getPendingReqs PendingRequestsResolver
 	areConnected   ConnectedResolver
 	extractUser    UserExtractor
+	userLookup     UserLookup
 }
 
 func NewHandler(
 	extractUser UserExtractor,
+	userLookup UserLookup,
 	followUser FollowUserExecutor,
 	unfollowUser UnfollowUserExecutor,
 	acceptRequest AcceptRequestExecutor,
@@ -68,6 +89,7 @@ func NewHandler(
 ) *Handler {
 	return &Handler{
 		extractUser:    extractUser,
+		userLookup:     userLookup,
 		followUser:     followUser,
 		unfollowUser:   unfollowUser,
 		acceptRequest:  acceptRequest,
@@ -77,4 +99,15 @@ func NewHandler(
 		getPendingReqs: getPendingReqs,
 		areConnected:   areConnected,
 	}
+}
+
+func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {
+	if h.userLookup == nil || userID == "" {
+		return nil
+	}
+	u, err := h.userLookup.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	return u
 }

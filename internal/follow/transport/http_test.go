@@ -8,91 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"social-network/internal/follow"
-	"social-network/internal/follow/commands"
-	"social-network/internal/follow/queries"
 )
-
-type mockFollowUser struct {
-	err error
-}
-
-func (m *mockFollowUser) Execute(_ context.Context, _ commands.FollowUserCommand) error {
-	return m.err
-}
-
-type mockUnfollowUser struct {
-	err error
-}
-
-func (m *mockUnfollowUser) Execute(_ context.Context, _ commands.UnfollowUserCommand) error {
-	return m.err
-}
-
-type mockAcceptRequest struct {
-	err error
-}
-
-func (m *mockAcceptRequest) Execute(_ context.Context, _ commands.AcceptRequestCommand) error {
-	return m.err
-}
-
-type mockDeclineRequest struct {
-	err error
-}
-
-func (m *mockDeclineRequest) Execute(_ context.Context, _ commands.DeclineRequestCommand) error {
-	return m.err
-}
-
-type mockGetFollowers struct {
-	result []follow.Follow
-	err    error
-}
-
-func (m *mockGetFollowers) Resolve(_ context.Context, _ queries.GetFollowersQuery) ([]follow.Follow, error) {
-	return m.result, m.err
-}
-
-type mockGetFollowing struct {
-	result []follow.Follow
-	err    error
-}
-
-func (m *mockGetFollowing) Resolve(_ context.Context, _ queries.GetFollowingQuery) ([]follow.Follow, error) {
-	return m.result, m.err
-}
-
-type mockGetPendingRequests struct {
-	result []follow.Request
-	err    error
-}
-
-func (m *mockGetPendingRequests) Resolve(_ context.Context, _ queries.GetPendingRequestsQuery) ([]follow.Request, error) {
-	return m.result, m.err
-}
-
-type mockAreConnected struct {
-	result bool
-	err    error
-}
-
-func (m *mockAreConnected) Resolve(_ context.Context, _ queries.AreConnectedQuery) (bool, error) {
-	return m.result, m.err
-}
-
-func testExtractor(userID string) UserExtractor {
-	return func(_ *http.Request) (string, bool) {
-		if userID == "" {
-			return "", false
-		}
-		return userID, true
-	}
-}
 
 func TestFollowUser_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -110,6 +33,7 @@ func TestFollowUser_Success(t *testing.T) {
 
 func TestFollowUser_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -125,6 +49,7 @@ func TestFollowUser_Unauthorized(t *testing.T) {
 
 func TestFollowUser_CommandError(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{err: errors.New("db error")}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -142,6 +67,7 @@ func TestFollowUser_CommandError(t *testing.T) {
 
 func TestFollowUser_InvalidMethod(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -157,6 +83,7 @@ func TestFollowUser_InvalidMethod(t *testing.T) {
 
 func TestUnfollowUser_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -174,6 +101,7 @@ func TestUnfollowUser_Success(t *testing.T) {
 
 func TestUnfollowUser_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -189,6 +117,7 @@ func TestUnfollowUser_Unauthorized(t *testing.T) {
 
 func TestUnfollowUser_CommandError(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{err: errors.New("db error")}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -206,6 +135,7 @@ func TestUnfollowUser_CommandError(t *testing.T) {
 
 func TestUnfollowUser_InvalidMethod(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -221,6 +151,7 @@ func TestUnfollowUser_InvalidMethod(t *testing.T) {
 
 func TestAcceptRequest_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-2"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -238,6 +169,7 @@ func TestAcceptRequest_Success(t *testing.T) {
 
 func TestAcceptRequest_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -253,6 +185,7 @@ func TestAcceptRequest_Unauthorized(t *testing.T) {
 
 func TestDeclineRequest_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-2"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -270,6 +203,7 @@ func TestDeclineRequest_Success(t *testing.T) {
 
 func TestGetFollowers_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{result: []follow.Follow{{FollowerID: "user-2", FolloweeID: "user-1"}}},
 		&mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
@@ -286,6 +220,7 @@ func TestGetFollowers_Success(t *testing.T) {
 
 func TestGetFollowers_MissingParam(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -301,6 +236,7 @@ func TestGetFollowers_MissingParam(t *testing.T) {
 
 func TestGetFollowing_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{result: []follow.Follow{{FollowerID: "user-1", FolloweeID: "user-2"}}},
 		&mockGetPendingRequests{}, &mockAreConnected{})
@@ -317,6 +253,7 @@ func TestGetFollowing_Success(t *testing.T) {
 
 func TestGetPendingRequests_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{},
 		&mockGetPendingRequests{result: []follow.Request{{FollowerID: "user-3", FolloweeID: "user-1"}}},
@@ -332,8 +269,82 @@ func TestGetPendingRequests_Success(t *testing.T) {
 	}
 }
 
+func TestGetPendingRequests_MatchesFrontendFollowRequest(t *testing.T) {
+	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+
+	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{byID: map[string]*UserResult{
+			"user-3": {ID: "user-3", Username: "alice", FirstName: "Alice"},
+			"user-1": {ID: "user-1", Username: "bob", FirstName: "Bob"},
+		}},
+		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
+		&mockGetFollowers{}, &mockGetFollowing{},
+		&mockGetPendingRequests{result: []follow.Request{{
+			FollowerID: "user-3",
+			FolloweeID: "user-1",
+			CreatedAt:  now,
+		}}},
+		&mockAreConnected{})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/follow/requests", nil)
+	w := httptest.NewRecorder()
+
+	h.GetPendingRequests(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	var body struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Data) != 1 {
+		t.Fatalf("len(data) = %d, want 1", len(body.Data))
+	}
+	d := body.Data[0]
+
+	if got, ok := d["id"].(string); !ok || got != "user-3:user-1" {
+		t.Errorf("id = %#v, want %q", d["id"], "user-3:user-1")
+	}
+	if got, ok := d["requesterId"].(string); !ok || got != "user-3" {
+		t.Errorf("requesterId = %#v, want %q", d["requesterId"], "user-3")
+	}
+	if got, ok := d["targetId"].(string); !ok || got != "user-1" {
+		t.Errorf("targetId = %#v, want %q", d["targetId"], "user-1")
+	}
+	if got, ok := d["status"].(string); !ok || got != "pending" {
+		t.Errorf("status = %#v, want %q", d["status"], "pending")
+	}
+	if _, ok := d["createdAt"].(string); !ok {
+		t.Errorf("createdAt = %#v, want string", d["createdAt"])
+	}
+
+	requester, ok := d["requester"].(map[string]any)
+	if !ok {
+		t.Fatalf("requester = %#v, want object", d["requester"])
+	}
+	if got, ok2 := requester["username"].(string); !ok2 || got != "alice" {
+		t.Errorf("requester.username = %#v, want %q", requester["username"], "alice")
+	}
+	if got, ok2 := requester["firstName"].(string); !ok2 || got != "Alice" {
+		t.Errorf("requester.firstName = %#v, want %q", requester["firstName"], "Alice")
+	}
+
+	target, ok := d["target"].(map[string]any)
+	if !ok {
+		t.Fatalf("target = %#v, want object", d["target"])
+	}
+	if got, ok2 := target["username"].(string); !ok2 || got != "bob" {
+		t.Errorf("target.username = %#v, want %q", target["username"], "bob")
+	}
+}
+
 func TestGetPendingRequests_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -349,6 +360,7 @@ func TestGetPendingRequests_Unauthorized(t *testing.T) {
 
 func TestAreConnected_Success(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{},
 		&mockAreConnected{result: true})
@@ -375,6 +387,7 @@ func TestAreConnected_Success(t *testing.T) {
 
 func TestAreConnected_MissingParam(t *testing.T) {
 	h := NewHandler(testExtractor("user-1"),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 
@@ -390,6 +403,7 @@ func TestAreConnected_MissingParam(t *testing.T) {
 
 func TestAreConnected_Unauthorized(t *testing.T) {
 	h := NewHandler(testExtractor(""),
+		&mockUserLookup{},
 		&mockFollowUser{}, &mockUnfollowUser{}, &mockAcceptRequest{}, &mockDeclineRequest{},
 		&mockGetFollowers{}, &mockGetFollowing{}, &mockGetPendingRequests{}, &mockAreConnected{})
 

@@ -12,29 +12,13 @@
 > `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
 > `imageUrl`), group response (`membershipStatus` in list + detail),
 > chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`),
-> chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`).
+> chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`),
+> follow requests (`FollowRequest`: synthesized `id`, nested `requester`/`target`, `status: "pending"`,
+> `createdAt`).
 
 ---
 
-## 1. FOLLOW / REQUEST — flat, no nested User
-
-| Side                       | Shape                                                                             |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| **Backend Follow**         | `{ followerId, followeeId, createdAt }`                                           |
-| **Frontend FollowRequest** | `{ id, requesterId, requester: User, targetId, target: User, status, createdAt }` |
-
-**Issues:**
-
-- Missing: `id`, `requester: User`, `target: User`, `status`
-
-| Option | Side     | Change                                             |
-| ------ | -------- | -------------------------------------------------- |
-| **A**  | Backend  | Enrich with nested User objects, add `id`/`status` |
-| **B**  | Frontend | Adapter synthesizes missing fields                 |
-
----
-
-## 2. SEARCH USERS — no-op, no pagination
+## 1. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -54,7 +38,7 @@
 
 ---
 
-## 3. SEARCH GROUPS — no-op
+## 2. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -68,7 +52,7 @@
 
 ---
 
-## 4. PAGINATION ENVELOPE — different structure
+## 3. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -94,6 +78,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | follow queries, list users/groups search                                                                  |
+| **Backend**    | list users/groups search                                                                                  |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |
