@@ -57,6 +57,10 @@ export interface Comment {
   content: string;
   imageUrl?: string;
   gifUrl?: string;
+  upvoteCount?: number;
+  downvoteCount?: number;
+  voteScore?: number;
+  userVote?: number | null;
   createdAt: string;
   updatedAt?: string;
 }

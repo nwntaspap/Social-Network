@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getPost, getComments, createComment, likePost, unlikePost } from '@/lib/api';
+import { getPost, getComments, createComment, voteComment, likePost, unlikePost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Comment, Post } from '@/lib/types';
 
@@ -67,6 +67,65 @@ export default function PostDetail() {
     setShowCommentForm(false);
     setCommentContent('');
     setCommentError('');
+  }
+
+  async function handleCommentVote(comment: Comment, reactionType: 1 | -1) {
+    const prevUserVote = comment.userVote ?? null;
+    const prevUp = comment.upvoteCount ?? 0;
+    const prevDown = comment.downvoteCount ?? 0;
+
+    let newUserVote: number | null = reactionType;
+    let deltaUp = 0;
+    let deltaDown = 0;
+    if (prevUserVote === reactionType) {
+      newUserVote = null;
+      if (reactionType === 1) deltaUp = -1;
+      else deltaDown = -1;
+    } else if (prevUserVote === -reactionType) {
+      if (reactionType === 1) {
+        deltaUp = 1;
+        deltaDown = -1;
+      } else {
+        deltaDown = 1;
+        deltaUp = -1;
+      }
+    } else if (reactionType === 1) {
+      deltaUp = 1;
+    } else {
+      deltaDown = 1;
+    }
+
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === comment.id
+          ? {
+              ...c,
+              userVote: newUserVote,
+              upvoteCount: Math.max(0, prevUp + deltaUp),
+              downvoteCount: Math.max(0, prevDown + deltaDown),
+              voteScore: prevUp + deltaUp - (prevDown + deltaDown),
+            }
+          : c
+      )
+    );
+
+    try {
+      await voteComment(Number(comment.id), reactionType);
+    } catch {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === comment.id
+            ? {
+                ...c,
+                userVote: prevUserVote,
+                upvoteCount: prevUp,
+                downvoteCount: prevDown,
+                voteScore: prevUp - prevDown,
+              }
+            : c
+        )
+      );
+    }
   }
 
   async function handleSubmitComment(e: React.FormEvent) {
@@ -247,6 +306,34 @@ export default function PostDetail() {
                       />
                     </div>
                   )}
+                  <div className="comment-votes">
+                    <button
+                      type="button"
+                      className={`comment-vote-btn${comment.userVote === 1 ? ' active' : ''}`}
+                      onClick={() => handleCommentVote(comment, 1)}
+                    >
+                      <Image
+                        src="/images/icons/icon-like.png"
+                        alt="Upvote"
+                        width={16}
+                        height={16}
+                      />
+                      <span>{comment.upvoteCount ?? 0}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`comment-vote-btn${comment.userVote === -1 ? ' active' : ''}`}
+                      onClick={() => handleCommentVote(comment, -1)}
+                    >
+                      <Image
+                        src="/images/icons/icon-dislike.png"
+                        alt="Downvote"
+                        width={16}
+                        height={16}
+                      />
+                      <span>{comment.downvoteCount ?? 0}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -303,7 +303,11 @@ export async function createComment(topicId: number, content: string): Promise<C
 }
 
 export async function getComments(topicId: number): Promise<Comment[]> {
-  return api.get<Comment[]>('/comments/topic', { topicId });
+  return api.get<Comment[]>('/comments/topic/votes', { topicId });
+}
+
+export async function voteComment(commentId: number, reactionType: 1 | -1): Promise<void> {
+  return api.post<void>(`/comments/vote?id=${commentId}`, { reactionType });
 }
 
 export async function deleteComment(commentId: number): Promise<void> {
