@@ -13,11 +13,13 @@ import (
 )
 
 type mockListGroups struct {
-	result *queries.ListGroupsResult
-	err    error
+	result    *queries.ListGroupsResult
+	err       error
+	lastQuery queries.ListGroupsQuery
 }
 
-func (m *mockListGroups) Resolve(_ context.Context, _ queries.ListGroupsQuery) (*queries.ListGroupsResult, error) {
+func (m *mockListGroups) Resolve(_ context.Context, q queries.ListGroupsQuery) (*queries.ListGroupsResult, error) {
+	m.lastQuery = q
 	if m.result != nil {
 		return m.result, nil
 	}
@@ -83,20 +85,111 @@ func TestListGroups_IncludesMembershipStatus(t *testing.T) {
 	}
 
 	var body struct {
-		Data []map[string]any `json:"data"`
+		Data struct {
+			Groups []map[string]any `json:"data"`
+		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(body.Data) != 1 {
-		t.Fatalf("len(data) = %d, want 1", len(body.Data))
+	if len(body.Data.Groups) != 1 {
+		t.Fatalf("len(data) = %d, want 1", len(body.Data.Groups))
 	}
-	d := body.Data[0]
+	d := body.Data.Groups[0]
 
 	if got, ok := d["membershipStatus"].(string); !ok || got != "member" {
 		t.Errorf("membershipStatus = %#v, want %q", d["membershipStatus"], "member")
 	}
 	if got, ok := d["membersCount"].(float64); !ok || got != 3 {
 		t.Errorf("membersCount = %#v, want 3", d["membersCount"])
+	}
+}
+
+func TestListGroups_ForwardsQueryParam(t *testing.T) {
+	mock := &mockListGroups{result: &queries.ListGroupsResult{}}
+	h := newGroupTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		mock,
+		&mockGroupMembers{},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.ListGroups))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/groups?query=go&page=2", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	if mock.lastQuery.Query != "go" {
+		t.Errorf("query forwarded = %q, want %q", mock.lastQuery.Query, "go")
+	}
+	if mock.lastQuery.Page != 2 {
+		t.Errorf("page forwarded = %d, want 2", mock.lastQuery.Page)
+	}
+	if mock.lastQuery.UserID != "u1" {
+		t.Errorf("userID forwarded = %q, want %q", mock.lastQuery.UserID, "u1")
+	}
+}
+
+func TestListGroups_MatchesFrontendPaginatedResponse(t *testing.T) {
+	g := group.Group{ID: "g1", Title: "Go", CreatorID: "u2", MembershipStatus: "member", CreatedAt: time.Now()}
+	h := newGroupTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockListGroups{result: &queries.ListGroupsResult{Groups: []group.Group{g}, Total: 1}},
+		&mockGroupMembers{total: 3},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.ListGroups))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/groups?query=go", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data struct {
+			Data       []map[string]any `json:"data"`
+			Page       int              `json:"page"`
+			PageSize   int              `json:"pageSize"`
+			TotalCount int              `json:"totalCount"`
+			TotalPages int              `json:"totalPages"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if len(body.Data.Data) != 1 {
+		t.Errorf("len(data.data) = %d, want 1", len(body.Data.Data))
+	}
+	if body.Data.Page != 1 {
+		t.Errorf("page = %d, want 1", body.Data.Page)
+	}
+	if body.Data.PageSize != 20 {
+		t.Errorf("pageSize = %d, want 20 (default limit)", body.Data.PageSize)
+	}
+	if body.Data.TotalCount != 1 {
+		t.Errorf("totalCount = %d, want 1", body.Data.TotalCount)
+	}
+	if body.Data.TotalPages != 1 {
+		t.Errorf("totalPages = %d, want 1", body.Data.TotalPages)
 	}
 }

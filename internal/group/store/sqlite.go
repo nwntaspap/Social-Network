@@ -261,6 +261,50 @@ func (s *SQLiteStore) ListGroups(ctx context.Context, page, size int) ([]group.G
 	return groups, total, rows.Err()
 }
 
+func groupSearchFilter(query string) (string, []any) {
+	if query == "" {
+		return "", nil
+	}
+	pattern := "%" + query + "%"
+	where := `WHERE title LIKE ? OR description LIKE ?`
+	args := []any{pattern, pattern}
+	return where, args
+}
+
+func (s *SQLiteStore) SearchGroups(ctx context.Context, query string, page, size int) ([]group.Group, int, error) {
+	where, args := groupSearchFilter(query)
+
+	var total int
+	countArgs := args
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM groups `+where, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count groups: %w", err)
+	}
+
+	offset := (page - 1) * size
+	args = append(args, size, offset)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, title, description, creator_id, created_at, updated_at
+		 FROM groups `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []group.Group
+	for rows.Next() {
+		var g group.Group
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan group: %w", err)
+		}
+		g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
+		groups = append(groups, g)
+	}
+	return groups, total, rows.Err()
+}
+
 func (s *SQLiteStore) GetPendingInvitations(ctx context.Context, userID string) ([]group.Invitation, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, group_id, inviter_id, invitee_id, created_at

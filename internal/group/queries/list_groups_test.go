@@ -9,8 +9,8 @@ import (
 )
 
 type listGroupsStub struct {
-	listFn func(ctx context.Context, page, size int) ([]group.Group, int, error)
-	states map[string]string
+	searchFn func(ctx context.Context, query string, page, size int) ([]group.Group, int, error)
+	states   map[string]string
 }
 
 func (s *listGroupsStub) CreateGroup(_ context.Context, _ *group.Group) error {
@@ -21,9 +21,13 @@ func (s *listGroupsStub) GetGroupByID(_ context.Context, _ string) (*group.Group
 	return &group.Group{}, nil
 }
 
-func (s *listGroupsStub) ListGroups(ctx context.Context, page, size int) ([]group.Group, int, error) {
-	if s.listFn != nil {
-		return s.listFn(ctx, page, size)
+func (s *listGroupsStub) ListGroups(_ context.Context, _, _ int) ([]group.Group, int, error) {
+	return nil, 0, nil
+}
+
+func (s *listGroupsStub) SearchGroups(ctx context.Context, query string, page, size int) ([]group.Group, int, error) {
+	if s.searchFn != nil {
+		return s.searchFn(ctx, query, page, size)
 	}
 	return nil, 0, nil
 }
@@ -134,7 +138,7 @@ func TestListGroupsResolver_IncludesMembershipStatus(t *testing.T) {
 	}
 
 	stub := &listGroupsStub{
-		listFn: func(_ context.Context, _, _ int) ([]group.Group, int, error) {
+		searchFn: func(_ context.Context, _ string, _, _ int) ([]group.Group, int, error) {
 			return groups, len(groups), nil
 		},
 		states: map[string]string{
@@ -175,7 +179,7 @@ func TestListGroupsResolver_NoUserIsNone(t *testing.T) {
 	}
 
 	stub := &listGroupsStub{
-		listFn: func(_ context.Context, _, _ int) ([]group.Group, int, error) {
+		searchFn: func(_ context.Context, _ string, _, _ int) ([]group.Group, int, error) {
 			return groups, len(groups), nil
 		},
 		states: map[string]string{"g1": "member"},
@@ -192,5 +196,36 @@ func TestListGroupsResolver_NoUserIsNone(t *testing.T) {
 	}
 	if result.Groups[0].MembershipStatus != "none" {
 		t.Errorf("membership status without user = %q, want %q", result.Groups[0].MembershipStatus, "none")
+	}
+}
+
+func TestListGroupsResolver_ForwardsQuery(t *testing.T) {
+	ctx := context.Background()
+
+	var gotQuery string
+	var gotPage, gotSize int
+	stub := &listGroupsStub{
+		searchFn: func(_ context.Context, query string, page, size int) ([]group.Group, int, error) {
+			gotQuery = query
+			gotPage = page
+			gotSize = size
+			return nil, 0, nil
+		},
+	}
+
+	resolver := NewListGroupsResolver(stub)
+	_, err := resolver.Resolve(ctx, ListGroupsQuery{Query: "go", Page: 2, Size: 10})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if gotQuery != "go" {
+		t.Errorf("query forwarded = %q, want %q", gotQuery, "go")
+	}
+	if gotPage != 2 {
+		t.Errorf("page forwarded = %d, want 2", gotPage)
+	}
+	if gotSize != 10 {
+		t.Errorf("size forwarded = %d, want 10", gotSize)
 	}
 }

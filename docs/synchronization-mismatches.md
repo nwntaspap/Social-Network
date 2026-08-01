@@ -16,25 +16,12 @@
 > follow requests (`FollowRequest`: synthesized `id`, nested `requester`/`target`, `status: "pending"`,
 > `createdAt`),
 > user search (`GET /users` — SQL LIKE filter + pagination, flat `PaginatedResponse<User>`
-> with full `User` fields).
+> with full `User` fields),
+> group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`).
 
 ---
 
-## 1. SEARCH GROUPS — no-op
-
-| Side         | Behavior                 |
-| ------------ | ------------------------ |
-| **Backend**  | Ignores `query` param    |
-| **Frontend** | Expects filtered results |
-
-| Option | Side     | Change              |
-| ------ | -------- | ------------------- |
-| **A**  | Backend  | Add SQL LIKE filter |
-| **B**  | Frontend | Client-side filter  |
-
----
-
-## 2. PAGINATION ENVELOPE — different structure
+## 1. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -60,6 +47,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | group search                                                                                              |
+| **Backend**    | flatten remaining paginated responses to `PaginatedResponse` (group members/posts/comments, topic feeds)  |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |

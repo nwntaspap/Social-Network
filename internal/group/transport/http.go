@@ -89,6 +89,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := h.listGroups.Resolve(r.Context(), queries.ListGroupsQuery{
+		Query:  r.URL.Query().Get("query"),
 		Page:   pagination.Page,
 		Size:   pagination.Limit,
 		UserID: userID,
@@ -111,7 +112,18 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount, res.Groups[i].MembershipStatus))
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), groups)
+	totalPages := res.Total / pagination.Limit
+	if res.Total%pagination.Limit > 0 {
+		totalPages++
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
+		"data":       groups,
+		"page":       pagination.Page,
+		"pageSize":   pagination.Limit,
+		"totalCount": res.Total,
+		"totalPages": totalPages,
+	})
 }
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {

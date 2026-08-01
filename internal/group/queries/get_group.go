@@ -39,7 +39,13 @@ func (r *GetGroupResolver) Resolve(ctx context.Context, q GetGroupQuery) (*GetGr
 	}, nil
 }
 
-func computeMembershipStatus(ctx context.Context, repo group.Repository, groupID, userID string) string {
+type membershipChecker interface {
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+	IsInvited(ctx context.Context, groupID, userID string) (bool, error)
+	HasPendingRequest(ctx context.Context, groupID, userID string) (bool, error)
+}
+
+func computeMembershipStatus(ctx context.Context, repo membershipChecker, groupID, userID string) string {
 	if userID == "" {
 		return "none"
 	}

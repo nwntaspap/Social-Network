@@ -7,6 +7,7 @@ import (
 )
 
 type ListGroupsQuery struct {
+	Query  string
 	Page   int
 	Size   int
 	UserID string
@@ -17,16 +18,21 @@ type ListGroupsResult struct {
 	Total  int
 }
 
-type ListGroupsResolver struct {
-	repo group.Repository
+type ListGroupsRepository interface {
+	SearchGroups(ctx context.Context, query string, page, size int) ([]group.Group, int, error)
+	membershipChecker
 }
 
-func NewListGroupsResolver(repo group.Repository) *ListGroupsResolver {
+type ListGroupsResolver struct {
+	repo ListGroupsRepository
+}
+
+func NewListGroupsResolver(repo ListGroupsRepository) *ListGroupsResolver {
 	return &ListGroupsResolver{repo: repo}
 }
 
 func (r *ListGroupsResolver) Resolve(ctx context.Context, q ListGroupsQuery) (*ListGroupsResult, error) {
-	groups, total, err := r.repo.ListGroups(ctx, q.Page, q.Size)
+	groups, total, err := r.repo.SearchGroups(ctx, q.Query, q.Page, q.Size)
 	if err != nil {
 		return nil, err
 	}
