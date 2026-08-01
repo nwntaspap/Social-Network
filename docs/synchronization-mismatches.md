@@ -14,31 +14,13 @@
 > chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`),
 > chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`),
 > follow requests (`FollowRequest`: synthesized `id`, nested `requester`/`target`, `status: "pending"`,
-> `createdAt`).
+> `createdAt`),
+> user search (`GET /users` — SQL LIKE filter + pagination, flat `PaginatedResponse<User>`
+> with full `User` fields).
 
 ---
 
-## 1. SEARCH USERS — no-op, no pagination
-
-| Side         | Behavior                                                                             |
-| ------------ | ------------------------------------------------------------------------------------ |
-| **Backend**  | Ignores `query` param, returns flat `[{ id, email, firstName, lastName, nickname }]` |
-| **Frontend** | Expects `PaginatedResponse<User>` with `username`, `avatarUrl`                       |
-
-**Issues:**
-
-- Search is no-op
-- No pagination
-- Missing fields in response
-
-| Option | Side     | Change                             |
-| ------ | -------- | ---------------------------------- |
-| **A**  | Backend  | Add SQL LIKE filter + pagination   |
-| **B**  | Frontend | Client-side filter (bad for scale) |
-
----
-
-## 2. SEARCH GROUPS — no-op
+## 1. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -52,7 +34,7 @@
 
 ---
 
-## 3. PAGINATION ENVELOPE — different structure
+## 2. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -78,6 +60,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | list users/groups search                                                                                  |
+| **Backend**    | group search                                                                                              |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |

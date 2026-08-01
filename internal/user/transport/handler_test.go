@@ -76,9 +76,11 @@ func (s *stubGetActivity) Resolve(_ context.Context, _ queries.GetActivityQuery)
 type stubListUsers struct {
 	result *queries.ListUsersResult
 	err    error
+	got    queries.ListUsersQuery
 }
 
-func (s *stubListUsers) Resolve(_ context.Context, _ queries.ListUsersQuery) (*queries.ListUsersResult, error) {
+func (s *stubListUsers) Resolve(_ context.Context, q queries.ListUsersQuery) (*queries.ListUsersResult, error) {
+	s.got = q
 	return s.result, s.err
 }
 

@@ -323,3 +323,92 @@ func TestListAll_Empty(t *testing.T) {
 		t.Fatalf("ListAll() returned %d users, want 0", len(users))
 	}
 }
+
+func TestSearchUsers_MatchesColumns(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", FirstName: "Alice", LastName: "Smith", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bobby", FirstName: "Bob", LastName: "Alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", FirstName: "Carol", LastName: "Jones", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsers(ctx, "alice", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(alice) error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("SearchUsers(alice) returned %d users, want 2", len(users))
+	}
+
+	users, err = s.SearchUsers(ctx, "carol", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(carol) error = %v", err)
+	}
+	if len(users) != 1 || users[0].ID != "u3" {
+		t.Fatalf("SearchUsers(carol) = %+v, want [u3]", users)
+	}
+
+	users, err = s.SearchUsers(ctx, "", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(empty) error = %v", err)
+	}
+	if len(users) != 3 {
+		t.Fatalf("SearchUsers(empty) returned %d users, want 3", len(users))
+	}
+	if users[0].Nickname != "alice" {
+		t.Errorf("users[0].Nickname = %q, want %q (sorted)", users[0].Nickname, "alice")
+	}
+}
+
+func TestSearchUsers_Paginates(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "a@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "b@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "c@example.com", Nickname: "carol", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsers(ctx, "", 2, 2)
+	if err != nil {
+		t.Fatalf("SearchUsers(page2) error = %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("SearchUsers(page2) returned %d users, want 1", len(users))
+	}
+	if users[0].Nickname != "carol" {
+		t.Errorf("users[0].Nickname = %q, want %q", users[0].Nickname, "carol")
+	}
+}
+
+func TestCountUsers_MatchesFilter(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", FirstName: "Alice", LastName: "Smith", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bobby", FirstName: "Bob", LastName: "Alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", FirstName: "Carol", LastName: "Jones", PasswordHash: "h", CreatedAt: time.Now()})
+
+	count, err := s.CountUsers(ctx, "alice")
+	if err != nil {
+		t.Fatalf("CountUsers(alice) error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsers(alice) = %d, want 2", count)
+	}
+
+	count, err = s.CountUsers(ctx, "nomatch")
+	if err != nil {
+		t.Fatalf("CountUsers(nomatch) error = %v", err)
+	}
+	if count != 0 {
+		t.Errorf("CountUsers(nomatch) = %d, want 0", count)
+	}
+
+	count, err = s.CountUsers(ctx, "")
+	if err != nil {
+		t.Fatalf("CountUsers(empty) error = %v", err)
+	}
+	if count != 3 {
+		t.Errorf("CountUsers(empty) = %d, want 3", count)
+	}
+}

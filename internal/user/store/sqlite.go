@@ -155,6 +155,44 @@ func (s *SQLiteStore) ListAll(ctx context.Context) ([]user.User, error) {
 	return users, rows.Err()
 }
 
+func userSearchFilter(query string) (string, []any) {
+	if query == "" {
+		return "", nil
+	}
+	pattern := "%" + query + "%"
+	where := `WHERE username LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?`
+	args := []any{pattern, pattern, pattern, pattern}
+	return where, args
+}
+
+func (s *SQLiteStore) SearchUsers(ctx context.Context, query string, limit, offset int) ([]user.User, error) {
+	where, args := userSearchFilter(query)
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users `+where+` ORDER BY username ASC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []user.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
+}
+
+func (s *SQLiteStore) CountUsers(ctx context.Context, query string) (int, error) {
+	where, args := userSearchFilter(query)
+	var count int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users `+where, args...).Scan(&count)
+	return count, err
+}
+
 func nullString(s string) sql.NullString {
 	if s == "" {
 		return sql.NullString{}

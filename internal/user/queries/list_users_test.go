@@ -10,8 +10,11 @@ import (
 )
 
 type mockListUsersRepo struct {
-	users []user.User
-	err   error
+	users  []user.User
+	count  int
+	err    error
+	offset int
+	limit  int
 }
 
 func (m *mockListUsersRepo) Create(_ context.Context, _ *user.User) error { return nil }
@@ -35,16 +38,26 @@ func (m *mockListUsersRepo) ListAll(_ context.Context) ([]user.User, error) {
 	return m.users, m.err
 }
 
+func (m *mockListUsersRepo) SearchUsers(_ context.Context, _ string, limit int, offset int) ([]user.User, error) {
+	m.limit = limit
+	m.offset = offset
+	return m.users, m.err
+}
+
+func (m *mockListUsersRepo) CountUsers(_ context.Context, _ string) (int, error) {
+	return m.count, m.err
+}
+
 func TestListUsersResolver_Success(t *testing.T) {
 	now := time.Now()
 	users := []user.User{
 		{ID: "u1", Nickname: "alice", Email: "a@b.com", PasswordHash: "secret", CreatedAt: now},
 		{ID: "u2", Nickname: "bob", Email: "c@d.com", PasswordHash: "secret", CreatedAt: now},
 	}
-	repo := &mockListUsersRepo{users: users}
+	repo := &mockListUsersRepo{users: users, count: 2}
 	r := NewListUsersResolver(repo)
 
-	result, err := r.Resolve(context.Background(), ListUsersQuery{})
+	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -58,6 +71,51 @@ func TestListUsersResolver_Success(t *testing.T) {
 	}
 	if result.Users[0].Nickname != "alice" {
 		t.Errorf("Users[0].Nickname = %q, want %q", result.Users[0].Nickname, "alice")
+	}
+	if result.Total != 2 {
+		t.Errorf("Total = %d, want 2", result.Total)
+	}
+}
+
+func TestListUsersResolver_PaginatesOffset(t *testing.T) {
+	repo := &mockListUsersRepo{count: 25}
+	r := NewListUsersResolver(repo)
+
+	_, err := r.Resolve(context.Background(), ListUsersQuery{Page: 3, Limit: 10})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if repo.offset != 20 {
+		t.Errorf("offset = %d, want 20", repo.offset)
+	}
+	if repo.limit != 10 {
+		t.Errorf("limit = %d, want 10", repo.limit)
+	}
+}
+
+func TestListUsersResolver_PreservesUserFields(t *testing.T) {
+	dob := time.Date(1995, 3, 2, 0, 0, 0, 0, time.UTC)
+	users := []user.User{{
+		ID: "u1", Nickname: "alice", Email: "a@b.com", PasswordHash: "secret",
+		FirstName: "Alice", LastName: "Smith", AboutMe: "hi", IsPrivate: true,
+		DateOfBirth: dob, AvatarPath: "/img.png", CreatedAt: dob,
+	}}
+	repo := &mockListUsersRepo{users: users, count: 1}
+	r := NewListUsersResolver(repo)
+
+	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	u := result.Users[0]
+	if u.DateOfBirth.IsZero() || u.DateOfBirth.Year() != 1995 {
+		t.Errorf("DateOfBirth not preserved: %v", u.DateOfBirth)
+	}
+	if u.AboutMe != "hi" {
+		t.Errorf("AboutMe = %q, want %q", u.AboutMe, "hi")
+	}
+	if !u.IsPrivate {
+		t.Error("IsPrivate = false, want true")
 	}
 }
 
