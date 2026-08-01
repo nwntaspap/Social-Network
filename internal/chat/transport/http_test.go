@@ -24,6 +24,33 @@ func (m *mockChatUsers) Resolve(_ context.Context, _ queries.GetChatUsersRequest
 	return m.conversations, nil
 }
 
+type mockChatHistory struct {
+	messages []*chat.Message
+	err      error
+}
+
+func (m *mockChatHistory) Resolve(_ context.Context, _ queries.GetChatHistoryQuery) ([]*chat.Message, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.messages, nil
+}
+
+type mockChatUserLookup struct {
+	result *UserResult
+	err    error
+}
+
+func (m *mockChatUserLookup) GetUserByID(_ context.Context, _ string) (*UserResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return &UserResult{ID: "u1", Username: "alice"}, nil
+}
+
 func TestGetConversations_MatchesFrontendChat(t *testing.T) {
 	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 
@@ -38,6 +65,7 @@ func TestGetConversations_MatchesFrontendChat(t *testing.T) {
 
 	h := NewHandler(
 		func(_ *http.Request) (string, bool) { return "me", true },
+		&mockChatUserLookup{},
 		nil,
 		&mockChatUsers{conversations: []queries.Conversation{conv}},
 	)
@@ -117,6 +145,7 @@ func TestGetConversations_MatchesFrontendChat(t *testing.T) {
 func TestGetConversations_MethodNotAllowed(t *testing.T) {
 	h := NewHandler(
 		func(_ *http.Request) (string, bool) { return "me", true },
+		&mockChatUserLookup{},
 		nil,
 		&mockChatUsers{},
 	)
@@ -135,5 +164,78 @@ func TestGetConversations_MethodNotAllowed(t *testing.T) {
 
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Fatalf("expected 405, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetChatHistory_MatchesFrontendChatMessage(t *testing.T) {
+	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+
+	msg := &chat.Message{ID: 7, ChatID: "c1", SenderID: "u1", Content: "hello", CreatedAt: now}
+
+	h := NewHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockChatUserLookup{result: &UserResult{ID: "u1", Username: "alice", FirstName: "Alice"}},
+		&mockChatHistory{messages: []*chat.Message{msg}},
+		&mockChatUsers{},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.GetChatHistory))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/chat/history?chatId=c1", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Data) != 1 {
+		t.Fatalf("len(data) = %d, want 1", len(body.Data))
+	}
+	d := body.Data[0]
+
+	if got, ok := d["id"].(string); !ok || got != "7" {
+		t.Errorf("id = %#v, want string %q", d["id"], "7")
+	}
+	if got, ok := d["senderId"].(string); !ok || got != "u1" {
+		t.Errorf("senderId = %#v, want %q", d["senderId"], "u1")
+	}
+	if got, ok := d["content"].(string); !ok || got != "hello" {
+		t.Errorf("content = %#v, want %q", d["content"], "hello")
+	}
+	if got, ok := d["type"].(string); !ok || got != "private" {
+		t.Errorf("type = %#v, want %q", d["type"], "private")
+	}
+	if _, ok := d["createdAt"].(string); !ok {
+		t.Errorf("createdAt = %#v, want string", d["createdAt"])
+	}
+
+	sender, ok := d["sender"].(map[string]any)
+	if !ok {
+		t.Fatalf("sender = %#v, want object", d["sender"])
+	}
+	if got, ok := sender["username"].(string); !ok || got != "alice" {
+		t.Errorf("sender.username = %#v, want %q", sender["username"], "alice")
+	}
+	if got, ok := sender["firstName"].(string); !ok || got != "Alice" {
+		t.Errorf("sender.firstName = %#v, want %q", sender["firstName"], "Alice")
+	}
+
+	for _, snake := range []string{"chat_id", "sender_id", "created_at"} {
+		if _, ok := d[snake]; ok {
+			t.Errorf("snake_case key %q should not be present", snake)
+		}
 	}
 }

@@ -1,8 +1,10 @@
 package transport
 
 import (
+	"strconv"
 	"time"
 
+	"social-network/internal/chat"
 	"social-network/internal/chat/queries"
 )
 
@@ -40,5 +42,25 @@ func toConversationResponse(c queries.Conversation) ConversationResponse {
 		Participants: []ChatUserResponse{participant},
 		UnreadCount:  c.UnreadCount,
 		CreatedAt:    c.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+type ChatMessageResponse struct {
+	ID        string      `json:"id"`
+	SenderID  string      `json:"senderId"`
+	Sender    *UserResult `json:"sender"`
+	Content   string      `json:"content"`
+	Type      string      `json:"type"`
+	CreatedAt string      `json:"createdAt"`
+}
+
+func toMessageResponse(m *chat.Message, sender *UserResult) ChatMessageResponse {
+	return ChatMessageResponse{
+		ID:        strconv.Itoa(m.ID),
+		SenderID:  m.SenderID,
+		Sender:    sender,
+		Content:   m.Content,
+		Type:      "private",
+		CreatedAt: m.CreatedAt.Format(time.RFC3339),
 	}
 }

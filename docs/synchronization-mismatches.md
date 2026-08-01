@@ -11,31 +11,12 @@
 > `/me` (full user via `userResponse`), topic response (string id, nested `user`,
 > `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
 > `imageUrl`), group response (`membershipStatus` in list + detail),
-> chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`).
+> chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`),
+> chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`).
 
 ---
 
-## 1. CHAT MESSAGE — snake_case, int ID, missing fields
-
-| Side                     | Shape                                                               |
-| ------------------------ | ------------------------------------------------------------------- |
-| **Backend Message**      | `{ id (int), chat_id, sender_id, content, created_at }`             |
-| **Frontend ChatMessage** | `{ id (string), senderId, sender: User, content, type, createdAt }` |
-
-**Issues:**
-
-- snake_case → camelCase
-- `id` is `int` → should be `string`
-- Missing: `sender: User`, `type`
-
-| Option | Side     | Change                                               |
-| ------ | -------- | ---------------------------------------------------- |
-| **A**  | Backend  | Convert to camelCase, string ID, add `sender` object |
-| **B**  | Frontend | Adapter transforms shape                             |
-
----
-
-## 2. FOLLOW / REQUEST — flat, no nested User
+## 1. FOLLOW / REQUEST — flat, no nested User
 
 | Side                       | Shape                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -53,7 +34,7 @@
 
 ---
 
-## 3. SEARCH USERS — no-op, no pagination
+## 2. SEARCH USERS — no-op, no pagination
 
 | Side         | Behavior                                                                             |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -73,7 +54,7 @@
 
 ---
 
-## 4. SEARCH GROUPS — no-op
+## 3. SEARCH GROUPS — no-op
 
 | Side         | Behavior                 |
 | ------------ | ------------------------ |
@@ -87,7 +68,7 @@
 
 ---
 
-## 5. PAGINATION ENVELOPE — different structure
+## 4. PAGINATION ENVELOPE — different structure
 
 | Side                           | Shape                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------- |
@@ -113,6 +94,6 @@
 
 | Category       | Changes                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Backend**    | chat messages, follow queries, list users/groups search                                                   |
+| **Backend**    | follow queries, list users/groups search                                                                  |
 | **Frontend**   | `api.ts` — login already unwraps `res.user`; new `transformers.ts` for field mappings / pagination unwrap |
 | **No changes** | `types.ts` — backend will match frontend types                                                            |

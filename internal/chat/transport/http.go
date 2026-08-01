@@ -67,5 +67,10 @@ func (h *Handler) GetChatHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, messages)
+	responses := make([]ChatMessageResponse, len(messages))
+	for i, m := range messages {
+		responses[i] = toMessageResponse(m, h.lookupUser(r.Context(), m.SenderID))
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, responses)
 }

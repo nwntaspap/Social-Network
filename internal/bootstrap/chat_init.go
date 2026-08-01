@@ -9,12 +9,14 @@ import (
 	chatstore "social-network/internal/chat/store"
 	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/core/middleware"
-	"social-network/internal/domain/user"
+	domainuser "social-network/internal/domain/user"
 	"social-network/internal/infra/ws"
 	"social-network/internal/platform/database"
+	"social-network/internal/user"
+	userstore "social-network/internal/user/store"
 )
 
-func initChat(db database.DB, hub *ws.Hub, userRepo user.Repository) *chattransport.Handler {
+func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 
 	ba := &chat.BroadcasterAdapter{
@@ -41,6 +43,8 @@ func initChat(db database.DB, hub *ws.Hub, userRepo user.Repository) *chattransp
 	getHistory := queries.NewGetChatHistoryResolver(store)
 	getUsers := queries.NewGetChatUsersResolver(store, ua, ba)
 
+	userLookup := &chatUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
 		if uid == "" {
@@ -49,5 +53,40 @@ func initChat(db database.DB, hub *ws.Hub, userRepo user.Repository) *chattransp
 		return uid, true
 	}
 
-	return chattransport.NewHandler(extractUser, getHistory, getUsers)
+	return chattransport.NewHandler(extractUser, userLookup, getHistory, getUsers)
 }
+
+type chatUserLookupAdapter struct {
+	repo user.Repository
+}
+
+func (a *chatUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*chattransport.UserResult, error) {
+	u, err := a.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &chattransport.UserResult{
+		ID:        u.ID,
+		Email:     u.Email,
+		Username:  u.Nickname,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Nickname:  u.Nickname,
+		AboutMe:   u.AboutMe,
+		IsPublic:  !u.IsPrivate,
+		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if !u.DateOfBirth.IsZero() {
+		result.DateOfBirth = u.DateOfBirth.Format("2006-01-02")
+	}
+
+	if u.AvatarPath != "" {
+		result.AvatarURL = u.AvatarPath
+	}
+
+	return result, nil
+}
+
+var _ chattransport.UserLookup = (*chatUserLookupAdapter)(nil)
