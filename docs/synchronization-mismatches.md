@@ -8,19 +8,21 @@
 > Status: only **unresolved** mismatches are listed below, renumbered after pruning.
 > Resolved so far: topic/comment delete & vote query params, event list creator,
 > group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie),
-> `/me` (full user via `userResponse`), topic response (string id, nested `user`,
-> `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
-> `imageUrl`), group response (`membershipStatus` in list + detail),
-> chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`),
-> chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`),
-> follow requests (`FollowRequest`: synthesized `id`, nested `requester`/`target`, `status: "pending"`,
-> `createdAt`),
-> user search (`GET /users` — SQL LIKE filter + pagination, flat `PaginatedResponse<User>`
-> with full `User` fields),
-> group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`),
-> pagination envelope (all paginated endpoints now return the flat `PaginatedResponse`
-> shape: `{ data, page, pageSize, totalCount, totalPages }` — `/users`, `/groups`,
-> group members/posts/comments, topic feeds).
+> `/me` (full user via `userResponse`), `GET /user/profile` (full user via `userResponse`
+>
+> - `followersCount`/`followingCount`), topic response (string id, nested `user`,
+>   `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
+>   `imageUrl`), group response (`membershipStatus` in list + detail),
+>   chat users (`Chat[]` conversation envelopes, camelCase, `avatarUrl`),
+>   chat history (`ChatMessage[]`: string id, camelCase, nested `sender`, `type: "private"`),
+>   follow requests (`FollowRequest`: synthesized `id`, nested `requester`/`target`, `status: "pending"`,
+>   `createdAt`),
+>   user search (`GET /users` — SQL LIKE filter + pagination, flat `PaginatedResponse<User>`
+>   with full `User` fields),
+>   group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`),
+>   pagination envelope (all paginated endpoints now return the flat `PaginatedResponse`
+>   shape: `{ data, page, pageSize, totalCount, totalPages }` — `/users`, `/groups`,
+>   group members/posts/comments, topic feeds).
 
 ---
 

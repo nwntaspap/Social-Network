@@ -39,16 +39,9 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{
-		"user": map[string]any{
-			"id":         result.User.ID,
-			"nickname":   result.User.Nickname,
-			"email":      result.User.Email,
-			"firstName":  result.User.FirstName,
-			"lastName":   result.User.LastName,
-			"avatarPath": result.User.AvatarPath,
-		},
-		"followerCount":  result.FollowerCount,
-		"followingCount": result.FollowingCount,
-	})
+	resp := userResponse(&result.User)
+	resp["followersCount"] = result.FollowerCount
+	resp["followingCount"] = result.FollowingCount
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, resp)
 }
