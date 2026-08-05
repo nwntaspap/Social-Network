@@ -37,7 +37,8 @@ func (h *DeleteVoteHandler) Execute(ctx context.Context, cmd DeleteVoteCommand) 
 	}
 
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventPostLiked,
+		Type:         eventbus.EventPostVoteDeleted,
+		ActorID:      cmd.UserID,
 		ResourceType: eventbus.ResourcePost,
 		ResourceID:   strconv.Itoa(cmd.TopicID),
 	})

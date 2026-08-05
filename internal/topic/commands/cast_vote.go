@@ -58,15 +58,13 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 	}
 
 	eventType := eventbus.EventPostLiked
-	routingKey := eventbus.RoutingCreated
 	if cmd.ReactionType != 1 {
 		eventType = eventbus.EventPostDisliked
-		routingKey = eventbus.RoutingCreated
 	}
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:         eventType,
 		RecipientID:  t.UserID,
-		ActorID:      cmd.UserID,
+		ActorID:      actor.ID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
 		ResourceType: eventbus.ResourcePost,
@@ -74,7 +72,7 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		ContentText:  t.Content,
 		ImageURL:     t.ImagePath,
 	})
-	_ = h.bus.Publish("notifications.exchange", routingKey, body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return nil
 }

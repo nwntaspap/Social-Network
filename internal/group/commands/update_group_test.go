@@ -51,6 +51,10 @@ func (s *updateGroupStub) GetGroupMembers(_ context.Context, _ string, _, _ int)
 	return nil, 0, group.ErrGroupNotFound
 }
 
+func (s *updateGroupStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *updateGroupStub) CreateInvitation(_ context.Context, _ *group.Invitation) error { return nil }
 
 func (s *updateGroupStub) DeleteInvitation(_ context.Context, _, _ string) error { return nil }

@@ -34,7 +34,7 @@ func initEvent(db database.DB, bus eventbus.EventBus) *eventtransport.Handler {
 		extractUser,
 		eventcommands.NewUpdateEventHandler(store, groupRole),
 		eventcommands.NewCreateEventHandler(store, groupMember, bus, users),
-		eventcommands.NewRSVPHandler(store),
+		eventcommands.NewRSVPHandler(store, bus),
 		eventqueries.NewListGroupEventsResolver(store),
 		eventqueries.NewListEventRSVPsResolver(store),
 	)
@@ -69,6 +69,26 @@ func (c *eventGroupRoleChecker) GetMemberRole(ctx context.Context, groupID, user
 		return "", err
 	}
 	return role, nil
+}
+func (c *groupMemberChecker) GetGroupMembers(ctx context.Context, groupID string) ([]string, error) {
+	var users []string
+	rows, err := c.db.QueryContext(
+		ctx,
+		`SELECT user_id FROM group_members WHERE group_id = ?)`,
+		groupID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		users = append(users, userID)
+	}
+	return users, rows.Err()
 }
 
 type eventUserLookupAdapter struct {

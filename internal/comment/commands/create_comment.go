@@ -81,25 +81,19 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		return nil, err
 	}
 
-	actor, err := h.users.GetByID(ctx, cmd.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	recipientID := cmd.UserID
-	t, err := h.topics.GetTopicByID(ctx, cmd.TopicID, &cmd.UserID)
-	if err == nil {
-		recipientID = t.UserID
-	}
+	actor, _ := h.users.GetByID(ctx, cmd.UserID)
+	topic, _ := h.topics.GetTopicByID(ctx, cmd.TopicID, nil)
 
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:         eventbus.EventComment,
-		RecipientID:  recipientID,
+		RecipientID:  topic.UserID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
-		ResourceType: eventbus.ResourceComment,
+		ResourceType: eventbus.ResourcePost,
 		ResourceID:   strconv.Itoa(cmd.TopicID),
+		ContentText:  topic.Content,
+		ImageURL:     topic.ImagePath,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 

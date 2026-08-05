@@ -2,10 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
 )
 
 type RespondInviteCommand struct {
@@ -26,10 +28,14 @@ const (
 
 type RespondInviteHandler struct {
 	repo group.Repository
+	bus  eventbus.EventBus
 }
 
-func NewRespondInviteHandler(repo group.Repository) *RespondInviteHandler {
-	return &RespondInviteHandler{repo: repo}
+func NewRespondInviteHandler(repo group.Repository, bus eventbus.EventBus) *RespondInviteHandler {
+	return &RespondInviteHandler{
+		repo: repo,
+		bus:  bus,
+	}
 }
 
 func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCommand) (RespondInviteResult, error) {
@@ -86,6 +92,16 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 			return "", err
 		}
 	}
+
+	// i didnt add a notification for the accept or decline
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventGroupInvitation,
+		RecipientID:  cmd.InviteeID,
+		ActorID:      inv.InviterID,
+		ResourceType: eventbus.ResourceGroup,
+		ResourceID:   cmd.GroupID,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 
 	return RespondInvitePending, nil
 }

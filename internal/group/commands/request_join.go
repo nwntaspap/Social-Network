@@ -71,13 +71,20 @@ func (h *RequestJoinHandler) Execute(ctx context.Context, cmd RequestJoinCommand
 		return nil, err
 	}
 
+	admins, err := h.repo.GetGroupAdmins(ctx, cmd.GroupID)
+	if err != nil {
+		return nil, err
+	}
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventGroupJoinRequested,
-		RecipientID:  g.CreatorID,
-		ActorID:      cmd.RequesterID,
-		ActorName:    actor.Nickname,
-		ActorAvatar:  actor.AvatarPath,
-		ResourceType: eventbus.ResourceGroup,
+		Type:               eventbus.EventGroupJoinRequested,
+		ActorID:            actor.ID,
+		ActorName:          actor.Nickname,
+		ActorAvatar:        actor.AvatarPath,
+		ResourceType:       eventbus.ResourceGroup,
+		JoinRequestID:      jr.ID,
+		MultipleRecipients: admins,
+		ResourceID:         g.ID,
+		ContentText:        g.Title,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 

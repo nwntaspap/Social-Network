@@ -48,11 +48,7 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 		return err
 	}
 
-	recipientID := cmd.UserID
-	c, err := h.repo.GetCommentByID(ctx, cmd.CommentID)
-	if err == nil {
-		recipientID = c.UserID
-	}
+	c, _ := h.repo.GetCommentByID(ctx, cmd.CommentID)
 
 	eventType := eventbus.EventCommentLiked
 	if cmd.ReactionType != 1 {
@@ -61,12 +57,13 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:         eventType,
-		RecipientID:  recipientID,
+		RecipientID:  c.UserID,
 		ActorID:      cmd.UserID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
 		ResourceType: eventbus.ResourceComment,
 		ResourceID:   strconv.Itoa(cmd.CommentID),
+		ContentText:  c.Content,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 

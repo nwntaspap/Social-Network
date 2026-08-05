@@ -37,7 +37,7 @@ func initComment(db database.DB, bus eventbus.EventBus) *commenttransport.Handle
 		userLookup,
 		commentcommands.NewCreateCommentHandler(store, bus, users, topics, img),
 		commentcommands.NewUpdateCommentHandler(store),
-		commentcommands.NewDeleteCommentHandler(store),
+		commentcommands.NewDeleteCommentHandler(store, bus, topics, users),
 		commentcommands.NewCastCommentVoteHandler(store, bus, users),
 		commentcommands.NewDeleteCommentVoteHandler(store, bus),
 		commentqueries.NewGetCommentByIDResolver(store),

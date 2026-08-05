@@ -93,10 +93,12 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:         eventbus.EventGroupInvitation,
 		RecipientID:  cmd.InviteeID,
-		ActorID:      cmd.InviterID,
+		ActorID:      actor.ID,
 		ActorName:    actor.Nickname,
 		ActorAvatar:  actor.AvatarPath,
 		ResourceType: eventbus.ResourceGroup,
+		ResourceID:   cmd.GroupID,
+		ContentText:  g.Title,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 

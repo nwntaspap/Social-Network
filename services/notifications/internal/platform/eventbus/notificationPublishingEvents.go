@@ -9,13 +9,21 @@ const (
 	EventCommentLiked    = "comment.liked"
 	EventCommentDisliked = "comment.disliked"
 
+	EventPostVoteDeleted    = "post.vote.deleted"
+	EventCommentVoteDeleted = "comment.vote.deleted"
+
+	EventFollow          = "follow"
 	EventFollowRequested = "follow.requested"
 	EventFollowAccepted  = "follow.accepted"
 	EventFollowDeclined  = "follow.declined"
-	EventFollowRemoved   = "follow.removed"
 
+	EventGroup              = "group"
 	EventGroupInvitation    = "group.invitation"
-	EventGroupJoinRequested = "group.join_requested"
+	EventGroupJoinRequested = "group.join.requested"
+	EventGroupJoinAccepted  = "group.join.accepted"
+	EventGroupJoinDeclined  = "group.join.declined"
+
+	EventProfileUpdate = "profile.updated"
 
 	EventEvent = "event"
 )

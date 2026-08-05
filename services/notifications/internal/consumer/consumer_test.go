@@ -29,6 +29,8 @@ CREATE TABLE notifications (
     actor_avatar TEXT NOT NULL DEFAULT '',
     content_text TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
+    join_request_id TEXT NOT NULL DEFAULT '',
+    event_id TEXT NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -246,6 +248,269 @@ func TestConsumer_ProcessesCascadeDeletedEvent(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("hub did not receive notification")
+	}
+}
+
+func TestConsumer_DeletesFollowNotifications(t *testing.T) {
+	consumer, repo, hub := setupConsumerTest(t)
+
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID: "u1",
+		Type:        "follow_request",
+		ActorID:     "u2",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+	})
+
+	ch, unsubscribe := hub.Subscribe("u1")
+	defer unsubscribe()
+
+	env := EventEnvelope{
+		Type:        eventbus.EventFollow,
+		RecipientID: "u1",
+		ActorID:     "u2",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "deleted"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	ns, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Fatalf("total = %d, want 1 (only the follow_request deleted)", total)
+	}
+	if ns[0].Type != "like" {
+		t.Errorf("remaining type = %q, want %q", ns[0].Type, "like")
+	}
+
+	select {
+	case n := <-ch:
+		if !n.Deleted {
+			t.Errorf("hub Deleted = false, want true for deleted event")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("hub did not receive notification")
+	}
+}
+
+func TestConsumer_DeletesVoteNotifications(t *testing.T) {
+	consumer, repo, hub := setupConsumerTest(t)
+
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "dislike",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "comment",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u3",
+	})
+
+	ch, unsubscribe := hub.Subscribe("u1")
+	defer unsubscribe()
+
+	env := EventEnvelope{
+		Type:         eventbus.EventPostVoteDeleted,
+		RecipientID:  "u1",
+		ActorID:      "u2",
+		ResourceType: "post",
+		ResourceID:   "42",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "deleted"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	ns, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Fatalf("total = %d, want 1 (like and dislike deleted)", total)
+	}
+	if ns[0].Type != "comment" {
+		t.Errorf("remaining type = %q, want %q", ns[0].Type, "comment")
+	}
+
+	select {
+	case n := <-ch:
+		if !n.Deleted {
+			t.Errorf("hub Deleted = false, want true for deleted event")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("hub did not receive notification")
+	}
+}
+
+func TestConsumer_DeletesCommentVoteNotifications(t *testing.T) {
+	consumer, repo, _ := setupConsumerTest(t)
+
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "comment",
+		ResourceID:   "7",
+		ActorID:      "u2",
+	})
+	_ = repo.Create(context.Background(), &store.Notification{
+		RecipientID:  "u1",
+		Type:         "like",
+		ResourceType: "post",
+		ResourceID:   "42",
+		ActorID:      "u2",
+	})
+
+	env := EventEnvelope{
+		Type:         eventbus.EventCommentVoteDeleted,
+		RecipientID:  "u1",
+		ActorID:      "u2",
+		ResourceType: "comment",
+		ResourceID:   "7",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "deleted"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	ns, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Fatalf("total = %d, want 1 (only the comment vote deleted)", total)
+	}
+	if ns[0].ResourceType != "post" {
+		t.Errorf("remaining resource_type = %q, want %q", ns[0].ResourceType, "post")
+	}
+}
+
+func TestConsumer_JoinRequestFanOut(t *testing.T) {
+	consumer, repo, hub := setupConsumerTest(t)
+
+	env := EventEnvelope{
+		Type:               eventbus.EventGroupJoinRequested,
+		ActorID:            "u1",
+		ActorName:          "Alice",
+		ActorAvatar:        "/alice.png",
+		ResourceType:       "group",
+		ResourceID:         "g1",
+		ContentText:        "The Go Gophers",
+		JoinRequestID:      "jr-1",
+		MultipleRecipients: []string{"a1", "a2"},
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "created"}
+
+	consumer.handle(msg)
+
+	time.Sleep(50 * time.Millisecond)
+
+	for _, admin := range []string{"a1", "a2"} {
+		ns, total, _ := repo.GetByRecipient(context.Background(), admin, 10, 0)
+		if total != 1 {
+			t.Fatalf("admin %s total = %d, want 1", admin, total)
+		}
+		if ns[0].JoinRequestID != "jr-1" {
+			t.Errorf("admin %s JoinRequestID = %q, want jr-1", admin, ns[0].JoinRequestID)
+		}
+		if ns[0].Type != "group_join_request" {
+			t.Errorf("admin %s Type = %q, want group_join_request", admin, ns[0].Type)
+		}
+		if ns[0].RecipientID != admin {
+			t.Errorf("admin %s RecipientID = %q, want %s", admin, ns[0].RecipientID, admin)
+		}
+	}
+
+	_ = hub
+}
+
+func TestConsumer_JoinRequestRejectsIncomplete(t *testing.T) {
+	consumer, repo, _ := setupConsumerTest(t)
+
+	env := EventEnvelope{
+		Type:          eventbus.EventGroupJoinRequested,
+		ActorID:       "u1",
+		JoinRequestID: "jr-1",
+	}
+	body, _ := json.Marshal(env)
+	msg := &mockMessage{body: body, routingKey: "created"}
+
+	consumer.handle(msg)
+
+	_, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 0 {
+		t.Errorf("total = %d, want 0", total)
+	}
+}
+
+func TestConsumer_JoinRequestCleanupOnResponse(t *testing.T) {
+	consumer, repo, _ := setupConsumerTest(t)
+
+	// Fan out a join request to two admins.
+	reqEnv := EventEnvelope{
+		Type:               eventbus.EventGroupJoinRequested,
+		ActorID:            "u1",
+		ResourceType:       "group",
+		ResourceID:         "g1",
+		JoinRequestID:      "jr-1",
+		MultipleRecipients: []string{"a1", "a2"},
+	}
+	body, _ := json.Marshal(reqEnv)
+	consumer.handle(&mockMessage{body: body, routingKey: "created"})
+
+	time.Sleep(50 * time.Millisecond)
+
+	for _, admin := range []string{"a1", "a2"} {
+		_, total, _ := repo.GetByRecipient(context.Background(), admin, 10, 0)
+		if total != 1 {
+			t.Fatalf("admin %s total = %d, want 1 before response", admin, total)
+		}
+	}
+
+	// Admin a1 accepts: pending fan-out rows must be removed and the requester notified.
+	acceptEnv := EventEnvelope{
+		Type:          eventbus.EventGroupJoinAccepted,
+		RecipientID:   "u1",
+		ActorID:       "a1",
+		ResourceType:  "group",
+		ResourceID:    "g1",
+		JoinRequestID: "jr-1",
+	}
+	body, _ = json.Marshal(acceptEnv)
+	consumer.handle(&mockMessage{body: body, routingKey: "created"})
+
+	time.Sleep(50 * time.Millisecond)
+
+	for _, admin := range []string{"a1", "a2"} {
+		_, total, _ := repo.GetByRecipient(context.Background(), admin, 10, 0)
+		if total != 0 {
+			t.Errorf("admin %s total = %d, want 0 after response", admin, total)
+		}
+	}
+
+	ns, total, _ := repo.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Fatalf("requester total = %d, want 1", total)
+	}
+	if ns[0].Type != "group_join_accept" {
+		t.Errorf("requester Type = %q, want group_join_accept", ns[0].Type)
 	}
 }
 

@@ -40,6 +40,10 @@ func (f *fakeMemberChecker) IsMember(_ context.Context, _, _ string) (bool, erro
 	return f.isMember, f.err
 }
 
+func (f *fakeMemberChecker) GetGroupMembers(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 type fakeEventBus struct {
 	published bool
 }
@@ -223,7 +227,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 
 	t.Run("empty event ID", func(t *testing.T) {
 		repo := newFakeRepo()
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, &fakeEventBus{})
 		err := handler.Execute(ctx, RSVPCommand{UserID: "u1", OptionID: "o1"})
 		if err == nil {
 			t.Error("expected error")
@@ -232,7 +236,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 
 	t.Run("event not found", func(t *testing.T) {
 		repo := newFakeRepo()
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, &fakeEventBus{})
 		err := handler.Execute(ctx, RSVPCommand{EventID: "nonexistent", UserID: "u1", OptionID: "o1"})
 		if !errors.Is(err, event.ErrEventNotFound) {
 			t.Errorf("expected ErrEventNotFound, got %v", err)
@@ -242,7 +246,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 	t.Run("option not found", func(t *testing.T) {
 		repo := newFakeRepo()
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, &fakeEventBus{})
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "nonexistent"})
 		if !errors.Is(err, event.ErrOptionNotFound) {
 			t.Errorf("expected ErrOptionNotFound, got %v", err)
@@ -254,7 +258,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
 		repo.events["evt-2"] = &event.Event{ID: "evt-2"}
 		repo.options["evt-2"] = []event.Option{{ID: "opt-2", EventID: "evt-2", Label: "going"}}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, &fakeEventBus{})
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "opt-2"})
 		if !errors.Is(err, ErrInvalidOption) {
 			t.Errorf("expected ErrInvalidOption, got %v", err)
@@ -265,7 +269,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 		repo := newFakeRepo()
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
 		repo.options["evt-1"] = []event.Option{{ID: "opt-1", EventID: "evt-1", Label: "going"}}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, &fakeEventBus{})
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "opt-1"})
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

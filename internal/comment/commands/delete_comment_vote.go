@@ -40,9 +40,8 @@ func (h *DeleteCommentVoteHandler) Execute(ctx context.Context, cmd DeleteCommen
 		return err
 	}
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventCommentLiked,
-		ResourceType: eventbus.ResourceComment,
-		ResourceID:   strconv.Itoa(cmd.CommentID),
+		Type:       eventbus.EventCommentVoteDeleted,
+		ResourceID: strconv.Itoa(cmd.CommentID),
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 

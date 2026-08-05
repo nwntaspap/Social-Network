@@ -92,11 +92,13 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 		return "", err
 	}
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:        eventbus.EventFollow,
-		RecipientID: cmd.TargetID,
-		ActorID:     cmd.FollowerID,
-		ActorName:   actor.Nickname,
-		ActorAvatar: actor.AvatarPath,
+		Type:         eventbus.EventFollow,
+		RecipientID:  cmd.TargetID,
+		ActorID:      cmd.FollowerID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: eventbus.ResourceUser,
+		ResourceID:   cmd.TargetID,
 	})
 	err = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 	if err != nil {

@@ -15,15 +15,15 @@ func TestEventEnvelope_ToNotification_MapsType(t *testing.T) {
 		{"post.disliked", "dislike"},
 		{"comment.liked", "like"},
 		{"comment.disliked", "dislike"},
+		{"follow", "follow"},
 		{"follow.requested", "follow_request"},
-		{"follow.requested.deleted", "follow_cancelled"},
 		{"follow.accepted", "follow_accept"},
-		{"follow.accepted.deleted", "unfollow"},
 		{"follow.declined", "follow_declined"},
-		{"follow.removed", "follow_removed"},
 		{"group.invitation", "group_invite"},
 		{"group.invitation.deleted", "group_invite_removed"},
-		{"group.join_requested", "group_join_request"},
+		{"group.join.requested", "group_join_request"},
+		{"group.join.accepted", "group_join_accept"},
+		{"group.join.declined", "group_join_declined"},
 		{"post", "post"},
 		{"comment", "comment"},
 		{"event", "event"},
@@ -41,28 +41,32 @@ func TestEventEnvelope_ToNotification_MapsType(t *testing.T) {
 
 func TestEventEnvelope_ToNotification_MapsFields(t *testing.T) {
 	env := &EventEnvelope{
-		Type:         "post.liked",
-		RecipientID:  "u1",
-		ActorID:      "u2",
-		ActorName:    "Bob",
-		ActorAvatar:  "/avatars/bob.png",
-		ResourceType: "post",
-		ResourceID:   "42",
-		ContentText:  "Bob liked your post",
-		ImageURL:     "/posts/42.jpg",
+		Type:          "post.liked",
+		RecipientID:   "u1",
+		ActorID:       "u2",
+		ActorName:     "Bob",
+		ActorAvatar:   "/avatars/bob.png",
+		ResourceType:  "post",
+		ResourceID:    "42",
+		ContentText:   "Bob liked your post",
+		ImageURL:      "/posts/42.jpg",
+		JoinRequestID: "jr-1",
+		EventID:       "evt-1",
 	}
 
 	n := env.ToNotification()
 	want := &store.Notification{
-		RecipientID:  "u1",
-		Type:         "like",
-		ResourceType: "post",
-		ResourceID:   "42",
-		ActorID:      "u2",
-		ActorName:    "Bob",
-		ActorAvatar:  "/avatars/bob.png",
-		ContentText:  "Bob liked your post",
-		ImageURL:     "/posts/42.jpg",
+		RecipientID:   "u1",
+		Type:          "like",
+		ResourceType:  "post",
+		ResourceID:    "42",
+		ActorID:       "u2",
+		ActorName:     "Bob",
+		ActorAvatar:   "/avatars/bob.png",
+		ContentText:   "Bob liked your post",
+		ImageURL:      "/posts/42.jpg",
+		JoinRequestID: "jr-1",
+		EventID:       "evt-1",
 	}
 
 	if n.RecipientID != want.RecipientID {
@@ -91,5 +95,11 @@ func TestEventEnvelope_ToNotification_MapsFields(t *testing.T) {
 	}
 	if n.ImageURL != want.ImageURL {
 		t.Errorf("ImageURL = %q, want %q", n.ImageURL, want.ImageURL)
+	}
+	if n.JoinRequestID != want.JoinRequestID {
+		t.Errorf("JoinRequestID = %q, want %q", n.JoinRequestID, want.JoinRequestID)
+	}
+	if n.EventID != want.EventID {
+		t.Errorf("EventID = %q, want %q", n.EventID, want.EventID)
 	}
 }

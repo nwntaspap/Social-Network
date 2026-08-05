@@ -31,6 +31,7 @@ var (
 
 type GroupMemberChecker interface {
 	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+	GetGroupMembers(ctx context.Context, groupID string) ([]string, error)
 }
 
 type CreateEventCommand struct {
@@ -130,14 +131,21 @@ func (h *CreateEventHandler) Execute(ctx context.Context, cmd CreateEventCommand
 	if err != nil {
 		return nil, nil, err
 	}
+	recipients, err := h.member.GetGroupMembers(ctx, cmd.GroupID)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	payload, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventEvent,
-		RecipientID:  cmd.UserID,
-		ActorID:      cmd.UserID,
-		ActorName:    actor.Nickname,
-		ActorAvatar:  actor.AvatarPath,
-		ResourceType: eventbus.ResourceEvent,
+		Type:               eventbus.EventEvent,
+		ActorID:            cmd.UserID,
+		ActorName:          actor.Nickname,
+		ActorAvatar:        actor.AvatarPath,
+		ResourceType:       eventbus.ResourceGroup,
+		ResourceID:         cmd.GroupID,
+		ContentText:        cmd.Title,
+		MultipleRecipients: recipients,
+		EventID:            e.ID,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, payload)
 

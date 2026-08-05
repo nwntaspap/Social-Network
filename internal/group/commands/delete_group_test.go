@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
 )
 
 type deleteGroupStub struct {
@@ -49,6 +50,22 @@ func (s *deleteGroupStub) CountMembers(_ context.Context, _ string) (int, error)
 func (s *deleteGroupStub) GetGroupMembers(_ context.Context, _ string, _, _ int) ([]group.Member, int, error) {
 	return nil, 0, group.ErrGroupNotFound
 }
+
+func (s *deleteGroupStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
+type mockBus struct{}
+
+func (m *mockBus) Publish(_ string, _ string, _ []byte) error { return nil }
+
+func (m *mockBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+
+func (m *mockBus) InitTopology(_ context.Context) error { return nil }
 
 func (s *deleteGroupStub) CreateInvitation(_ context.Context, _ *group.Invitation) error { return nil }
 
@@ -118,7 +135,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns error when user ID is empty", func(t *testing.T) {
-		handler := NewDeleteGroupHandler(&deleteGroupStub{})
+		handler := NewDeleteGroupHandler(&deleteGroupStub{}, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "",
 			GroupID: "group-1",
@@ -129,7 +146,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 	})
 
 	t.Run("returns error when group ID is empty", func(t *testing.T) {
-		handler := NewDeleteGroupHandler(&deleteGroupStub{})
+		handler := NewDeleteGroupHandler(&deleteGroupStub{}, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "user-1",
 			GroupID: "",
@@ -145,7 +162,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 				return group.RoleAdmin, nil
 			},
 		}
-		handler := NewDeleteGroupHandler(stub)
+		handler := NewDeleteGroupHandler(stub, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "user-1",
 			GroupID: "group-1",
@@ -166,7 +183,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 				return nil
 			},
 		}
-		handler := NewDeleteGroupHandler(stub)
+		handler := NewDeleteGroupHandler(stub, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "creator-1",
 			GroupID: "group-1",

@@ -21,6 +21,8 @@ CREATE TABLE notifications (
     actor_avatar TEXT NOT NULL DEFAULT '',
     content_text TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
+    join_request_id TEXT NOT NULL DEFAULT '',
+    event_id TEXT NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -118,7 +120,7 @@ func TestGetByRecipient_HardDeleted(t *testing.T) {
 
 	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	_ = s.Create(context.Background(), n)
-	_ = s.DeleteByResource(context.Background(), "u2", "post", "1")
+	_ = s.DeleteByResource(context.Background(), "like", "u2", "post", "1")
 
 	ns, total, err := s.GetByRecipient(context.Background(), "u1", 10, 0)
 	if err != nil {
@@ -196,7 +198,7 @@ func TestDeleteByResource(t *testing.T) {
 
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 
-	if err := s.DeleteByResource(context.Background(), "u2", "post", "1"); err != nil {
+	if err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1"); err != nil {
 		t.Fatalf("DeleteByResource: %v", err)
 	}
 
@@ -209,9 +211,28 @@ func TestDeleteByResource(t *testing.T) {
 	}
 }
 
+func TestDeleteByResource_OnlyMatchingType(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+
+	if err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1"); err != nil {
+		t.Fatalf("DeleteByResource: %v", err)
+	}
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only the like deleted)", total)
+	}
+	if len(ns) != 1 || ns[0].Type != "comment" {
+		t.Errorf("remaining notification = %+v, want comment type", ns)
+	}
+}
+
 func TestDeleteByResource_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteByResource(context.Background(), "u1", "post", "999")
+	err := s.DeleteByResource(context.Background(), "like", "u1", "post", "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -247,6 +268,211 @@ func TestDeleteAllByResource_NotFound(t *testing.T) {
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
+}
+
+func TestDeleteByJoinRequestID(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "a1", Type: "group_join_request", ResourceID: "g1", ActorID: "u1", JoinRequestID: "jr-1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "a2", Type: "group_join_request", ResourceID: "g1", ActorID: "u1", JoinRequestID: "jr-1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "b1", Type: "group_join_request", ResourceID: "g2", ActorID: "u1", JoinRequestID: "jr-2"})
+
+	if err := s.DeleteByJoinRequestID(context.Background(), "jr-1"); err != nil {
+		t.Fatalf("DeleteByJoinRequestID: %v", err)
+	}
+
+	_, total1, _ := s.GetByRecipient(context.Background(), "a1", 10, 0)
+	if total1 != 0 {
+		t.Errorf("a1 total = %d, want 0", total1)
+	}
+	_, total2, _ := s.GetByRecipient(context.Background(), "a2", 10, 0)
+	if total2 != 0 {
+		t.Errorf("a2 total = %d, want 0", total2)
+	}
+
+	ns3, total3, _ := s.GetByRecipient(context.Background(), "b1", 10, 0)
+	if total3 != 1 {
+		t.Errorf("b1 total = %d, want 1 (other join request survives)", total3)
+	}
+	if len(ns3) == 1 && ns3[0].JoinRequestID != "jr-2" {
+		t.Errorf("b1 JoinRequestID = %q, want jr-2", ns3[0].JoinRequestID)
+	}
+}
+
+func TestDeleteByJoinRequestID_NotFound(t *testing.T) {
+	s := setupStore(t)
+	err := s.DeleteByJoinRequestID(context.Background(), "999")
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteEventByRecipient(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "event", EventID: "evt-1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "event", EventID: "evt-2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "event", EventID: "evt-1"})
+
+	if err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "evt-1"); err != nil {
+		t.Fatalf("DeleteEventByRecipient: %v", err)
+	}
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Errorf("u1 total = %d, want 1", total)
+	}
+	if len(ns) == 1 && ns[0].EventID != "evt-2" {
+		t.Errorf("u1 remaining EventID = %q, want evt-2", ns[0].EventID)
+	}
+
+	_, total2, _ := s.GetByRecipient(context.Background(), "u2", 10, 0)
+	if total2 != 1 {
+		t.Errorf("u2 total = %d, want 1 (different recipient survives)", total2)
+	}
+}
+
+func TestDeleteEventByRecipient_NotFound(t *testing.T) {
+	s := setupStore(t)
+	err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "999")
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteVoteNotifications_DeletesLikeAndDislike(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "dislike", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u3"})
+
+	if err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1"); err != nil {
+		t.Fatalf("DeleteVoteNotifications: %v", err)
+	}
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (like and dislike deleted)", total)
+	}
+	if len(ns) == 1 && ns[0].Type != "comment" {
+		t.Errorf("remaining type = %q, want %q", ns[0].Type, "comment")
+	}
+}
+
+func TestDeleteVoteNotifications_KeepsOtherResource(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "dislike", ResourceType: "post", ResourceID: "2", ActorID: "u2"})
+
+	if err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1"); err != nil {
+		t.Fatalf("DeleteVoteNotifications: %v", err)
+	}
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 1 {
+		t.Errorf("total = %d, want 1 (only post 1 vote deleted)", total)
+	}
+	if len(ns) == 1 && ns[0].ResourceID != "2" {
+		t.Errorf("remaining resource_id = %q, want %q", ns[0].ResourceID, "2")
+	}
+}
+
+func TestDeleteVoteNotifications_NotFound(t *testing.T) {
+	s := setupStore(t)
+	err := s.DeleteVoteNotifications(context.Background(), "u1", "post", "999")
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeleteFollowNotifications(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "follow_request", ActorID: "u1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow_accept", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u1"})
+
+	if err := s.DeleteFollowNotifications(context.Background(), "u1", "u2"); err != nil {
+		t.Fatalf("DeleteFollowNotifications: %v", err)
+	}
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 0 {
+		t.Errorf("u1 total = %d, want 0 (all follow notifications deleted)", total)
+	}
+	_ = ns
+
+	ns2, total2, _ := s.GetByRecipient(context.Background(), "u2", 10, 0)
+	if total2 != 1 {
+		t.Errorf("u2 total = %d, want 1 (like survives)", total2)
+	}
+	if len(ns2) == 1 && ns2[0].Type != "like" {
+		t.Errorf("remaining type = %q, want %q", ns2[0].Type, "like")
+	}
+}
+
+func TestDeleteFollowNotifications_Symmetric(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "follow_request", ActorID: "u1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow", ActorID: "u2"})
+
+	if err := s.DeleteFollowNotifications(context.Background(), "u2", "u1"); err != nil {
+		t.Fatalf("DeleteFollowNotifications: %v", err)
+	}
+
+	_, total1, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total1 != 0 {
+		t.Errorf("u1 total = %d, want 0", total1)
+	}
+	_, total2, _ := s.GetByRecipient(context.Background(), "u2", 10, 0)
+	if total2 != 0 {
+		t.Errorf("u2 total = %d, want 0", total2)
+	}
+}
+
+func TestDeleteFollowNotifications_NotFound(t *testing.T) {
+	s := setupStore(t)
+	err := s.DeleteFollowNotifications(context.Background(), "u1", "u2")
+	if err != ErrNotFound {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreate_DedupesFollowNotifications(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "follow_request", ActorID: "u1"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow_accept", ActorID: "u2"})
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u2", 10, 0)
+	if total != 0 {
+		t.Errorf("u2 total = %d, want 0 (stale follow_request replaced)", total)
+	}
+	_ = ns
+
+	ns1, total1, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total1 != 1 {
+		t.Errorf("u1 total = %d, want 1", total1)
+	}
+	if len(ns1) == 1 && ns1[0].Type != "follow_accept" {
+		t.Errorf("remaining type = %q, want %q", ns1[0].Type, "follow_accept")
+	}
+}
+
+func TestCreate_NonFollowDoesNotDeleteFollow(t *testing.T) {
+	s := setupStore(t)
+
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow_request", ActorID: "u2"})
+	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+
+	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if total != 2 {
+		t.Errorf("total = %d, want 2 (like creation must not touch follow)", total)
+	}
+	_ = ns
 }
 
 func TestUpdateActorInfo(t *testing.T) {

@@ -39,7 +39,7 @@ func (m *mockVoteRepo) CreateComment(_ context.Context, _ *comment.Comment) erro
 func (m *mockVoteRepo) UpdateComment(_ context.Context, _ *comment.Comment) error { return nil }
 func (m *mockVoteRepo) DeleteComment(_ context.Context, _ string, _ int) error    { return nil }
 func (m *mockVoteRepo) GetCommentByID(_ context.Context, _ int) (*comment.Comment, error) {
-	return nil, comment.ErrCommentNotFound
+	return &comment.Comment{ID: 1, UserID: "comment-author", Content: "hello"}, nil
 }
 
 func (m *mockVoteRepo) GetCommentByIDWithVotes(_ context.Context, _ int, _ *string) (*comment.Comment, error) {

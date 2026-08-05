@@ -2,9 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type RespondJoinCommand struct {
@@ -17,10 +20,15 @@ type RespondJoinCommand struct {
 
 type RespondJoinHandler struct {
 	repo group.Repository
+	user user.Repository
+	bus  eventbus.EventBus
 }
 
-func NewRespondJoinHandler(repo group.Repository) *RespondJoinHandler {
-	return &RespondJoinHandler{repo: repo}
+func NewRespondJoinHandler(repo group.Repository, bus eventbus.EventBus) *RespondJoinHandler {
+	return &RespondJoinHandler{
+		repo: repo,
+		bus:  bus,
+	}
 }
 
 func (h *RespondJoinHandler) Execute(ctx context.Context, cmd RespondJoinCommand) error {
@@ -52,7 +60,7 @@ func (h *RespondJoinHandler) Execute(ctx context.Context, cmd RespondJoinCommand
 		return group.ErrNotCreator
 	}
 
-	_, err = h.repo.GetJoinRequest(ctx, groupID, requesterID)
+	jr, err := h.repo.GetJoinRequest(ctx, groupID, requesterID)
 	if err != nil {
 		return err
 	}
@@ -61,11 +69,28 @@ func (h *RespondJoinHandler) Execute(ctx context.Context, cmd RespondJoinCommand
 		return err
 	}
 
+	gr, _ := h.repo.GetGroupByID(ctx, cmd.GroupID)
+	eventType := eventbus.EventGroupJoinDeclined
 	if cmd.Accept {
+		eventType = eventbus.EventGroupJoinAccepted
 		if err := h.repo.AddMember(ctx, groupID, requesterID, group.RoleMember); err != nil {
 			return err
 		}
 	}
+
+	actor, _ := h.user.GetByID(ctx, cmd.AdminID)
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:          eventType,
+		RecipientID:   cmd.RequesterID,
+		ActorID:       cmd.AdminID,
+		ActorName:     actor.Nickname,
+		ActorAvatar:   actor.AvatarPath,
+		ResourceType:  eventbus.ResourceGroup,
+		ResourceID:    cmd.GroupID,
+		JoinRequestID: jr.ID,
+		ContentText:   gr.Title,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return nil
 }

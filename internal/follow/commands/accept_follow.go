@@ -50,11 +50,13 @@ func (h *AcceptRequestHandler) Execute(ctx context.Context, cmd AcceptRequestCom
 		return err
 	}
 	body, err := json.Marshal(eventbus.Notification{
-		Type:        eventbus.EventFollowAccepted,
-		RecipientID: cmd.FollowerID,
-		ActorID:     cmd.FolloweeID,
-		ActorName:   actor.Nickname,
-		ActorAvatar: actor.AvatarPath,
+		Type:         eventbus.EventFollowAccepted,
+		RecipientID:  cmd.FollowerID,
+		ActorID:      cmd.FolloweeID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: eventbus.ResourceUser,
+		ResourceID:   cmd.FollowerID,
 	})
 	if err != nil {
 		return err

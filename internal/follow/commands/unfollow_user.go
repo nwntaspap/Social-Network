@@ -7,7 +7,6 @@ import (
 
 	"social-network/internal/follow"
 	"social-network/internal/platform/eventbus"
-	"social-network/internal/user"
 )
 
 var ErrCannotUnfollowSelf = errors.New("cannot unfollow yourself")
@@ -18,16 +17,14 @@ type UnfollowUserCommand struct {
 }
 
 type UnfollowUserHandler struct {
-	repo  follow.Repository
-	bus   eventbus.EventBus
-	users user.Repository
+	repo follow.Repository
+	bus  eventbus.EventBus
 }
 
-func NewUnfollowUserHandler(repo follow.Repository, bus eventbus.EventBus, users user.Repository) *UnfollowUserHandler {
+func NewUnfollowUserHandler(repo follow.Repository, bus eventbus.EventBus) *UnfollowUserHandler {
 	return &UnfollowUserHandler{
-		repo:  repo,
-		bus:   bus,
-		users: users,
+		repo: repo,
+		bus:  bus,
 	}
 }
 
@@ -40,16 +37,10 @@ func (h *UnfollowUserHandler) Execute(ctx context.Context, cmd UnfollowUserComma
 		return err
 	}
 
-	actor, err := h.users.GetByID(ctx, cmd.FollowerID)
-	if err != nil {
-		return err
-	}
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:        eventbus.EventFollow,
 		RecipientID: cmd.TargetID,
 		ActorID:     cmd.FollowerID,
-		ActorName:   actor.Nickname,
-		ActorAvatar: actor.AvatarPath,
 	})
 	return h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 }

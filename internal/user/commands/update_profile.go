@@ -47,10 +47,13 @@ func (h *UpdateProfileHandler) Execute(ctx context.Context, cmd UpdateProfileCom
 	}
 
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:        eventbus.ResourceUser,
-		ActorID:     cmd.UserID,
-		ActorName:   u.Nickname,
-		ActorAvatar: u.AvatarPath,
+		Type:         eventbus.EventProfileUpdate,
+		RecipientID:  cmd.UserID,
+		ActorID:      cmd.UserID,
+		ActorName:    u.Nickname,
+		ActorAvatar:  u.AvatarPath,
+		ResourceType: eventbus.ResourceUser,
+		ResourceID:   cmd.UserID,
 	})
 	return h.bus.Publish("notifications.exchange", eventbus.RoutingUpdated, body)
 }

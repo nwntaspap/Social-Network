@@ -77,6 +77,25 @@ func (s *SQLiteStore) GetMemberRole(ctx context.Context, groupID, userID string)
 	return group.Role(role), nil
 }
 
+func (s *SQLiteStore) GetGroupAdmins(ctx context.Context, groupID string) ([]string, error) {
+	var users []string
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT user_id FROM group_members WHERE group_id = ? AND role in (?,?)`,
+		groupID, group.RoleAdmin, group.RoleCreator)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		users = append(users, userID)
+	}
+	return users, rows.Err()
+}
+
 func (s *SQLiteStore) CreateInvitation(ctx context.Context, inv *group.Invitation) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO group_invitations (id, group_id, inviter_id, invitee_id) VALUES (?, ?, ?, ?)`,

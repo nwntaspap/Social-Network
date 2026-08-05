@@ -2,8 +2,10 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 
 	"social-network/internal/event"
+	"social-network/internal/platform/eventbus"
 )
 
 type RSVPCommand struct {
@@ -14,10 +16,14 @@ type RSVPCommand struct {
 
 type RSVPHandler struct {
 	repo event.Repository
+	bus  eventbus.EventBus
 }
 
-func NewRSVPHandler(repo event.Repository) *RSVPHandler {
-	return &RSVPHandler{repo: repo}
+func NewRSVPHandler(repo event.Repository, bus eventbus.EventBus) *RSVPHandler {
+	return &RSVPHandler{
+		repo: repo,
+		bus:  bus,
+	}
 }
 
 func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
@@ -49,5 +55,12 @@ func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
 		UserID:   cmd.UserID,
 		OptionID: cmd.OptionID,
 	}
+
+	payload, _ := json.Marshal(eventbus.Notification{
+		Type:        eventbus.EventEvent,
+		RecipientID: cmd.UserID,
+		EventID:     cmd.EventID,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, payload)
 	return h.repo.UpsertRSVP(ctx, rsvp)
 }

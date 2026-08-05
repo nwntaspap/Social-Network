@@ -26,6 +26,10 @@ func (s *getGroupMembersStub) GetMemberRole(_ context.Context, _, _ string) (gro
 
 func (s *getGroupMembersStub) CountMembers(_ context.Context, _ string) (int, error) { return 0, nil }
 
+func (s *getGroupMembersStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *getGroupMembersStub) GetGroupMembers(ctx context.Context, groupID string, page, size int) ([]group.Member, int, error) {
 	if s.getGroupMembersFn != nil {
 		return s.getGroupMembersFn(ctx, groupID, page, size)

@@ -27,6 +27,8 @@ CREATE TABLE notifications (
     actor_avatar TEXT NOT NULL DEFAULT '',
     content_text TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
+    join_request_id TEXT NOT NULL DEFAULT '',
+    event_id TEXT NOT NULL DEFAULT '',
     is_read BOOLEAN NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP

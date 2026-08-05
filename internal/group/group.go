@@ -128,6 +128,7 @@ type MemberRepository interface {
 	GetMemberRole(ctx context.Context, groupID, userID string) (Role, error)
 	CountMembers(ctx context.Context, groupID string) (int, error)
 	GetGroupMembers(ctx context.Context, groupID string, page, size int) ([]Member, int, error)
+	GetGroupAdmins(ctx context.Context, groupID string) ([]string, error)
 }
 
 type InvitationRepository interface {

@@ -19,7 +19,6 @@ func initFollow(db database.DB, bus eventbus.EventBus) *followtransport.Handler 
 	store := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
 	privacy := &followPrivacyAdapter{repo: userStore}
-	bus := &follow.NoopEventBus{}
 	userLookup := &followUserLookupAdapter{repo: userStore}
 
 	extractUser := func(r *http.Request) (string, bool) {
