@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Rubik, Poppins } from 'next/font/google';
+import { QueryProvider } from '@/context/QueryProvider';
 import { AuthProvider } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -53,24 +54,27 @@ export default function RootLayout({
     >
       <body>
         {/*
-         * AuthProvider wraps everything so Navbar, Footer, and every page
-         * can read auth state via useAuth() — mirrors the module-level
-         * _currentUser pattern from auth.js.
+         * QueryProvider wraps AuthProvider (not the other way around):
+         * AuthContext's getCurrentUser() call may later become a useQuery
+         * itself (for caching / refetch-on-focus on /me), which requires
+         * the query client to be available above it in the tree.
          */}
-        <AuthProvider>
-          {/* Sticky navbar — always rendered, content switches on auth state */}
-          <div id="navbar-root">
-            <Navbar />
-          </div>
+        <QueryProvider>
+          <AuthProvider>
+            {/* Sticky navbar — always rendered, content switches on auth state */}
+            <div id="navbar-root">
+              <Navbar />
+            </div>
 
-          {/* Page content injected by the router */}
-          <main id="app-root">{children}</main>
+            {/* Page content injected by the router */}
+            <main id="app-root">{children}</main>
 
-          {/* Footer — always rendered */}
-          <div id="footer-root">
-            <Footer />
-          </div>
-        </AuthProvider>
+            {/* Footer — always rendered */}
+            <div id="footer-root">
+              <Footer />
+            </div>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
