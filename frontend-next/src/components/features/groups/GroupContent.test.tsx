@@ -80,7 +80,7 @@ describe('GroupContent PostsTab comments', () => {
       <GroupContent groupId="g1" activeTab="posts" isMember isCreator={false} eventRefreshKey={0} />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /show comments/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /comments/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Nice post')).toBeTruthy();
@@ -92,7 +92,7 @@ describe('GroupContent PostsTab comments', () => {
       <GroupContent groupId="g1" activeTab="posts" isMember isCreator={false} eventRefreshKey={0} />
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /show comments/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /comments/i }));
 
     const textarea = await screen.findByPlaceholderText('Write a comment...');
     fireEvent.change(textarea, { target: { value: 'Thanks!' } });

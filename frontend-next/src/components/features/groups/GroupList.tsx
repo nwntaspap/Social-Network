@@ -5,7 +5,13 @@ import { browseGroups } from '@/lib/api';
 import type { Group, MembershipStatus } from '@/lib/types';
 import GroupCard from './GroupCard';
 
-export default function GroupList({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function GroupList({
+  refreshKey = 0,
+  query = '',
+}: {
+  refreshKey?: number;
+  query?: string;
+}) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -13,37 +19,46 @@ export default function GroupList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
 
-  const loadPage = useCallback(async (nextPage: number) => {
-    try {
-      const response = await browseGroups('', nextPage);
-      setGroups((prev) => (nextPage === 1 ? response.data : [...prev, ...response.data]));
-      setTotalPages(response.totalPages || 1);
-    } catch {
-      setError('Failed to load groups. Please try again.');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
+  const loadPage = useCallback(
+    async (nextPage: number) => {
+      try {
+        const response = await browseGroups(query, nextPage);
+        setGroups((prev) => (nextPage === 1 ? response.data : [...prev, ...response.data]));
+        setTotalPages(response.totalPages || 1);
+      } catch {
+        setError('Failed to load groups. Please try again.');
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [query]
+  );
 
   useEffect(() => {
     let ignore = false;
-    browseGroups('', 1)
-      .then((response) => {
-        if (ignore) return;
-        setGroups(response.data);
-        setTotalPages(response.totalPages || 1);
-      })
-      .catch(() => {
-        if (!ignore) setError('Failed to load groups. Please try again.');
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+    const debounce = setTimeout(() => {
+      setLoading(true);
+      setPage(1);
+      setError('');
+      browseGroups(query, 1)
+        .then((response) => {
+          if (ignore) return;
+          setGroups(response.data);
+          setTotalPages(response.totalPages || 1);
+        })
+        .catch(() => {
+          if (!ignore) setError('Failed to load groups. Please try again.');
+        })
+        .finally(() => {
+          if (!ignore) setLoading(false);
+        });
+    }, 250);
     return () => {
       ignore = true;
+      clearTimeout(debounce);
     };
-  }, [refreshKey]);
+  }, [query, refreshKey]);
 
   const handleStatusChange = (groupId: string, newStatus: MembershipStatus) => {
     setGroups((prevGroups) =>
@@ -69,7 +84,9 @@ export default function GroupList({ refreshKey = 0 }: { refreshKey?: number }) {
             <GroupCard key={group.id} group={group} onStatusChange={handleStatusChange} />
           ))
         ) : (
-          <p className="groups-empty">No groups found.</p>
+          <p className="groups-empty">
+            {query ? 'No groups match your search.' : 'No groups found.'}
+          </p>
         )}
       </div>
 

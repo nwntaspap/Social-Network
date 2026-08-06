@@ -74,7 +74,7 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	accept := body.Action == "accept"
 
-	err := h.respondInvite.Execute(r.Context(), commands.RespondInviteCommand{
+	result, err := h.respondInvite.Execute(r.Context(), commands.RespondInviteCommand{
 		GroupID:   groupID,
 		InviteeID: userID,
 		Accept:    accept,
@@ -84,7 +84,12 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"status": "ok"})
+	status := "ok"
+	if accept && result == commands.RespondInvitePending {
+		status = "pending"
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"status": status})
 }
 
 func (h *Handler) GetPendingInvitations(w http.ResponseWriter, r *http.Request) {

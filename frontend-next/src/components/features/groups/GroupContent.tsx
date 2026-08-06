@@ -57,6 +57,19 @@ function PostsTab({ groupId }: { groupId: string }) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+
+  const toggleComments = useCallback((postId: string) => {
+    setExpandedComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  }, []);
 
   const loadPage = useCallback(
     async (nextPage: number) => {
@@ -111,12 +124,15 @@ function PostsTab({ groupId }: { groupId: string }) {
 
   return (
     <div className="group-posts">
-      {posts.map((post) => (
-        <div key={post.id}>
-          <PostCard post={post} />
-          <PostComments postId={post.id} />
-        </div>
-      ))}
+      {posts.map((post) => {
+        const expanded = expandedComments.has(post.id);
+        return (
+          <div key={post.id}>
+            <PostCard post={post} commentsExpanded={expanded} onToggleComments={toggleComments} />
+            <PostComments postId={post.id} expanded={expanded} />
+          </div>
+        );
+      })}
       {page < totalPages && (
         <div className="feed-load-more">
           <button
@@ -137,34 +153,34 @@ function PostsTab({ groupId }: { groupId: string }) {
   );
 }
 
-function PostComments({ postId }: { postId: string }) {
+function PostComments({ postId, expanded }: { postId: string; expanded: boolean }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
-  const [collapsed, setCollapsed] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const loading = expanded && !loaded && !error;
+
   useEffect(() => {
+    if (!expanded || loaded) return;
     let ignore = false;
     getGroupPostComments(postId)
       .then((response) => {
         if (ignore) return;
         setComments(response.data);
+        setLoaded(true);
       })
       .catch(() => {
         if (!ignore) setError('Failed to load comments.');
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
       });
     return () => {
       ignore = true;
     };
-  }, [postId]);
+  }, [expanded, loaded, postId]);
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -197,15 +213,7 @@ function PostComments({ postId }: { postId: string }) {
 
   return (
     <div className="group-post-comments">
-      <button
-        type="button"
-        className="group-comments-toggle"
-        onClick={() => setCollapsed((prev) => !prev)}
-      >
-        {collapsed ? `Show comments (${comments.length})` : 'Hide comments'}
-      </button>
-
-      {!collapsed && (
+      {expanded && (
         <div className="group-comments-body">
           <form className="create-comment-form" onSubmit={handleSubmit}>
             <div className="create-comment-field">

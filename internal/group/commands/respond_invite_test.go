@@ -9,11 +9,15 @@ import (
 )
 
 type respondInviteStub struct {
-	invitation *group.Invitation
-	getInvErr  error
-	deleted    bool
-	memberRole group.Role
-	addMember  bool
+	invitation     *group.Invitation
+	getInvErr      error
+	inviterRole    group.Role
+	memberRole     group.Role
+	deleted        bool
+	addMember      bool
+	createdRequest bool
+	isMemberResult bool
+	hasPending     bool
 }
 
 func (s *respondInviteStub) CreateGroup(_ context.Context, _ *group.Group) error { return nil }
@@ -34,10 +38,13 @@ func (s *respondInviteStub) AddMember(_ context.Context, _, _ string, role group
 }
 func (s *respondInviteStub) RemoveMember(_ context.Context, _, _ string) error { return nil }
 func (s *respondInviteStub) IsMember(_ context.Context, _, _ string) (bool, error) {
-	return false, nil
+	return s.isMemberResult, nil
 }
 
 func (s *respondInviteStub) GetMemberRole(_ context.Context, _, _ string) (group.Role, error) {
+	if s.inviterRole != "" {
+		return s.inviterRole, nil
+	}
 	return group.RoleMember, nil
 }
 func (s *respondInviteStub) CountMembers(_ context.Context, _ string) (int, error) { return 0, nil }
@@ -73,6 +80,7 @@ func (s *respondInviteStub) GetPendingInvitations(_ context.Context, _ string) (
 }
 
 func (s *respondInviteStub) CreateJoinRequest(_ context.Context, _ *group.JoinRequest) error {
+	s.createdRequest = true
 	return nil
 }
 func (s *respondInviteStub) DeleteJoinRequest(_ context.Context, _, _ string) error { return nil }
@@ -85,7 +93,7 @@ func (s *respondInviteStub) GetJoinRequestByID(_ context.Context, _ string) (*gr
 }
 
 func (s *respondInviteStub) HasPendingRequest(_ context.Context, _, _ string) (bool, error) {
-	return false, nil
+	return s.hasPending, nil
 }
 
 func (s *respondInviteStub) GetPendingJoinRequests(_ context.Context, _ string) ([]group.JoinRequest, error) {
@@ -113,64 +121,120 @@ func (s *respondInviteStub) CountPostComments(_ context.Context, _ string) (int,
 	return 0, nil
 }
 
-func TestRespondInviteHandler_Execute(t *testing.T) {
+func TestRespondInviteHandler_Validation(t *testing.T) {
 	ctx := context.Background()
-	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviteeID: "user-1"}
+	handler := NewRespondInviteHandler(&respondInviteStub{})
 
 	t.Run("returns error when group ID is empty", func(t *testing.T) {
-		handler := NewRespondInviteHandler(&respondInviteStub{})
-		err := handler.Execute(ctx, RespondInviteCommand{GroupID: "", InviteeID: "user-1"})
+		_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "", InviteeID: "user-1"})
 		if err == nil {
 			t.Error("expected error for empty group ID")
 		}
 	})
 
 	t.Run("returns error when invitee ID is empty", func(t *testing.T) {
-		handler := NewRespondInviteHandler(&respondInviteStub{})
-		err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: ""})
+		_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: ""})
 		if err == nil {
 			t.Error("expected error for empty invitee ID")
 		}
 	})
+}
 
-	t.Run("returns error when invitation does not exist", func(t *testing.T) {
-		handler := NewRespondInviteHandler(&respondInviteStub{getInvErr: group.ErrInvitationNotFound})
-		err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
-		if !errors.Is(err, group.ErrInvitationNotFound) {
-			t.Errorf("expected ErrInvitationNotFound, got %v", err)
-		}
-	})
+func TestRespondInviteHandler_InvitationNotFound(t *testing.T) {
+	ctx := context.Background()
+	handler := NewRespondInviteHandler(&respondInviteStub{getInvErr: group.ErrInvitationNotFound})
+	_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
+	if !errors.Is(err, group.ErrInvitationNotFound) {
+		t.Errorf("expected ErrInvitationNotFound, got %v", err)
+	}
+}
 
-	t.Run("accept adds member and deletes invitation", func(t *testing.T) {
-		stub := &respondInviteStub{invitation: existing}
-		handler := NewRespondInviteHandler(stub)
-		err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if !stub.deleted {
-			t.Error("expected invitation to be deleted")
-		}
-		if !stub.addMember {
-			t.Error("expected AddMember to be called")
-		}
-		if stub.memberRole != group.RoleMember {
-			t.Errorf("role = %q, want %q", stub.memberRole, group.RoleMember)
-		}
-	})
+func TestRespondInviteHandler_CreatorAcceptAddsMember(t *testing.T) {
+	ctx := context.Background()
+	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
+	stub := &respondInviteStub{invitation: existing, inviterRole: group.RoleCreator}
+	handler := NewRespondInviteHandler(stub)
 
-	t.Run("decline deletes invitation without adding member", func(t *testing.T) {
-		stub := &respondInviteStub{invitation: existing}
-		handler := NewRespondInviteHandler(stub)
-		err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: false})
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if !stub.deleted {
-			t.Error("expected invitation to be deleted")
-		}
-		if stub.addMember {
-			t.Error("expected AddMember NOT to be called on decline")
-		}
-	})
+	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if result != RespondInviteMember {
+		t.Errorf("result = %q, want %q", result, RespondInviteMember)
+	}
+	if !stub.deleted {
+		t.Error("expected invitation to be deleted")
+	}
+	if !stub.addMember {
+		t.Error("expected AddMember to be called")
+	}
+	if stub.memberRole != group.RoleMember {
+		t.Errorf("role = %q, want %q", stub.memberRole, group.RoleMember)
+	}
+	if stub.createdRequest {
+		t.Error("expected no join request for creator invite")
+	}
+}
+
+func TestRespondInviteHandler_MemberAcceptCreatesPendingRequest(t *testing.T) {
+	ctx := context.Background()
+	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
+	stub := &respondInviteStub{invitation: existing}
+	handler := NewRespondInviteHandler(stub)
+
+	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if result != RespondInvitePending {
+		t.Errorf("result = %q, want %q", result, RespondInvitePending)
+	}
+	if !stub.deleted {
+		t.Error("expected invitation to be deleted")
+	}
+	if stub.addMember {
+		t.Error("expected AddMember NOT to be called for member invite")
+	}
+	if !stub.createdRequest {
+		t.Error("expected CreateJoinRequest to be called")
+	}
+}
+
+func TestRespondInviteHandler_MemberAcceptSkipsDuplicateRequest(t *testing.T) {
+	ctx := context.Background()
+	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
+	stub := &respondInviteStub{invitation: existing, hasPending: true}
+	handler := NewRespondInviteHandler(stub)
+
+	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if result != RespondInvitePending {
+		t.Errorf("result = %q, want %q", result, RespondInvitePending)
+	}
+	if stub.createdRequest {
+		t.Error("expected no duplicate join request")
+	}
+}
+
+func TestRespondInviteHandler_DeclineDeletesInvitation(t *testing.T) {
+	ctx := context.Background()
+	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
+	stub := &respondInviteStub{invitation: existing}
+	handler := NewRespondInviteHandler(stub)
+
+	_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: false})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !stub.deleted {
+		t.Error("expected invitation to be deleted")
+	}
+	if stub.addMember {
+		t.Error("expected AddMember NOT to be called on decline")
+	}
+	if stub.createdRequest {
+		t.Error("expected no join request on decline")
+	}
 }

@@ -19,7 +19,13 @@ import { likePost, unlikePost, voteGroupPost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Post } from '@/lib/types';
 
-export default function PostCard({ post }: { post: Post }) {
+interface PostCardProps {
+  post: Post;
+  commentsExpanded?: boolean;
+  onToggleComments?: (postId: string) => void;
+}
+
+export default function PostCard({ post, commentsExpanded, onToggleComments }: PostCardProps) {
   const isGroupPost = !!post.groupId;
 
   const [liked, setLiked] = useState(post.isLiked ?? false);
@@ -158,10 +164,23 @@ export default function PostCard({ post }: { post: Post }) {
             <span>{likesCount}</span>
           </button>
         )}
-        <Link href={`/post/${post.id}`} className="post-action-btn">
-          <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
-          <span>{post.commentsCount}</span>
-        </Link>
+        {onToggleComments ? (
+          <button
+            type="button"
+            aria-label="Comments"
+            aria-expanded={commentsExpanded}
+            className="post-action-btn"
+            onClick={() => onToggleComments(post.id)}
+          >
+            <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
+            <span>{post.commentsCount}</span>
+          </button>
+        ) : (
+          <Link href={`/post/${post.id}`} className="post-action-btn">
+            <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
+            <span>{post.commentsCount}</span>
+          </Link>
+        )}
       </div>
     </div>
   );

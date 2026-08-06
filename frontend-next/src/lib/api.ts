@@ -418,11 +418,15 @@ export async function getMyGroupInvitations(): Promise<GroupInvitation[]> {
   return api.get<GroupInvitation[]>('/groups/invitations/pending');
 }
 
+export interface InviteResponse {
+  status: 'member' | 'pending' | 'ok';
+}
+
 export async function respondToGroupInvitation(
   groupId: string,
   action: 'accept' | 'decline'
-): Promise<void> {
-  return api.post<void>(`/groups/${groupId}/invite/respond`, { action });
+): Promise<InviteResponse> {
+  return api.post<InviteResponse>(`/groups/${groupId}/invite/respond`, { action });
 }
 
 export async function requestToJoinGroup(groupId: string): Promise<void> {

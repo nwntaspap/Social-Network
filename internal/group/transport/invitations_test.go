@@ -32,12 +32,13 @@ type mockRespondInvite struct {
 	lastGroupID string
 	lastAccept  bool
 	err         error
+	result      commands.RespondInviteResult
 }
 
-func (m *mockRespondInvite) Execute(_ context.Context, cmd commands.RespondInviteCommand) error {
+func (m *mockRespondInvite) Execute(_ context.Context, cmd commands.RespondInviteCommand) (commands.RespondInviteResult, error) {
 	m.lastGroupID = cmd.GroupID
 	m.lastAccept = cmd.Accept
-	return m.err
+	return m.result, m.err
 }
 
 func newInvitationTestHandler(
@@ -240,6 +241,48 @@ func TestRespondInvite_Declines(t *testing.T) {
 	}
 	if respond.lastAccept {
 		t.Error("expected accept=false to be forwarded")
+	}
+}
+
+func TestRespondInvite_Pending(t *testing.T) {
+	respond := &mockRespondInvite{result: commands.RespondInvitePending}
+	h := newInvitationTestHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		respond,
+		nil,
+	)
+	srv := httptest.NewServer(invitationRoutesMux(h))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		srv.URL+"/api/groups/g1/invite/respond",
+		strings.NewReader(`{"action":"accept"}`),
+	)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body struct {
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Data.Status != "pending" {
+		t.Errorf("status = %q, want %q", body.Data.Status, "pending")
 	}
 }
 

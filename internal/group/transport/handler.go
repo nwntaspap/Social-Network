@@ -24,7 +24,7 @@ type InviteMemberExecutor interface {
 }
 
 type RespondInviteExecutor interface {
-	Execute(ctx context.Context, cmd commands.RespondInviteCommand) error
+	Execute(ctx context.Context, cmd commands.RespondInviteCommand) (commands.RespondInviteResult, error)
 }
 
 type RequestJoinExecutor interface {

@@ -1,26 +1,21 @@
 'use client';
 
-import { browseGroups } from '@/lib/api';
-import type { Group } from '@/lib/types';
-import SearchDropdown from '@/components/ui/SearchDropdown';
+interface GroupSearchBarProps {
+  query: string;
+  onQueryChange: (query: string) => void;
+}
 
-export default function GroupSearchBar() {
+export default function GroupSearchBar({ query, onQueryChange }: GroupSearchBarProps) {
   return (
-    <SearchDropdown<Group>
-      placeholder="Search groups..."
-      onSearch={(query) => browseGroups(query).then((res) => res.data)}
-      renderItem={(group) => (
-        <>
-          <div className="search-result-avatar group-icon">{group.title[0].toUpperCase()}</div>
-          <div className="search-result-info">
-            <span className="search-result-name">{group.title}</span>
-            <span className="search-result-username">{group.membersCount} members</span>
-          </div>
-        </>
-      )}
-      getItemKey={(group) => group.id}
-      getItemHref={(group) => `/groups/${group.id}`}
-      emptyMessage='No groups found for "{query}"'
-    />
+    <div className="search-section">
+      <input
+        type="text"
+        className="search-input"
+        placeholder="Search groups..."
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        aria-label="Search groups"
+      />
+    </div>
   );
 }

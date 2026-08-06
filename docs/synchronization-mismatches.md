@@ -59,7 +59,18 @@
 >   backend `UpdateEvent` command validates fields and group ownership),
 >   group invites (`invite_member.go` no longer requires creator/admin — any member can invite),
 >   join-request review (`get_pending_join_requests.go` + `respond_join.go` now gated to the
->   group creator only, 403 otherwise; admins rejected).
+>   group creator only, 403 otherwise; admins rejected),
+>   invite accept by non-creator → pending join request (`POST /groups/{groupId}/invite/respond`
+>   now returns `{ "status": "ok" }` for direct accept/decline and `{ "status": "pending" }` when
+>   the invitee's acceptance becomes a join request awaiting the creator's approval; only a
+>   creator's invite accepts directly — `GroupInvitations` shows a pending notice to the invitee),
+>   seed event RSVP options (the seeded "Community Hackathon 2025" event now exposes only
+>   `Going`/`Not going` options with remapped RSVPs instead of three slots),
+>   group post comments toggle (`PostCard` comments button toggles inline
+>   `GET`/`POST /groups/posts/{postId}/comments` on the group feed; the separate
+>   "Show comments/Hide comments" toggle was removed),
+>   groups live search (`GroupSearchBar` is now a plain input that filters the groups grid via
+>   the existing `GET /groups?query=` SQL LIKE filter, replacing the autocomplete dropdown).
 
 ---
 

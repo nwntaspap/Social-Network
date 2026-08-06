@@ -10,6 +10,7 @@ export default function GroupInvitations() {
   const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -28,9 +29,15 @@ export default function GroupInvitations() {
 
   async function handleResponse(invitation: GroupInvitation, action: 'accept' | 'decline') {
     setBusyId(invitation.id);
+    setNotice('');
     try {
-      await respondToGroupInvitation(invitation.groupId, action);
+      const response = await respondToGroupInvitation(invitation.groupId, action);
       setInvitations((prev) => prev.filter((item) => item.id !== invitation.id));
+      if (action === 'accept' && response.status === 'pending') {
+        setNotice(
+          `Your request to join "${invitation.group.title}" was sent to the group creator for approval.`
+        );
+      }
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
     } finally {
@@ -38,13 +45,14 @@ export default function GroupInvitations() {
     }
   }
 
-  if (loading || invitations.length === 0) {
+  if (loading || (invitations.length === 0 && !notice)) {
     return null;
   }
 
   return (
     <section className="group-invitations">
       <h2 className="group-invitations-title">Group Invitations</h2>
+      {notice && <p className="group-invitations-notice">{notice}</p>}
       {invitations.map((invitation) => (
         <div key={invitation.id} className="group-card">
           <div className="group-card-header">
