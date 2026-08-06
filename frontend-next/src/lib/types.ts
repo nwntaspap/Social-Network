@@ -44,7 +44,9 @@ export interface Post {
   group?: Pick<Group, 'id' | 'title'>; // group info for display
   commentsCount: number;
   likesCount: number;
+  dislikesCount?: number;
   isLiked?: boolean;
+  userVote?: number | null;
   createdAt: string;
   updatedAt?: string;
 }

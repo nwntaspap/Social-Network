@@ -50,7 +50,7 @@ func (h *UpdateTopicHandler) Execute(ctx context.Context, cmd UpdateTopicCommand
 			_ = h.img.Delete(ctx, oldPath)
 		}
 		t.ImagePath = filepath.Join("/static/images/uploads", cmd.ImageFileName)
-		if err := h.img.Upload(ctx, cmd.ImageData, t.ImagePath); err != nil {
+		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
 			return nil, fmt.Errorf("upload image: %w", err)
 		}
 	}

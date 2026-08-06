@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { createPost } from '@/lib/api';
+import { createPost, createGroupPost } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { PostPrivacy } from '@/lib/types';
 
@@ -104,7 +104,7 @@ export default function CreatePostForm() {
         formData.append('allowedUserIds', JSON.stringify(allowedUsers));
       }
 
-      await createPost(formData);
+      await (groupId ? createGroupPost(formData, groupId) : createPost(formData));
       resetForm();
       router.push(groupId ? `/groups/${groupId}` : '/');
     } catch {

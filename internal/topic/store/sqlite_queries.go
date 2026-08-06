@@ -11,7 +11,7 @@ import (
 )
 
 func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int, orderBy, order, filter string) ([]topic.Topic, int, error) {
-	whereClause := `WHERE 1=1`
+	whereClause := `WHERE 1=1 AND t.group_id IS NULL`
 	args := make([]any, 0)
 
 	if filter != "" {

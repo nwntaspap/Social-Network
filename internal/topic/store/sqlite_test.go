@@ -286,6 +286,25 @@ func TestGetFeed_Filter(t *testing.T) {
 	}
 }
 
+func TestGetFeed_ExcludesGroupPosts(t *testing.T) {
+	s := setupTopicStore(t)
+
+	_ = s.CreateTopic(context.Background(), &topic.Topic{UserID: "u1", Title: "Regular", Content: "x"}, nil)
+	gid := "group-1"
+	_ = s.CreateTopic(context.Background(), &topic.Topic{UserID: "u1", Title: "GroupOnly", Content: "y", GroupID: &gid}, nil)
+
+	topics, count, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("count = %d, want 1", count)
+	}
+	if len(topics) != 1 || topics[0].Title != "Regular" {
+		t.Errorf("topics = %v, want [Regular]", topics)
+	}
+}
+
 func TestCommentsCount(t *testing.T) {
 	s := setupTopicStore(t)
 

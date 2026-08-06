@@ -268,6 +268,24 @@ export async function createPost(formData: FormData): Promise<Post> {
   return body.data;
 }
 
+export async function createGroupPost(formData: FormData, groupId: string): Promise<Post> {
+  const url = API_BASE + `/groups/${groupId}/posts`;
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    const err = text ? JSON.parse(text) : {};
+    throw new ApiError(response.status, err.error || err.message || 'Failed to create group post');
+  }
+
+  const body = JSON.parse(text);
+  return body.data;
+}
+
 export async function getFeed(page = 1, size = 10): Promise<PaginatedResponse<Post>> {
   return api.get<PaginatedResponse<Post>>('/topics/feed', { page, limit: size });
 }
@@ -296,10 +314,24 @@ export async function unlikePost(postId: number): Promise<void> {
   return api.delete<void>(`/topics/vote?id=${postId}`);
 }
 
+export async function voteGroupPost(postId: string, reactionType: 1 | -1): Promise<void> {
+  return api.post<void>(`/groups/posts/${postId}/vote`, { reactionType });
+}
+
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
-export async function createComment(topicId: number, content: string): Promise<Comment> {
-  return api.post<Comment>('/comments/create', { topicId, content });
+export async function createComment(
+  topicId: number,
+  content: string,
+  image?: File | null
+): Promise<Comment> {
+  const formData = new FormData();
+  formData.append('topicId', String(topicId));
+  formData.append('content', content);
+  if (image) {
+    formData.append('image', image);
+  }
+  return postMultipart<Comment>('/comments/create', formData, 'Failed to create comment');
 }
 
 export async function getComments(topicId: number): Promise<Comment[]> {
@@ -312,6 +344,46 @@ export async function voteComment(commentId: number, reactionType: 1 | -1): Prom
 
 export async function deleteComment(commentId: number): Promise<void> {
   return api.delete<void>(`/comments/delete?id=${commentId}`);
+}
+
+// ─── Group post comments ──────────────────────────────────────────────────────
+
+export async function getGroupPostComments(postId: string): Promise<PaginatedResponse<Comment>> {
+  return api.get<PaginatedResponse<Comment>>(`/groups/posts/${postId}/comments`);
+}
+
+export async function createGroupPostComment(
+  postId: string,
+  content: string,
+  image?: File | null
+): Promise<Comment> {
+  const formData = new FormData();
+  formData.append('content', content);
+  if (image) {
+    formData.append('image', image);
+  }
+  return postMultipart<Comment>(
+    `/groups/posts/${postId}/comments`,
+    formData,
+    'Failed to create comment'
+  );
+}
+
+function postMultipart<T>(path: string, formData: FormData, fallbackMessage: string): Promise<T> {
+  const url = API_BASE + path;
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  }).then(async (response) => {
+    const text = await response.text();
+    if (!response.ok) {
+      const err = text ? JSON.parse(text) : {};
+      throw new ApiError(response.status, err.error || err.message || fallbackMessage);
+    }
+    const body = JSON.parse(text);
+    return body.data as T;
+  });
 }
 
 // ─── Groups ───────────────────────────────────────────────────────────────────

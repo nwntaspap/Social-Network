@@ -3,6 +3,7 @@ package transport
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
-		if readErr != nil && !errors.Is(readErr, errors.New("EOF")) {
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
