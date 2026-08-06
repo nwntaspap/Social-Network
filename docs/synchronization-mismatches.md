@@ -37,7 +37,14 @@
 >   unregistered and the invitee had no UI. Now routed via `POST /groups/{groupId}/invite/respond`
 >   with `{ action: "accept" | "decline" }`, plus `GET /groups/invitations/pending` (auth) returning
 >   pending invitations enriched with a group brief; frontend `GroupInvitations` component lists them
->   with Accept/Decline buttons).
+>   with Accept/Decline buttons),
+>   group join-request review (`GET /groups/{groupId}/requests/pending` was a stub returning `[]`
+>   — now resolves real pending requests, enriched with requester + group brief, gated to
+>   creator/admin (403 otherwise); `GroupSidebar` "Pending Requests" shows them with Accept/Decline),
+>   group edit (`PUT /groups/{groupId}` — `EditGroupForm` dropdown in `GroupHeader` calls
+>   `updateGroup`, then refreshes the group; creator/admin only, non-admin rejected),
+>   group delete (`DELETE /groups/{groupId}` — `DeleteGroup` button now wired with a two-step inline
+>   confirmation, deletes cascadingly and redirects to `/groups`; creator only).
 
 ---
 

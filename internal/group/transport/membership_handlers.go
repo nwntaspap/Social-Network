@@ -1,8 +1,10 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
+	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
 	"social-network/internal/pkg/helpers"
@@ -188,12 +190,7 @@ func (h *Handler) RespondJoin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetPendingJoinRequests(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
-		return
-	}
-
-	_, ok := h.extractUser(r)
+	userID, ok := h.extractUser(r)
 	if !ok {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
@@ -205,9 +202,30 @@ func (h *Handler) GetPendingJoinRequests(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	_ = groupID
+	res, err := h.getPendingJoinRequests.Resolve(r.Context(), queries.GetPendingJoinRequestsQuery{
+		GroupID: groupID,
+		UserID:  userID,
+	})
+	if err != nil {
+		if errors.Is(err, group.ErrNotAdmin) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, []any{})
+	ctx := r.Context()
+	requests := make([]JoinRequestResponse, 0, len(res.Requests))
+	for i := range res.Requests {
+		req := &res.Requests[i]
+		requests = append(requests, toJoinRequestResponse(
+			&req.Request,
+			&GroupBrief{ID: req.Group.ID, Title: req.Group.Title},
+			h.lookupUser(ctx, req.Request.RequesterID),
+		))
+	}
+	helpers.RespondWithJSON(w, http.StatusOK, nil, requests)
 }
 
 func (h *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {

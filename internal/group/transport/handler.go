@@ -91,6 +91,10 @@ type GetPendingInvitationsResolver interface {
 	Resolve(ctx context.Context, q queries.GetPendingInvitationsQuery) (*queries.GetPendingInvitationsResult, error)
 }
 
+type GetPendingJoinRequestsResolver interface {
+	Resolve(ctx context.Context, q queries.GetPendingJoinRequestsQuery) (*queries.GetPendingJoinRequestsResult, error)
+}
+
 type Handler struct {
 	createGroup            CreateGroupExecutor
 	inviteMember           InviteMemberExecutor
@@ -110,6 +114,7 @@ type Handler struct {
 	getGroupPostComments   GetGroupPostCommentsResolver
 	getGroupMembers        GetGroupMembersResolver
 	getPendingInvitations  GetPendingInvitationsResolver
+	getPendingJoinRequests GetPendingJoinRequestsResolver
 	userLookup             UserLookup
 	extractUser            UserExtractor
 }
@@ -135,6 +140,7 @@ func NewHandler(
 	getGroupPostComments GetGroupPostCommentsResolver,
 	getGroupMembers GetGroupMembersResolver,
 	getPendingInvitations GetPendingInvitationsResolver,
+	getPendingJoinRequests GetPendingJoinRequestsResolver,
 ) *Handler {
 	return &Handler{
 		createGroup:            createGroup,
@@ -155,6 +161,7 @@ func NewHandler(
 		getGroupPostComments:   getGroupPostComments,
 		getGroupMembers:        getGroupMembers,
 		getPendingInvitations:  getPendingInvitations,
+		getPendingJoinRequests: getPendingJoinRequests,
 		userLookup:             userLookup,
 		extractUser:            extractUser,
 	}

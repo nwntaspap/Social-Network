@@ -2,21 +2,32 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { requestToJoinGroup, leaveGroup } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { requestToJoinGroup, leaveGroup, deleteGroup } from '@/lib/api';
 import { formatRelativeDate } from '@/lib/helpers';
 import type { Group, MembershipStatus } from '@/lib/types';
 import InviteDropdown from './InviteDropdown';
 import CreateEventForm from './CreateEventForm';
+import EditGroupForm from './EditGroupForm';
 
 interface GroupHeaderProps {
   group: Group;
   isCreator: boolean;
   isMember: boolean;
+  onGroupUpdated?: () => void;
 }
 
-export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderProps) {
+export default function GroupHeader({
+  group,
+  isCreator,
+  isMember,
+  onGroupUpdated,
+}: GroupHeaderProps) {
+  const router = useRouter();
   const [showInvite, setShowInvite] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -48,6 +59,21 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
     } catch (error) {
       console.error('Failed to leave group:', error);
     } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await deleteGroup(group.id);
+      router.push('/groups');
+    } catch (error) {
+      console.error('Failed to delete group:', error);
       setIsLoading(false);
     }
   }
@@ -88,6 +114,7 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
                 onClick={() => {
                   setShowInvite(!showInvite);
                   setShowEventForm(false);
+                  setShowEditForm(false);
                 }}
               >
                 Invite User
@@ -103,6 +130,7 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
                 onClick={() => {
                   setShowEventForm(!showEventForm);
                   setShowInvite(false);
+                  setShowEditForm(false);
                 }}
               >
                 Create Event
@@ -116,8 +144,45 @@ export default function GroupHeader({ group, isCreator, isMember }: GroupHeaderP
 
         {isCreator && (
           <>
-            <button className="group-action-btn group-action-btn--danger">Edit Group</button>
-            <button className="group-action-btn group-action-btn--delete">Delete Group</button>
+            <div className="group-action-wrapper">
+              <button
+                className="group-action-btn group-action-btn--danger"
+                onClick={() => {
+                  setShowEditForm(!showEditForm);
+                  setShowInvite(false);
+                  setShowEventForm(false);
+                  setConfirmingDelete(false);
+                }}
+              >
+                Edit Group
+              </button>
+              {showEditForm && (
+                <EditGroupForm
+                  group={group}
+                  onClose={() => setShowEditForm(false)}
+                  onUpdated={onGroupUpdated}
+                />
+              )}
+            </div>
+
+            <div className="group-action-wrapper">
+              <button
+                className={`group-action-btn group-action-btn--delete ${confirmingDelete ? 'group-action-btn--confirm' : ''}`}
+                disabled={isLoading}
+                onClick={handleDelete}
+              >
+                {confirmingDelete ? 'Confirm delete?' : 'Delete Group'}
+              </button>
+              {confirmingDelete && (
+                <button
+                  type="button"
+                  className="group-action-btn group-action-btn--cancel"
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>

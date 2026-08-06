@@ -394,6 +394,21 @@
   color: var(--white-background-light);
 }
 
+.group-action-btn--confirm {
+  background: #e53e3e;
+  color: var(--white-background-light);
+}
+
+.group-action-btn--cancel {
+  background: var(--grey-color-light);
+  color: var(--dark-background);
+}
+
+.group-action-btn--cancel:hover {
+  background: var(--grey-color);
+  color: var(--white-background-light);
+}
+
 /* Layout: sidebar + main */
 .group-detail-layout {
   display: grid;

@@ -36,6 +36,12 @@ export default function GroupDetail() {
     };
   }, [id]);
 
+  function handleGroupUpdated() {
+    getGroup(id)
+      .then(setGroup)
+      .catch(() => setError('Failed to refresh group.'));
+  }
+
   if (loading) {
     return (
       <div className="groups-container">
@@ -58,7 +64,12 @@ export default function GroupDetail() {
   if (!isMember) {
     return (
       <div className="group-detail-container">
-        <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
+        <GroupHeader
+          group={group}
+          isCreator={isCreator}
+          isMember={isMember}
+          onGroupUpdated={handleGroupUpdated}
+        />
         <div className="group-not-member">
           <p>You must join the group in order to see the posts and events.</p>
         </div>
@@ -68,7 +79,12 @@ export default function GroupDetail() {
 
   return (
     <div className="group-detail-container">
-      <GroupHeader group={group} isCreator={isCreator} isMember={isMember} />
+      <GroupHeader
+        group={group}
+        isCreator={isCreator}
+        isMember={isMember}
+        onGroupUpdated={handleGroupUpdated}
+      />
 
       {isCreator ? (
         // Creator: sidebar + main content with tabs
