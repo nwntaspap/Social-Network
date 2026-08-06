@@ -15,15 +15,17 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { likePost, unlikePost } from '@/lib/api';
+import { likePost, unlikePost, voteGroupPost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Post } from '@/lib/types';
 
 export default function PostCard({ post }: { post: Post }) {
+  const isGroupPost = !!post.groupId;
+
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
-
-  const canLike = !post.groupId;
+  const [dislikesCount, setDislikesCount] = useState(post.dislikesCount ?? 0);
+  const [userVote, setUserVote] = useState<number | null>(post.userVote ?? null);
 
   async function handleLike() {
     // Optimistic update — flip immediately, revert on error
@@ -41,6 +43,29 @@ export default function PostCard({ post }: { post: Post }) {
       // Revert on failure
       setLiked(wasLiked);
       setLikesCount((prev) => (wasLiked ? prev + 1 : prev - 1));
+    }
+  }
+
+  async function handleGroupVote(reaction: 1 | -1) {
+    const prevVote = userVote;
+    const nextVote = prevVote === reaction ? null : reaction;
+
+    const deltaOf = (r: 1 | -1): number => {
+      if (prevVote === r) return -1;
+      if (nextVote === r) return 1;
+      return 0;
+    };
+
+    setUserVote(nextVote);
+    setLikesCount((prev) => prev + deltaOf(1));
+    setDislikesCount((prev) => prev + deltaOf(-1));
+
+    try {
+      await voteGroupPost(post.id, reaction);
+    } catch {
+      setUserVote(prevVote);
+      setLikesCount((prev) => prev - deltaOf(1));
+      setDislikesCount((prev) => prev - deltaOf(-1));
     }
   }
 
@@ -88,7 +113,40 @@ export default function PostCard({ post }: { post: Post }) {
 
       {/* Actions */}
       <div className="post-actions">
-        {canLike && (
+        {isGroupPost ? (
+          <>
+            <button
+              type="button"
+              aria-label="Like"
+              className="post-action-btn"
+              onClick={() => handleGroupVote(1)}
+            >
+              <Image
+                src="/images/icons/icon-like.png"
+                alt="Like"
+                width={20}
+                height={20}
+                className={userVote === 1 ? 'icon-liked' : 'icon-not-liked'}
+              />
+              <span>{likesCount}</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Dislike"
+              className="post-action-btn"
+              onClick={() => handleGroupVote(-1)}
+            >
+              <Image
+                src="/images/icons/icon-dislike.png"
+                alt="Dislike"
+                width={20}
+                height={20}
+                className={userVote === -1 ? 'icon-liked' : 'icon-not-liked'}
+              />
+              <span>{dislikesCount}</span>
+            </button>
+          </>
+        ) : (
           <button className="post-action-btn" onClick={handleLike}>
             <Image
               src="/images/icons/heart.png"

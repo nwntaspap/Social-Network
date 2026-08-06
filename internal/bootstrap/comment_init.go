@@ -9,6 +9,7 @@ import (
 	commentstore "social-network/internal/comment/store"
 	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/core/middleware"
+	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
@@ -23,6 +24,7 @@ func (b *commentEventBus) Publish(_ context.Context, _ string, _ any) error {
 func initComment(db database.DB) *commenttransport.Handler {
 	store := commentstore.NewSQLiteStore(db)
 	bus := &commentEventBus{}
+	img := localstorage.NewLocalStorage()
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -37,7 +39,7 @@ func initComment(db database.DB) *commenttransport.Handler {
 	return commenttransport.NewHandler(
 		extractUser,
 		userLookup,
-		commentcommands.NewCreateCommentHandler(store, bus),
+		commentcommands.NewCreateCommentHandler(store, bus, img),
 		commentcommands.NewUpdateCommentHandler(store),
 		commentcommands.NewDeleteCommentHandler(store),
 		commentcommands.NewCastCommentVoteHandler(store, bus),

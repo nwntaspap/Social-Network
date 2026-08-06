@@ -10,6 +10,7 @@ import (
 	groupqueries "social-network/internal/group/queries"
 	groupstore "social-network/internal/group/store"
 	grouptransport "social-network/internal/group/transport"
+	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
@@ -17,6 +18,7 @@ import (
 
 func initGroup(db database.DB) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
+	img := localstorage.NewLocalStorage()
 
 	bus := &groupEventBus{}
 	followChecker := &groupFollowChecker{}
@@ -39,8 +41,9 @@ func initGroup(db database.DB) *grouptransport.Handler {
 		groupcommands.NewRespondInviteHandler(store),
 		groupcommands.NewRequestJoinHandler(store, bus),
 		groupcommands.NewRespondJoinHandler(store),
-		groupcommands.NewCreateGroupPostHandler(store),
-		groupcommands.NewCreateGroupPostCommentHandler(store),
+		groupcommands.NewCreateGroupPostHandler(store, img),
+		groupcommands.NewCreateGroupPostCommentHandler(store, img),
+		groupcommands.NewCastGroupPostVoteHandler(store),
 		groupcommands.NewLeaveGroupHandler(store),
 		groupcommands.NewUpdateGroupHandler(store),
 		groupcommands.NewDeleteGroupHandler(store),

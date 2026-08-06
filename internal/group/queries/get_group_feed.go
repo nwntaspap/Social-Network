@@ -37,7 +37,7 @@ func (r *GetGroupFeedResolver) Resolve(ctx context.Context, q GetGroupFeedQuery)
 		}
 	}
 
-	posts, total, err := r.repo.GetPostsByGroupID(ctx, q.GroupID, q.Page, q.Size)
+	posts, total, err := r.repo.GetPostsByGroupID(ctx, q.GroupID, q.UserID, q.Page, q.Size)
 	if err != nil {
 		return nil, err
 	}

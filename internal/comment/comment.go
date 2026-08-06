@@ -36,6 +36,10 @@ type EventBus interface {
 	Publish(ctx context.Context, eventType string, payload any) error
 }
 
+type ImageStorage interface {
+	Upload(ctx context.Context, data []byte, path string) error
+}
+
 type Repository interface {
 	CreateComment(ctx context.Context, c *Comment) error
 	UpdateComment(ctx context.Context, c *Comment) error

@@ -78,7 +78,7 @@ func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, mem
 	return NewHandler(
 		extractUser,
 		&mockGroupUserLookup{},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		list,
 		nil,
 		feed,
@@ -248,7 +248,10 @@ func groupRoutesMux(h *Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/groups/{groupId}/members", h.GetGroupMembers)
 	mux.HandleFunc("GET /api/groups/{groupId}/posts", h.GetGroupFeed)
+	mux.HandleFunc("POST /api/groups/{groupId}/posts", h.CreateGroupPost)
+	mux.HandleFunc("POST /api/groups/posts/{postId}/vote", h.VoteGroupPost)
 	mux.HandleFunc("GET /api/groups/{groupId}/posts/{postId}/comments", h.GetGroupPostComments)
+	mux.HandleFunc("POST /api/groups/posts/{postId}/comments", h.CreateGroupPostComment)
 	return mux
 }
 

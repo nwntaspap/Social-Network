@@ -19,6 +19,7 @@ var (
 	ErrInvitationNotFound  = errors.New("invitation not found")
 	ErrJoinRequestNotFound = errors.New("join request not found")
 	ErrPostNotFound        = errors.New("group post not found")
+	ErrInvalidVoteValue    = errors.New("reaction_type must be 1 (like) or -1 (dislike)")
 )
 
 type Role string
@@ -62,14 +63,25 @@ type JoinRequest struct {
 }
 
 type Post struct {
-	ID        string
-	GroupID   string
-	AuthorID  string
-	Title     string
-	Content   string
-	ImagePath string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            string
+	GroupID       string
+	AuthorID      string
+	Title         string
+	Content       string
+	ImagePath     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UpvoteCount   int
+	DownvoteCount int
+	VoteScore     int
+	UserVote      *int
+	CommentsCount int
+}
+
+type VoteCounts struct {
+	Upvotes   int
+	Downvotes int
+	Score     int
 }
 
 type PostComment struct {
@@ -126,7 +138,9 @@ type JoinRequestRepository interface {
 
 type PostRepository interface {
 	CreatePost(ctx context.Context, p *Post) error
-	GetPostsByGroupID(ctx context.Context, groupID string, page, size int) ([]Post, int, error)
+	GetPostsByGroupID(ctx context.Context, groupID, userID string, page, size int) ([]Post, int, error)
+	CastPostVote(ctx context.Context, userID, postID string, reactionType int) error
+	GetPostVoteCounts(ctx context.Context, postID string) (*VoteCounts, error)
 }
 
 type PostCommentRepository interface {
@@ -141,4 +155,8 @@ type FollowChecker interface {
 
 type EventBus interface {
 	Publish(ctx context.Context, eventType string, payload any) error
+}
+
+type ImageStorage interface {
+	Upload(ctx context.Context, data []byte, path string) error
 }

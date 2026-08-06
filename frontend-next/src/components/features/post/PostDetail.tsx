@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,8 +21,11 @@ export default function PostDetail() {
   // Comment form
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [commentContent, setCommentContent] = useState('');
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState('');
   const [commentError, setCommentError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -66,7 +69,19 @@ export default function PostDetail() {
   function resetForm() {
     setShowCommentForm(false);
     setCommentContent('');
+    setCommentImage(null);
+    setCommentImagePreview('');
     setCommentError('');
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  }
+
+  function handleCommentImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCommentImage(file);
+    setCommentImagePreview(URL.createObjectURL(file));
   }
 
   async function handleCommentVote(comment: Comment, reactionType: 1 | -1) {
@@ -140,7 +155,7 @@ export default function PostDetail() {
     setIsSubmitting(true);
 
     try {
-      const newComment = await createComment(Number(postId), commentContent);
+      const newComment = await createComment(Number(postId), commentContent, commentImage);
       setComments((prev) => [newComment, ...prev]);
       resetForm();
     } catch {
@@ -254,10 +269,40 @@ export default function PostDetail() {
               />
             </div>
 
+            {commentImagePreview && (
+              <div className="comment-image-preview">
+                <Image
+                  src={commentImagePreview}
+                  alt="Comment image preview"
+                  width={120}
+                  height={90}
+                  style={{ objectFit: 'cover', borderRadius: '8px' }}
+                />
+                <button
+                  type="button"
+                  className="comment-image-remove"
+                  onClick={() => {
+                    setCommentImage(null);
+                    setCommentImagePreview('');
+                    if (imageInputRef.current) imageInputRef.current.value = '';
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
             {commentError && <p className="comment-error">{commentError}</p>}
 
             <div className="create-comment-actions">
               <div className="create-comment-buttons">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCommentImageChange}
+                  className="comment-image-input"
+                />
                 <button type="button" className="create-comment-cancel" onClick={resetForm}>
                   Cancel
                 </button>

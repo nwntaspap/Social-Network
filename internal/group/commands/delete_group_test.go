@@ -84,8 +84,12 @@ func (s *deleteGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([
 	return nil, nil
 }
 func (s *deleteGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
-func (s *deleteGroupStub) GetPostsByGroupID(_ context.Context, _ string, _, _ int) ([]group.Post, int, error) {
+func (s *deleteGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
+}
+func (s *deleteGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) error { return nil }
+func (s *deleteGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
+	return &group.VoteCounts{}, nil
 }
 
 func (s *deleteGroupStub) CreatePostComment(_ context.Context, _ *group.PostComment) error {

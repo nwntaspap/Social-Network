@@ -1,10 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { getGroupPosts, getGroupEvents } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import {
+  getGroupPosts,
+  getGroupEvents,
+  getGroupPostComments,
+  createGroupPostComment,
+} from '@/lib/api';
 import PostCard from '@/components/features/home/PostCard';
-import { formatRelativeDate } from '@/lib/helpers';
-import type { Event, Post } from '@/lib/types';
+import { formatRelativeDate, getDisplayName, getFileUrl } from '@/lib/helpers';
+import type { Comment, Event, Post } from '@/lib/types';
 import { tabView } from './GroupDetail';
 
 interface GroupContentProps {
@@ -85,7 +92,10 @@ function PostsTab({ groupId }: { groupId: string }) {
   return (
     <div className="group-posts">
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <div key={post.id}>
+          <PostCard post={post} />
+          <PostComments postId={post.id} />
+        </div>
       ))}
       {page < totalPages && (
         <div className="feed-load-more">
@@ -101,6 +111,176 @@ function PostsTab({ groupId }: { groupId: string }) {
           >
             {loadingMore ? 'Loading...' : 'Load more'}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PostComments({ postId }: { postId: string }) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [content, setContent] = useState('');
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [collapsed, setCollapsed] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    getGroupPostComments(postId)
+      .then((response) => {
+        if (ignore) return;
+        setComments(response.data);
+      })
+      .catch(() => {
+        if (!ignore) setError('Failed to load comments.');
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [postId]);
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!content.trim()) {
+      setError('Comment content is required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const newComment = await createGroupPostComment(postId, content, image);
+      setComments((prev) => [newComment, ...prev]);
+      setContent('');
+      setImage(null);
+      setImagePreview('');
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    } catch {
+      setError('Failed to post comment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="group-post-comments">
+      <button
+        type="button"
+        className="group-comments-toggle"
+        onClick={() => setCollapsed((prev) => !prev)}
+      >
+        {collapsed ? `Show comments (${comments.length})` : 'Hide comments'}
+      </button>
+
+      {!collapsed && (
+        <div className="group-comments-body">
+          <form className="create-comment-form" onSubmit={handleSubmit}>
+            <div className="create-comment-field">
+              <textarea
+                className="form-textarea"
+                placeholder="Write a comment..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {imagePreview && (
+              <div className="comment-image-preview">
+                <Image
+                  src={imagePreview}
+                  alt="Comment image preview"
+                  width={120}
+                  height={90}
+                  style={{ objectFit: 'cover', borderRadius: '8px' }}
+                />
+                <button
+                  type="button"
+                  className="comment-image-remove"
+                  onClick={() => {
+                    setImage(null);
+                    setImagePreview('');
+                    if (imageInputRef.current) imageInputRef.current.value = '';
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {error && <p className="comment-error">{error}</p>}
+
+            <div className="create-comment-actions">
+              <div className="create-comment-buttons">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="comment-image-input"
+                />
+                <button type="submit" className="create-comment-submit" disabled={submitting}>
+                  {submitting ? 'Posting...' : 'Post Comment'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {loading ? (
+            <p className="group-empty-state">Loading comments...</p>
+          ) : comments.length > 0 ? (
+            <div className="post-comments-list">
+              {comments.map((comment) => (
+                <div key={comment.id} className="comment-card">
+                  <Link href={`/profile/${comment.userId}`} className="comment-avatar-link">
+                    <Image
+                      src={getFileUrl(comment.user?.avatarUrl)}
+                      alt={getDisplayName(comment.user)}
+                      width={36}
+                      height={36}
+                      className="comment-avatar"
+                    />
+                  </Link>
+                  <div className="comment-body">
+                    <div className="comment-header">
+                      <Link href={`/profile/${comment.userId}`} className="comment-user-link">
+                        <span className="comment-user-name">{getDisplayName(comment.user)}</span>
+                        <span className="comment-username">@{comment.user?.username}</span>
+                      </Link>
+                      <span className="comment-time">{formatRelativeDate(comment.createdAt)}</span>
+                    </div>
+                    <p className="comment-content">{comment.content}</p>
+                    {comment.imageUrl && (
+                      <div className="comment-image">
+                        <Image
+                          src={comment.imageUrl}
+                          alt="Comment image"
+                          width={300}
+                          height={200}
+                          style={{ objectFit: 'cover', borderRadius: '8px', marginTop: '0.5rem' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="post-comments-empty">No comments yet. Be the first to comment!</p>
+          )}
         </div>
       )}
     </div>

@@ -1,7 +1,11 @@
 package transport
 
 import (
+	"errors"
+	"io"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
@@ -27,9 +31,9 @@ func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 
 	pagination := helpers.GetPagination(r)
 
-	_ = userID
 	res, err := h.getGroupFeed.Resolve(r.Context(), queries.GetGroupFeedQuery{
 		GroupID: groupID,
+		UserID:  userID,
 		Page:    pagination.Page,
 		Size:    pagination.Limit,
 	})
@@ -42,14 +46,7 @@ func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 	for i := range res.Posts {
 		p := &res.Posts[i]
 		user := h.lookupUser(r.Context(), p.AuthorID)
-		cc, _ := h.getGroupPostComments.Resolve(r.Context(), queries.GetGroupPostCommentsQuery{
-			PostID: p.ID, Page: 1, Size: 1,
-		})
-		commentsCount := 0
-		if cc != nil {
-			commentsCount = cc.Total
-		}
-		posts = append(posts, toGroupPostResponse(p, user, commentsCount))
+		posts = append(posts, toGroupPostResponse(p, user))
 	}
 
 	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(posts, res.Total, pagination.Page, pagination.Limit))
@@ -97,14 +94,41 @@ func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	title := r.FormValue("title")
-	content := r.FormValue("content")
+	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	title := strings.TrimSpace(r.FormValue("title"))
+	content := strings.TrimSpace(r.FormValue("content"))
+
+	var imageData []byte
+	var imageFileName string
+
+	file, _, err := r.FormFile("image")
+	if err == nil {
+		defer file.Close()
+		buf := make([]byte, 20<<20)
+		n, readErr := file.Read(buf)
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
+			return
+		}
+		imageData = buf[:n]
+		_, header, _ := r.FormFile("image")
+		if header != nil {
+			imageFileName = filepath.Base(header.Filename)
+		}
+	}
 
 	p, err := h.createGroupPost.Execute(r.Context(), commands.CreateGroupPostCommand{
-		GroupID:  groupID,
-		AuthorID: userID,
-		Title:    title,
-		Content:  content,
+		GroupID:       groupID,
+		AuthorID:      userID,
+		Title:         title,
+		Content:       content,
+		ImageData:     imageData,
+		ImageFileName: imageFileName,
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
@@ -112,7 +136,7 @@ func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := h.lookupUser(r.Context(), p.AuthorID)
-	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupPostResponse(p, user, 0))
+	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupPostResponse(p, user))
 }
 
 func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request) {
@@ -128,12 +152,39 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
 	content := r.FormValue("content")
 
+	var imageData []byte
+	var imageFileName string
+
+	file, _, err := r.FormFile("image")
+	if err == nil {
+		defer file.Close()
+		buf := make([]byte, 20<<20)
+		n, readErr := file.Read(buf)
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
+			return
+		}
+		imageData = buf[:n]
+		_, header, _ := r.FormFile("image")
+		if header != nil {
+			imageFileName = filepath.Base(header.Filename)
+		}
+	}
+
 	c, err := h.createGroupPostComment.Execute(r.Context(), commands.CreateGroupPostCommentCommand{
-		PostID:   postID,
-		AuthorID: userID,
-		Content:  content,
+		PostID:        postID,
+		AuthorID:      userID,
+		Content:       content,
+		ImageData:     imageData,
+		ImageFileName: imageFileName,
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())

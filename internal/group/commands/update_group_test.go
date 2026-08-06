@@ -85,8 +85,12 @@ func (s *updateGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([
 	return nil, group.ErrGroupNotFound
 }
 func (s *updateGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
-func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _, _ int) ([]group.Post, int, error) {
+func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
+}
+func (s *updateGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) error { return nil }
+func (s *updateGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
+	return &group.VoteCounts{}, nil
 }
 
 func (s *updateGroupStub) CreatePostComment(_ context.Context, _ *group.PostComment) error {

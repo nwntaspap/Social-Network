@@ -56,7 +56,9 @@ type GroupPostResponse struct {
 	Privacy       string      `json:"privacy"`
 	CommentsCount int         `json:"commentsCount"`
 	LikesCount    int         `json:"likesCount"`
+	DislikesCount int         `json:"dislikesCount"`
 	IsLiked       bool        `json:"isLiked"`
+	UserVote      *int        `json:"userVote"`
 	CreatedAt     string      `json:"createdAt"`
 	UpdatedAt     string      `json:"updatedAt"`
 }
@@ -131,7 +133,8 @@ func toGroupDetailResponse(res *queries.GetGroupResult, creator *UserResult) Gro
 	}
 }
 
-func toGroupPostResponse(p *group.Post, user *UserResult, commentsCount int) GroupPostResponse {
+func toGroupPostResponse(p *group.Post, user *UserResult) GroupPostResponse {
+	isLiked := p.UserVote != nil && *p.UserVote == 1
 	return GroupPostResponse{
 		ID:            p.ID,
 		GroupID:       p.GroupID,
@@ -141,9 +144,11 @@ func toGroupPostResponse(p *group.Post, user *UserResult, commentsCount int) Gro
 		Content:       p.Content,
 		ImageURL:      p.ImagePath,
 		Privacy:       "public",
-		CommentsCount: commentsCount,
-		LikesCount:    0,
-		IsLiked:       false,
+		CommentsCount: p.CommentsCount,
+		LikesCount:    p.UpvoteCount,
+		DislikesCount: p.DownvoteCount,
+		IsLiked:       isLiked,
+		UserVote:      p.UserVote,
 		CreatedAt:     formatTime(p.CreatedAt),
 		UpdatedAt:     formatTime(p.UpdatedAt),
 	}

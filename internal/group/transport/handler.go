@@ -47,6 +47,10 @@ type CreateGroupPostCommentExecutor interface {
 	Execute(ctx context.Context, cmd commands.CreateGroupPostCommentCommand) (*group.PostComment, error)
 }
 
+type CastGroupPostVoteExecutor interface {
+	Execute(ctx context.Context, cmd commands.CastGroupPostVoteCommand) error
+}
+
 type LeaveGroupExecutor interface {
 	Execute(ctx context.Context, cmd commands.LeaveGroupCommand) error
 }
@@ -91,6 +95,7 @@ type Handler struct {
 	respondJoin            RespondJoinExecutor
 	createGroupPost        CreateGroupPostExecutor
 	createGroupPostComment CreateGroupPostCommentExecutor
+	castGroupPostVote      CastGroupPostVoteExecutor
 	leaveGroup             LeaveGroupExecutor
 	updateGroup            UpdateGroupExecutor
 	deleteGroup            DeleteGroupExecutor
@@ -114,6 +119,7 @@ func NewHandler(
 	respondJoin RespondJoinExecutor,
 	createGroupPost CreateGroupPostExecutor,
 	createGroupPostComment CreateGroupPostCommentExecutor,
+	castGroupPostVote CastGroupPostVoteExecutor,
 	leaveGroup LeaveGroupExecutor,
 	updateGroup UpdateGroupExecutor,
 	deleteGroup DeleteGroupExecutor,
@@ -132,6 +138,7 @@ func NewHandler(
 		respondJoin:            respondJoin,
 		createGroupPost:        createGroupPost,
 		createGroupPostComment: createGroupPostComment,
+		castGroupPostVote:      castGroupPostVote,
 		leaveGroup:             leaveGroup,
 		updateGroup:            updateGroup,
 		deleteGroup:            deleteGroup,

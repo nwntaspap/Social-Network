@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"social-network/internal/comment"
 	"social-network/internal/pkg/imgutil"
@@ -16,15 +17,17 @@ var (
 )
 
 type CreateCommentCommand struct {
-	UserID    string
-	TopicID   int
-	Content   string
-	ImageData []byte
+	UserID        string
+	TopicID       int
+	Content       string
+	ImageData     []byte
+	ImageFileName string
 }
 
 type CreateCommentHandler struct {
 	repo comment.Repository
 	bus  comment.EventBus
+	img  comment.ImageStorage
 }
 
 type CommentCreatedEvent struct {
@@ -33,8 +36,8 @@ type CommentCreatedEvent struct {
 	UserID    string
 }
 
-func NewCreateCommentHandler(repo comment.Repository, bus comment.EventBus) *CreateCommentHandler {
-	return &CreateCommentHandler{repo: repo, bus: bus}
+func NewCreateCommentHandler(repo comment.Repository, bus comment.EventBus, img comment.ImageStorage) *CreateCommentHandler {
+	return &CreateCommentHandler{repo: repo, bus: bus, img: img}
 }
 
 func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCommand) (*comment.Comment, error) {
@@ -54,9 +57,13 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		Content: cmd.Content,
 	}
 
-	if len(cmd.ImageData) > 0 {
+	if len(cmd.ImageData) > 0 && cmd.ImageFileName != "" {
 		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
 			return nil, fmt.Errorf("image validation: %w", err)
+		}
+		c.ImagePath = filepath.Join("/static/images/uploads", cmd.ImageFileName)
+		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
+			return nil, fmt.Errorf("upload image: %w", err)
 		}
 	}
 

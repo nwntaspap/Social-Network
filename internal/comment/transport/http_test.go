@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -270,10 +272,7 @@ func TestCreateComment_Success(t *testing.T) {
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
-	resp := doRequest(t, srv, http.MethodPost, "/api/comments", map[string]any{
-		"topicId": 10,
-		"content": "Hello world",
-	})
+	resp := postCommentForm(t, srv, 10, "Hello world")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -329,15 +328,33 @@ func TestCreateComment_HandlerError(t *testing.T) {
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
-	resp := doRequest(t, srv, http.MethodPost, "/api/comments", map[string]any{
-		"topicId": 10,
-		"content": "Hello world",
-	})
+	resp := postCommentForm(t, srv, 10, "Hello world")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", resp.StatusCode)
 	}
+}
+
+func postCommentForm(t *testing.T, srv *httptest.Server, topicID int, content string) *http.Response {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField("topicId", strconv.Itoa(topicID))
+	_ = mw.WriteField("content", content)
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/comments", &buf)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	return resp
 }
 
 func TestUpdateComment_Success(t *testing.T) {
