@@ -15,6 +15,7 @@ import type {
   Group,
   GroupMember,
   GroupJoinRequest,
+  GroupInvitation,
   Event,
   GroupEventsResponse,
   Chat,
@@ -410,6 +411,17 @@ export async function browseGroups(query?: string, page = 1): Promise<PaginatedR
 
 export async function inviteToGroup(groupId: string, userId: string): Promise<void> {
   return api.post<void>(`/groups/${groupId}/invite`, { userId });
+}
+
+export async function getMyGroupInvitations(): Promise<GroupInvitation[]> {
+  return api.get<GroupInvitation[]>('/groups/invitations/pending');
+}
+
+export async function respondToGroupInvitation(
+  groupId: string,
+  action: 'accept' | 'decline'
+): Promise<void> {
+  return api.post<void>(`/groups/${groupId}/invite/respond`, { action });
 }
 
 export async function requestToJoinGroup(groupId: string): Promise<void> {

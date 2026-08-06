@@ -87,6 +87,10 @@ type GetGroupMembersResolver interface {
 	Resolve(ctx context.Context, q queries.GetGroupMembersQuery) (*queries.GetGroupMembersResult, error)
 }
 
+type GetPendingInvitationsResolver interface {
+	Resolve(ctx context.Context, q queries.GetPendingInvitationsQuery) (*queries.GetPendingInvitationsResult, error)
+}
+
 type Handler struct {
 	createGroup            CreateGroupExecutor
 	inviteMember           InviteMemberExecutor
@@ -105,6 +109,7 @@ type Handler struct {
 	getGroupChat           GetGroupChatResolver
 	getGroupPostComments   GetGroupPostCommentsResolver
 	getGroupMembers        GetGroupMembersResolver
+	getPendingInvitations  GetPendingInvitationsResolver
 	userLookup             UserLookup
 	extractUser            UserExtractor
 }
@@ -129,6 +134,7 @@ func NewHandler(
 	getGroupChat GetGroupChatResolver,
 	getGroupPostComments GetGroupPostCommentsResolver,
 	getGroupMembers GetGroupMembersResolver,
+	getPendingInvitations GetPendingInvitationsResolver,
 ) *Handler {
 	return &Handler{
 		createGroup:            createGroup,
@@ -148,6 +154,7 @@ func NewHandler(
 		getGroupChat:           getGroupChat,
 		getGroupPostComments:   getGroupPostComments,
 		getGroupMembers:        getGroupMembers,
+		getPendingInvitations:  getPendingInvitations,
 		userLookup:             userLookup,
 		extractUser:            extractUser,
 	}

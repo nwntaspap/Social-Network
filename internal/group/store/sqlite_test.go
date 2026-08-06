@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"social-network/internal/group"
@@ -295,6 +296,87 @@ func TestCastPostVote_Toggle(t *testing.T) {
 	counts, _ = s.GetPostVoteCounts(ctx, "p1")
 	if counts.Upvotes != 1 || counts.Downvotes != 0 || counts.Score != 1 {
 		t.Errorf("after switch: counts = %+v, want up=1 down=0 score=1", counts)
+	}
+}
+
+const invitationSchema = `
+CREATE TABLE group_invitations (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL,
+    inviter_id TEXT NOT NULL,
+    invitee_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`
+
+func setupGroupInvitationStore(t *testing.T) *SQLiteStore {
+	t.Helper()
+	db, err := database.NewDB(database.Config{Driver: "sqlite3", Path: ":memory:"})
+	if err != nil {
+		t.Fatalf("NewDB() error = %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(context.Background(), groupsSchema); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), invitationSchema); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	return NewSQLiteStore(db)
+}
+
+func TestGetPendingInvitations_ReturnsInviteeRows(t *testing.T) {
+	s := setupGroupInvitationStore(t)
+	ctx := context.Background()
+
+	seedGroup(t, s, &group.Group{ID: "g1", Title: "Go Meetup", CreatorID: "u2"})
+
+	if err := s.CreateInvitation(ctx, &group.Invitation{ID: "i1", GroupID: "g1", InviterID: "u2", InviteeID: "u1"}); err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+	if err := s.CreateInvitation(ctx, &group.Invitation{ID: "i2", GroupID: "g1", InviterID: "u2", InviteeID: "u3"}); err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+
+	invs, err := s.GetPendingInvitations(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetPendingInvitations: %v", err)
+	}
+	if len(invs) != 1 {
+		t.Fatalf("len = %d, want 1", len(invs))
+	}
+	if invs[0].ID != "i1" || invs[0].InviteeID != "u1" {
+		t.Errorf("invitation = %+v, want i1 for u1", invs[0])
+	}
+}
+
+func TestGetPendingInvitations_Empty(t *testing.T) {
+	s := setupGroupInvitationStore(t)
+	ctx := context.Background()
+
+	invs, err := s.GetPendingInvitations(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetPendingInvitations: %v", err)
+	}
+	if len(invs) != 0 {
+		t.Errorf("len = %d, want 0", len(invs))
+	}
+}
+
+func TestDeleteInvitation_RemovesRow(t *testing.T) {
+	s := setupGroupInvitationStore(t)
+	ctx := context.Background()
+
+	seedGroup(t, s, &group.Group{ID: "g1", Title: "Go Meetup", CreatorID: "u2"})
+	if err := s.CreateInvitation(ctx, &group.Invitation{ID: "i1", GroupID: "g1", InviterID: "u2", InviteeID: "u1"}); err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+
+	if err := s.DeleteInvitation(ctx, "g1", "u1"); err != nil {
+		t.Fatalf("DeleteInvitation: %v", err)
+	}
+
+	if _, err := s.GetInvitation(ctx, "g1", "u1"); !errors.Is(err, group.ErrInvitationNotFound) {
+		t.Errorf("expected ErrInvitationNotFound after delete, got %v", err)
 	}
 }
 

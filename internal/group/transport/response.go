@@ -76,6 +76,7 @@ type GroupPostCommentResponse struct {
 type InvitationResponse struct {
 	ID        string      `json:"id"`
 	GroupID   string      `json:"groupId"`
+	Group     *GroupBrief `json:"group,omitempty"`
 	InviterID string      `json:"inviterId"`
 	Inviter   *UserResult `json:"inviter"`
 	InviteeID string      `json:"inviteeId"`
@@ -166,10 +167,11 @@ func toGroupPostCommentResponse(c *group.PostComment, user *UserResult) GroupPos
 	}
 }
 
-func toInvitationResponse(inv *group.Invitation, inviter, invitee *UserResult) InvitationResponse {
+func toInvitationResponse(inv *group.Invitation, inviter, invitee *UserResult, group *GroupBrief) InvitationResponse {
 	return InvitationResponse{
 		ID:        inv.ID,
 		GroupID:   inv.GroupID,
+		Group:     group,
 		InviterID: inv.InviterID,
 		Inviter:   inviter,
 		InviteeID: inv.InviteeID,

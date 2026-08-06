@@ -105,6 +105,21 @@
   justify-content: flex-end;
 }
 
+/* Group invitations section */
+.group-invitations {
+  margin-bottom: 1.5rem;
+}
+
+.group-invitations-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.group-invitation-actions {
+  gap: 0.5rem;
+}
+
 /* Group button states */
 .group-btn {
   padding: 0.4rem 1.5rem;

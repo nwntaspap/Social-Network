@@ -47,7 +47,7 @@ func (h *Handler) InviteMember(w http.ResponseWriter, r *http.Request) {
 
 	inviter := h.lookupUser(r.Context(), inv.InviterID)
 	invitee := h.lookupUser(r.Context(), inv.InviteeID)
-	helpers.RespondWithJSON(w, http.StatusCreated, nil, toInvitationResponse(inv, inviter, invitee))
+	helpers.RespondWithJSON(w, http.StatusCreated, nil, toInvitationResponse(inv, inviter, invitee, nil))
 }
 
 func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +83,40 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"status": "ok"})
+}
+
+func (h *Handler) GetPendingInvitations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
+		return
+	}
+
+	userID, ok := h.extractUser(r)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	res, err := h.getPendingInvitations.Resolve(r.Context(), queries.GetPendingInvitationsQuery{UserID: userID})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ctx := r.Context()
+	invitations := make([]InvitationResponse, 0, len(res.Invitations))
+	for i := range res.Invitations {
+		it := &res.Invitations[i]
+		inviter := h.lookupUser(ctx, it.Invitation.InviterID)
+		invitee := h.lookupUser(ctx, it.Invitation.InviteeID)
+		invitations = append(invitations, toInvitationResponse(
+			&it.Invitation,
+			inviter,
+			invitee,
+			&GroupBrief{ID: it.Group.ID, Title: it.Group.Title},
+		))
+	}
+	helpers.RespondWithJSON(w, http.StatusOK, nil, invitations)
 }
 
 func (h *Handler) RequestJoin(w http.ResponseWriter, r *http.Request) {

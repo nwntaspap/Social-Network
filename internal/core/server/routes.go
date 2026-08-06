@@ -92,6 +92,8 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}", require(h.DeleteGroup))
 		s.mux.HandleFunc("DELETE "+api+"/groups/{groupId}/leave", require(h.LeaveGroup))
 		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/invite", require(h.InviteMember))
+		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/invite/respond", require(h.RespondInvite))
+		s.mux.HandleFunc("GET "+api+"/groups/invitations/pending", require(h.GetPendingInvitations))
 		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/request", require(h.RequestJoin))
 		s.mux.HandleFunc("PUT "+api+"/groups/requests/{requestId}", require(h.RespondJoin))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/posts", require(h.GetGroupFeed))

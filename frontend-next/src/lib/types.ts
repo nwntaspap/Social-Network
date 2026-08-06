@@ -100,12 +100,12 @@ export interface GroupMember {
 export interface GroupInvitation {
   id: string;
   groupId: string;
-  group: Group;
+  group: Pick<Group, 'id' | 'title'>;
   inviterId: string;
   inviter: User;
   inviteeId: string;
   invitee: User;
-  status: 'pending' | 'accepted' | 'declined';
+  status?: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
 

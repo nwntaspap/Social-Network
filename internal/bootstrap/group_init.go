@@ -53,6 +53,7 @@ func initGroup(db database.DB) *grouptransport.Handler {
 		groupqueries.NewGetGroupChatResolver(store),
 		groupqueries.NewGetGroupPostCommentsResolver(store),
 		groupqueries.NewGetGroupMembersResolver(store),
+		groupqueries.NewGetPendingInvitationsResolver(store),
 	)
 }
 

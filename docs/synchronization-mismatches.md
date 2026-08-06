@@ -32,7 +32,12 @@
 >   `GET`/`POST /groups/posts/{postId}/comments`, paginated, response includes `imageUrl`),
 >   comment creation (`POST /comments/create` now multipart with optional `image`; same for
 >   `POST /groups/posts/{postId}/comments`; image files are written to `frontend/static/images/uploads/`
->   and served via `imageUrl`).
+>   and served via `imageUrl`),
+>   group invitation accept/decline (previously dead end-to-end: `RespondInvite` existed but was
+>   unregistered and the invitee had no UI. Now routed via `POST /groups/{groupId}/invite/respond`
+>   with `{ action: "accept" | "decline" }`, plus `GET /groups/invitations/pending` (auth) returning
+>   pending invitations enriched with a group brief; frontend `GroupInvitations` component lists them
+>   with Accept/Decline buttons).
 
 ---
 
