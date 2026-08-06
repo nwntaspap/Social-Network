@@ -25,7 +25,14 @@
 >   group search (`GET /groups` — SQL LIKE filter on title/description + flat `PaginatedResponse<Group>`),
 >   pagination envelope (all paginated endpoints now return the flat `PaginatedResponse`
 >   shape: `{ data, page, pageSize, totalCount, totalPages }` — `/users`, `/groups`,
->   group members/posts/comments, topic feeds).
+>   group members/posts/comments, topic feeds),
+>   group post votes (`POST /groups/posts/{postId}/vote` with `{ reactionType: 1 | -1 }`,
+>   toggle semantics; group feed/posts include `dislikesCount`, `userVote`, real `likesCount`/`isLiked`),
+>   group post comments (previously dead backend code — now routed via
+>   `GET`/`POST /groups/posts/{postId}/comments`, paginated, response includes `imageUrl`),
+>   comment creation (`POST /comments/create` now multipart with optional `image`; same for
+>   `POST /groups/posts/{postId}/comments`; image files are written to `frontend/static/images/uploads/`
+>   and served via `imageUrl`).
 
 ---
 

@@ -537,6 +537,8 @@ Create numbered migration scripts:
 - `000008_migrate_chats.up.sql` — Create `chats`, `messages` and migrate legacy chats
 - `000009_seed_data.up.sql` — Optional seed demo data (users, posts, groups, follows) — bonus feature
 - `000009_seed_data.down.sql` — Remove seed data
+- `000010_migrate_group_topics.up.sql` — Backfill group_posts from group topics (topics with `group_id`) + matching down script
+- `000011_group_post_votes.up.sql` — Create `group_post_votes` (reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id)) + matching down script
 
 **Verify**: Run migrations on fresh DB. `go vet ./...`.
 

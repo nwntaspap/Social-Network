@@ -273,8 +273,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 | 000007    | `events`                | Create events, event_options, event_rsvps                                                                                   |
 | 000008    | `migrate_chats`         | Create chats, messages; migrate legacy chat data                                                                            |
 | 000009    | `seed_data`             | Optional: demo users, posts, groups, follows                                                                                |
+| 000010    | `migrate_group_topics`  | Backfill group_posts from group topics (topics with `group_id`)                                                             |
+| 000011    | `group_post_votes`      | Create group_post_votes (user_id, post_id, reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id))                         |
 
-**Gap note:** Actual `db/migrations/` currently contains only `schema.sql` and `indexes.sql`. Numbered migration files (000001–000009) are not yet created. Sprint 5 (S5-BE-91) creates 000008. See `target-architecture-with-phases.md` for the full migration plan.
+**Gap note:** All numbered migrations (000001–000011) exist in `db/migrations/` as paired up/down scripts. See `target-architecture-with-phases.md` for the full migration plan.
 
 **Note on SDS SQL comments above:** The inline migration-number comments in the SQL schema (e.g. `-- 000005_groups.up.sql`) are approximate references. The canonical numbering is this table.
 
