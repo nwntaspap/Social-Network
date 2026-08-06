@@ -34,20 +34,11 @@ type CreateCommentHandler struct {
 	bus    eventbus.EventBus
 	users  user.Repository
 	topics topic.Repository
-	img  comment.ImageStorage
+	img    comment.ImageStorage
 }
 
-func NewCreateCommentHandler(repo comment.Repository, bus comment.EventBus, img comment.ImageStorage) *CreateCommentHandler {
-	return &CreateCommentHandler{repo: repo, bus: bus, img: img}
-	repo   comment.Repository
-	bus    eventbus.EventBus
-	users  user.Repository
-	topics topic.Repository
-	img  comment.ImageStorage
-}
-
-func NewCreateCommentHandler(repo comment.Repository, bus eventbus.EventBus, users user.Repository, topics topic.Repository,img comment.ImageStorage) *CreateCommentHandler {
-	return &CreateCommentHandler{repo: repo, bus: bus, users: users, topics: topics,img: img}
+func NewCreateCommentHandler(repo comment.Repository, bus eventbus.EventBus, users user.Repository, topics topic.Repository, img comment.ImageStorage) *CreateCommentHandler {
+	return &CreateCommentHandler{repo: repo, bus: bus, users: users, topics: topics, img: img}
 }
 
 func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCommand) (*comment.Comment, error) {

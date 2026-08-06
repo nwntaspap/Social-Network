@@ -12,6 +12,7 @@ import (
 	followtransport "social-network/internal/follow/transport"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
@@ -28,9 +29,11 @@ func initFollow(db database.DB, bus eventbus.EventBus) *followtransport.Handler 
 		}
 		return uid, true
 	}
+	userLookup := &followUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 
 	return followtransport.NewHandler(
 		extractUser,
+		userLookup,
 		followcommands.NewFollowUserHandler(store, privacy, bus, userStore),
 		followcommands.NewUnfollowUserHandler(store, bus, userStore),
 		followcommands.NewAcceptRequestHandler(store, bus, userStore),

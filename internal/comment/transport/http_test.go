@@ -272,7 +272,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 		}
 	}
 
-	return NewHandler(extractor, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes)
+	return NewHandler(extractor, lookup, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes)
 }
 
 func TestCreateComment_Success(t *testing.T) {

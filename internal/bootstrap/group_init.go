@@ -32,7 +32,7 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 		}
 		return uid, true
 	}
-
+	userLookup := &userLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 	return grouptransport.NewHandler(
 		extractUser,
 		userLookup,
@@ -40,10 +40,10 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 		groupcommands.NewInviteMemberHandler(store, followChecker, bus, users),
 		groupcommands.NewRespondInviteHandler(store, bus),
 		groupcommands.NewRequestJoinHandler(store, bus, users),
+		groupcommands.NewRespondJoinHandler(store, bus),
 		groupcommands.NewCreateGroupPostHandler(store, img),
 		groupcommands.NewCreateGroupPostCommentHandler(store, img),
 		groupcommands.NewCastGroupPostVoteHandler(store),
-		groupcommands.NewRespondJoinHandler(store, bus),
 		groupcommands.NewLeaveGroupHandler(store),
 		groupcommands.NewUpdateGroupHandler(store),
 		groupcommands.NewDeleteGroupHandler(store, bus),

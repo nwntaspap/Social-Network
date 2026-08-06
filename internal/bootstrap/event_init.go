@@ -27,13 +27,14 @@ func initEvent(db database.DB, bus eventbus.EventBus) *eventtransport.Handler {
 		}
 		return uid, true
 	}
-
 	groupRole := &eventGroupRoleChecker{db: db}
+	userLookup := &eventUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 
 	return eventtransport.NewHandler(
 		extractUser,
-		eventcommands.NewUpdateEventHandler(store, groupRole),
+		userLookup,
 		eventcommands.NewCreateEventHandler(store, groupMember, bus, users),
+		eventcommands.NewUpdateEventHandler(store, groupRole),
 		eventcommands.NewRSVPHandler(store, bus),
 		eventqueries.NewListGroupEventsResolver(store),
 		eventqueries.NewListEventRSVPsResolver(store),
@@ -70,6 +71,7 @@ func (c *eventGroupRoleChecker) GetMemberRole(ctx context.Context, groupID, user
 	}
 	return role, nil
 }
+
 func (c *groupMemberChecker) GetGroupMembers(ctx context.Context, groupID string) ([]string, error) {
 	var users []string
 	rows, err := c.db.QueryContext(

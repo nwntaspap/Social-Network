@@ -47,6 +47,10 @@ func (s *respondInviteStub) GetMemberRole(_ context.Context, _, _ string) (group
 	}
 	return group.RoleMember, nil
 }
+
+func (s *respondInviteStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
 func (s *respondInviteStub) CountMembers(_ context.Context, _ string) (int, error) { return 0, nil }
 func (s *respondInviteStub) GetGroupMembers(_ context.Context, _ string, _, _ int) ([]group.Member, int, error) {
 	return nil, 0, nil

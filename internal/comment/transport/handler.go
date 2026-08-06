@@ -131,6 +131,7 @@ type Handler struct {
 	getByTopic        GetCommentsByTopicResolver
 	getByTopicWV      GetCommentsByTopicWithVotesResolver
 	getCommentVotes   GetVoteCountsResolver
+	userLookup        UserLookup
 	extractUser       UserExtractor
 }
 
@@ -160,5 +161,6 @@ func NewHandler(
 		getByTopicWV:      getByTopicWV,
 		getCommentVotes:   getCommentVotes,
 		extractUser:       extractUser,
+		userLookup:        userLookup,
 	}
 }
