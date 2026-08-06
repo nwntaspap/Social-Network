@@ -109,7 +109,9 @@ func RegisterRoutes(s *Server) {
 	if h := s.handlers.Event; h != nil {
 		s.mux.HandleFunc("POST "+api+"/groups/{groupId}/events", require(h.CreateEvent))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/events", require(h.ListGroupEvents))
+		s.mux.HandleFunc("PUT "+api+"/groups/{groupId}/events/{eventId}", require(h.UpdateEvent))
 		s.mux.HandleFunc("POST "+api+"/events/{eventId}/respond", require(h.RespondToEvent))
+		s.mux.HandleFunc("GET "+api+"/events/{eventId}/rsvps", require(h.ListEventResponders))
 	}
 }
 

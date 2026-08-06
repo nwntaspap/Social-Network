@@ -118,6 +118,12 @@ export interface GroupJoinRequest {
   createdAt: string;
 }
 
+export interface EventOption {
+  id: string;
+  label: string;
+  tally: number;
+}
+
 export interface Event {
   id: string;
   groupId: string;
@@ -127,11 +133,22 @@ export interface Event {
   description: string;
   eventDate: string;
   createdAt: string;
+  options: EventOption[];
 }
 
 export interface GroupEventsResponse {
   events: Event[];
   nextCursor?: string;
+}
+
+export interface EventRSVPOption {
+  optionId: string;
+  optionLabel: string;
+  users: User[];
+}
+
+export interface EventRSVPsResponse {
+  options: EventRSVPOption[];
 }
 
 export interface EventResponse {

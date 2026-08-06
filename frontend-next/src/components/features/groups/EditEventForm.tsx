@@ -1,19 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { createEvent } from '@/lib/api';
-import { ApiError } from '@/lib/api';
+import { updateEvent, ApiError } from '@/lib/api';
+import type { Event } from '@/lib/types';
 
-interface CreateEventFormProps {
+interface EditEventFormProps {
   groupId: string;
+  event: Event;
   onClose: () => void;
-  onCreated?: () => void;
+  onUpdated: () => void;
 }
 
-export default function CreateEventForm({ groupId, onClose, onCreated }: CreateEventFormProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [eventDate, setEventDate] = useState('');
+function toDatetimeLocal(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+export default function EditEventForm({ groupId, event, onClose, onUpdated }: EditEventFormProps) {
+  const [title, setTitle] = useState(event.title);
+  const [description, setDescription] = useState(event.description);
+  const [eventDate, setEventDate] = useState(toDatetimeLocal(event.eventDate));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,19 +51,15 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
     setError('');
 
     try {
-      await createEvent(groupId, {
+      await updateEvent(groupId, event.id, {
         title,
         description,
         eventDate: new Date(eventDate).toISOString(),
-        options: ['Going', 'Not going'],
       });
-      setTitle('');
-      setDescription('');
-      setEventDate('');
       onClose();
-      onCreated?.();
+      onUpdated();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to create event. Please try again.');
+      setError(err instanceof ApiError ? err.message : 'Failed to update event. Please try again.');
       setSubmitting(false);
     }
   }
@@ -61,7 +67,7 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
   return (
     <div className="group-dropdown details-form">
       <div className="group-dropdown-header">
-        <span>Create Event</span>
+        <span>Edit Event</span>
         <button type="button" className="group-dropdown-close" onClick={onClose}>
           ✕
         </button>
@@ -69,9 +75,9 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
 
       <form className="event-form" onSubmit={handleSubmit}>
         <div className="event-form-field">
-          <label htmlFor="event-title">Title</label>
+          <label htmlFor="edit-event-title">Title</label>
           <input
-            id="event-title"
+            id="edit-event-title"
             type="text"
             className="form-input"
             placeholder="Event title"
@@ -85,9 +91,9 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
         </div>
 
         <div className="event-form-field">
-          <label htmlFor="event-desc">Description</label>
+          <label htmlFor="edit-event-desc">Description</label>
           <textarea
-            id="event-desc"
+            id="edit-event-desc"
             className="form-input form-textarea"
             placeholder="Event description"
             rows={3}
@@ -101,9 +107,9 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
         </div>
 
         <div className="event-form-field">
-          <label htmlFor="event-date">Date & Time</label>
+          <label htmlFor="edit-event-date">Date & Time</label>
           <input
-            id="event-date"
+            id="edit-event-date"
             type="datetime-local"
             className="form-input"
             value={eventDate}
@@ -118,7 +124,7 @@ export default function CreateEventForm({ groupId, onClose, onCreated }: CreateE
         {error && <p className="create-post-error">{error}</p>}
 
         <button type="submit" className="group-action-btn" disabled={submitting}>
-          {submitting ? 'Creating...' : 'Create Event'}
+          {submitting ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
     </div>

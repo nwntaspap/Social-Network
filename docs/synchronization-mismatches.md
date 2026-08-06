@@ -8,7 +8,7 @@
 > Status: only **unresolved** mismatches are listed below, renumbered after pruning.
 > Resolved so far: topic/comment delete & vote query params, event list creator,
 > group routes, chat routes, register `dateOfBirth` format, login (full user + session cookie),
-> `/me` (full user via `userResponse`), `GET /user/profile` (full user via `userResponse`
+> `/me` (full user via `userResponse`), `GET /user/profile` (full user via `userResponse`>
 >
 > - `followersCount`/`followingCount`), topic response (string id, nested `user`,
 >   `imageUrl`, `commentsCount`), comment response (string id, `postId`, nested `user`,
@@ -45,6 +45,21 @@
 >   `updateGroup`, then refreshes the group; creator/admin only, non-admin rejected),
 >   group delete (`DELETE /groups/{groupId}` — `DeleteGroup` button now wired with a two-step inline
 >   confirmation, deletes cascadingly and redirects to `/groups`; creator only).
+>   group member count (`GetGroupResolver.Resolve` now populates `membersCount` via
+>   `CountMembers` — the group page showed 0/blank while the list showed the real count),
+>   group creator display (`GroupHeader` meta line and `GroupCard` now render "Created by {name}";
+>   backend already returned `creator`), event creation (`CreateEventForm` now sends
+>   `options: ['Going', 'Not going']` — the backend required ≥2 options so every creation 400'd;
+>   real `ApiError.message` is surfaced instead of a generic string),
+>   event attendee lists (`GET /events/{eventId}/rsvps` returns per-option users;
+>   `EventsTab` shows option tallies, "View attendees" lazily fetches and renders
+>   profile-linked attendee lists per option),
+>   event edit (`PUT /groups/{groupId}/events/{eventId}` — creator-only `EditEventForm`
+>   dropdown on each event card, enforced backend-side via `eventGroupRoleChecker`;
+>   backend `UpdateEvent` command validates fields and group ownership),
+>   group invites (`invite_member.go` no longer requires creator/admin — any member can invite),
+>   join-request review (`get_pending_join_requests.go` + `respond_join.go` now gated to the
+>   group creator only, 403 otherwise; admins rejected).
 
 ---
 

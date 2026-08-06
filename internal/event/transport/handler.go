@@ -19,6 +19,10 @@ type CreateEventExecutor interface {
 	Execute(ctx context.Context, cmd commands.CreateEventCommand) (*event.Event, []event.Option, error)
 }
 
+type UpdateEventExecutor interface {
+	Execute(ctx context.Context, cmd commands.UpdateEventCommand) (*event.Event, []event.Option, error)
+}
+
 type RSVPExecutor interface {
 	Execute(ctx context.Context, cmd commands.RSVPCommand) error
 }
@@ -27,10 +31,16 @@ type ListGroupEventsResolver interface {
 	Resolve(ctx context.Context, q queries.ListGroupEventsQuery) ([]queries.EventWithOptions, string, error)
 }
 
+type ListEventRSVPsResolver interface {
+	Resolve(ctx context.Context, q queries.ListEventRSVPsQuery) ([]queries.OptionRSVPs, error)
+}
+
 type Handler struct {
 	createEvent     CreateEventExecutor
+	updateEvent     UpdateEventExecutor
 	rsvp            RSVPExecutor
 	listGroupEvents ListGroupEventsResolver
+	listEventRSVPs  ListEventRSVPsResolver
 	userLookup      UserLookup
 	extractUser     UserExtractor
 }
@@ -39,13 +49,17 @@ func NewHandler(
 	extractUser UserExtractor,
 	userLookup UserLookup,
 	createEvent CreateEventExecutor,
+	updateEvent UpdateEventExecutor,
 	rsvp RSVPExecutor,
 	listGroupEvents ListGroupEventsResolver,
+	listEventRSVPs ListEventRSVPsResolver,
 ) *Handler {
 	return &Handler{
 		createEvent:     createEvent,
+		updateEvent:     updateEvent,
 		rsvp:            rsvp,
 		listGroupEvents: listGroupEvents,
+		listEventRSVPs:  listEventRSVPs,
 		userLookup:      userLookup,
 		extractUser:     extractUser,
 	}

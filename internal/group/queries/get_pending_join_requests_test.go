@@ -60,19 +60,16 @@ func TestGetPendingJoinRequestsResolver_EnrichesWithGroup(t *testing.T) {
 	}
 }
 
-func TestGetPendingJoinRequestsResolver_AdminAllowed(t *testing.T) {
+func TestGetPendingJoinRequestsResolver_RejectsAdmin(t *testing.T) {
 	ctx := context.Background()
 	resolver := NewGetPendingJoinRequestsResolver(&pendingJoinRequestsStub{
 		role:      group.RoleAdmin,
 		groupByID: &group.Group{ID: "g1"},
 	})
 
-	res, err := resolver.Resolve(ctx, GetPendingJoinRequestsQuery{GroupID: "g1", UserID: "u2"})
-	if err != nil {
-		t.Fatalf("Resolve() error = %v", err)
-	}
-	if res == nil {
-		t.Fatal("expected non-nil result for admin")
+	_, err := resolver.Resolve(ctx, GetPendingJoinRequestsQuery{GroupID: "g1", UserID: "u2"})
+	if !errors.Is(err, group.ErrNotAdmin) {
+		t.Fatalf("Resolve() error = %v, want ErrNotAdmin", err)
 	}
 }
 

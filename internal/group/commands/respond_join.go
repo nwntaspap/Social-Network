@@ -48,8 +48,8 @@ func (h *RespondJoinHandler) Execute(ctx context.Context, cmd RespondJoinCommand
 	if err != nil {
 		return err
 	}
-	if role != group.RoleCreator && role != group.RoleAdmin {
-		return group.ErrNotAdmin
+	if role != group.RoleCreator {
+		return group.ErrNotCreator
 	}
 
 	_, err = h.repo.GetJoinRequest(ctx, groupID, requesterID)

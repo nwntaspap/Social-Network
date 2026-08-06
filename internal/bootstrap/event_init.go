@@ -29,13 +29,16 @@ func initEvent(db database.DB) *eventtransport.Handler {
 	}
 
 	userLookup := &eventUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+	groupRole := &eventGroupRoleChecker{db: db}
 
 	return eventtransport.NewHandler(
 		extractUser,
 		userLookup,
 		eventcommands.NewCreateEventHandler(store, groupMember, bus),
+		eventcommands.NewUpdateEventHandler(store, groupRole),
 		eventcommands.NewRSVPHandler(store),
 		eventqueries.NewListGroupEventsResolver(store),
+		eventqueries.NewListEventRSVPsResolver(store),
 	)
 }
 
@@ -57,6 +60,23 @@ func (c *groupMemberChecker) IsMember(ctx context.Context, groupID, userID strin
 		groupID, userID,
 	).Scan(&exists)
 	return exists, err
+}
+
+type eventGroupRoleChecker struct {
+	db database.DB
+}
+
+func (c *eventGroupRoleChecker) GetMemberRole(ctx context.Context, groupID, userID string) (string, error) {
+	var role string
+	err := c.db.QueryRowContext(
+		ctx,
+		`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`,
+		groupID, userID,
+	).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
 }
 
 type eventUserLookupAdapter struct {
@@ -91,5 +111,6 @@ func (a *eventUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*e
 var (
 	_ event.Bus                        = (*eventEventBus)(nil)
 	_ eventcommands.GroupMemberChecker = (*groupMemberChecker)(nil)
+	_ eventcommands.GroupRoleChecker   = (*eventGroupRoleChecker)(nil)
 	_ eventtransport.UserLookup        = (*eventUserLookupAdapter)(nil)
 )

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { requestToJoinGroup, leaveGroup, deleteGroup } from '@/lib/api';
-import { formatRelativeDate } from '@/lib/helpers';
+import { formatRelativeDate, getDisplayName } from '@/lib/helpers';
 import type { Group, MembershipStatus } from '@/lib/types';
 import InviteDropdown from './InviteDropdown';
 import CreateEventForm from './CreateEventForm';
@@ -15,6 +15,7 @@ interface GroupHeaderProps {
   isCreator: boolean;
   isMember: boolean;
   onGroupUpdated?: () => void;
+  onEventCreated?: () => void;
 }
 
 export default function GroupHeader({
@@ -22,6 +23,7 @@ export default function GroupHeader({
   isCreator,
   isMember,
   onGroupUpdated,
+  onEventCreated,
 }: GroupHeaderProps) {
   const router = useRouter();
   const [showInvite, setShowInvite] = useState(false);
@@ -85,7 +87,8 @@ export default function GroupHeader({
         <div className="group-detail-info">
           <h1 className="group-detail-title">{group.title}</h1>
           <p className="group-detail-meta">
-            {group.membersCount} members · Created {formatRelativeDate(group.createdAt)}
+            {group.membersCount} members · Created {formatRelativeDate(group.createdAt)} by{' '}
+            {getDisplayName(group.creator)}
           </p>
           <p className="group-detail-desc">{group.description}</p>
         </div>
@@ -136,7 +139,11 @@ export default function GroupHeader({
                 Create Event
               </button>
               {showEventForm && (
-                <CreateEventForm groupId={group.id} onClose={() => setShowEventForm(false)} />
+                <CreateEventForm
+                  groupId={group.id}
+                  onClose={() => setShowEventForm(false)}
+                  onCreated={onEventCreated}
+                />
               )}
             </div>
           </>

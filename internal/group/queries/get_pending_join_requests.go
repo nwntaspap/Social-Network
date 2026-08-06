@@ -47,7 +47,7 @@ func (r *GetPendingJoinRequestsResolver) Resolve(ctx context.Context, q GetPendi
 		}
 		return nil, err
 	}
-	if role != group.RoleCreator && role != group.RoleAdmin {
+	if role != group.RoleCreator {
 		return nil, group.ErrNotAdmin
 	}
 

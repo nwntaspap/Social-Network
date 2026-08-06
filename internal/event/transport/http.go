@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -75,6 +76,63 @@ func (h *Handler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		Options:     optResp,
 	}
 	helpers.RespondWithJSON(w, http.StatusCreated, nil, resp)
+}
+
+type updateEventBody struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	EventDate   string `json:"eventDate"`
+}
+
+func (h *Handler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.extractUser(r)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	groupID, ok := requirePathParam(w, r, "groupId", "Group ID")
+	if !ok {
+		return
+	}
+	eventID, ok := requirePathParam(w, r, "eventId", "Event ID")
+	if !ok {
+		return
+	}
+
+	var body updateEventBody
+	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	eventTime, err := time.Parse(time.RFC3339, body.EventDate)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid event date format, use RFC3339")
+		return
+	}
+
+	cmd := commands.UpdateEventCommand{
+		UserID:        userID,
+		GroupID:       groupID,
+		EventID:       eventID,
+		Title:         body.Title,
+		Description:   body.Description,
+		ScheduledTime: eventTime,
+	}
+
+	e, opts, err := h.updateEvent.Execute(r.Context(), cmd)
+	if err != nil {
+		if errors.Is(err, commands.ErrNotGroupCreator) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	creator := h.lookupUser(r.Context(), e.CreatorID)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, toEventResponse(e, creator, toOptionsWithTally(opts)))
 }
 
 func (h *Handler) ListGroupEvents(w http.ResponseWriter, r *http.Request) {
@@ -158,6 +216,32 @@ func (h *Handler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"status": "ok"})
+}
+
+func (h *Handler) ListEventResponders(w http.ResponseWriter, r *http.Request) {
+	eventID, ok := requirePathParam(w, r, "eventId", "Event ID")
+	if !ok {
+		return
+	}
+
+	options, err := h.listEventRSVPs.Resolve(r.Context(), queries.ListEventRSVPsQuery{EventID: eventID})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	resp := make([]EventRSVPOptionResponse, len(options))
+	for i, o := range options {
+		users := make([]*UserResult, 0, len(o.UserIDs))
+		for _, uid := range o.UserIDs {
+			if u := h.lookupUser(r.Context(), uid); u != nil {
+				users = append(users, u)
+			}
+		}
+		resp[i] = EventRSVPOptionResponse{OptionID: o.OptionID, OptionLabel: o.Label, Users: users}
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]any{"options": resp})
 }
 
 func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {

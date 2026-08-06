@@ -33,8 +33,14 @@ func (r *GetGroupResolver) Resolve(ctx context.Context, q GetGroupQuery) (*GetGr
 
 	status := computeMembershipStatus(ctx, r.repo, q.GroupID, q.UserID)
 
+	count, err := r.repo.CountMembers(ctx, q.GroupID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &GetGroupResult{
 		Group:            *g,
+		MembersCount:     count,
 		MembershipStatus: status,
 	}, nil
 }

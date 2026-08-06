@@ -48,6 +48,7 @@ type Repository interface {
 type Repo interface {
 	CreateEvent(ctx context.Context, e *Event) error
 	GetEvent(ctx context.Context, eventID string) (*Event, error)
+	UpdateEvent(ctx context.Context, e *Event) error
 	DeleteEvent(ctx context.Context, eventID string) error
 	ListGroupEvents(ctx context.Context, groupID, cursor string, size int) ([]Event, string, error)
 }

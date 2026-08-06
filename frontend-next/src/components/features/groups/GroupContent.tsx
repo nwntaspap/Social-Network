@@ -8,24 +8,44 @@ import {
   getGroupEvents,
   getGroupPostComments,
   createGroupPostComment,
+  respondToEvent,
+  getEventRSVPs,
 } from '@/lib/api';
 import PostCard from '@/components/features/home/PostCard';
+import EditEventForm from './EditEventForm';
 import { formatRelativeDate, getDisplayName, getFileUrl } from '@/lib/helpers';
-import type { Comment, Event, Post } from '@/lib/types';
+import type { Comment, Event, EventRSVPOption, Post } from '@/lib/types';
 import { tabView } from './GroupDetail';
 
 interface GroupContentProps {
   groupId: string;
   activeTab: tabView;
   isMember: boolean;
+  isCreator: boolean;
+  eventRefreshKey: number;
 }
 
 const PAGE_SIZE = 10;
 
-export default function GroupContent({ groupId, activeTab }: GroupContentProps) {
+export default function GroupContent({
+  groupId,
+  activeTab,
+  isMember,
+  isCreator,
+  eventRefreshKey,
+}: GroupContentProps) {
   return (
     <div className="group-content-area">
-      {activeTab === 'posts' ? <PostsTab groupId={groupId} /> : <EventsTab groupId={groupId} />}
+      {activeTab === 'posts' ? (
+        <PostsTab groupId={groupId} />
+      ) : (
+        <EventsTab
+          groupId={groupId}
+          isCreator={isCreator}
+          isMember={isMember}
+          refreshKey={eventRefreshKey}
+        />
+      )}
     </div>
   );
 }
@@ -287,7 +307,14 @@ function PostComments({ postId }: { postId: string }) {
   );
 }
 
-function EventsTab({ groupId }: { groupId: string }) {
+interface EventsTabProps {
+  groupId: string;
+  isMember: boolean;
+  isCreator: boolean;
+  refreshKey: number;
+}
+
+function EventsTab({ groupId, isMember, isCreator, refreshKey }: EventsTabProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -327,7 +354,7 @@ function EventsTab({ groupId }: { groupId: string }) {
     return () => {
       ignore = true;
     };
-  }, [groupId]);
+  }, [groupId, refreshKey]);
 
   if (loading) {
     return <p className="group-empty-state">Loading events...</p>;
@@ -341,24 +368,14 @@ function EventsTab({ groupId }: { groupId: string }) {
     <div className="group-events">
       {events.length > 0 ? (
         events.map((event) => (
-          <div key={event.id} className="group-event-card">
-            <div className="event-date-badge">
-              <span className="event-month">
-                {new Date(event.eventDate).toLocaleString('en-US', { month: 'short' })}
-              </span>
-              <span className="event-day">{new Date(event.eventDate).getDate()}</span>
-            </div>
-            <div className="event-details">
-              <h3 className="event-title">{event.title}</h3>
-              <p className="event-desc">{event.description}</p>
-              <div className="event-meta">
-                <span className="event-creator">
-                  Created by {event.creator?.firstName ?? ''} {event.creator?.lastName ?? ''}
-                </span>
-                <span className="event-time">{formatRelativeDate(event.eventDate)}</span>
-              </div>
-            </div>
-          </div>
+          <EventCard
+            key={event.id}
+            event={event}
+            groupId={groupId}
+            isMember={isMember}
+            isCreator={isCreator}
+            onRefresh={() => load()}
+          />
         ))
       ) : (
         <p className="group-empty-state">No events scheduled yet.</p>
@@ -378,6 +395,132 @@ function EventsTab({ groupId }: { groupId: string }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+interface EventCardProps {
+  event: Event;
+  groupId: string;
+  isMember: boolean;
+  isCreator: boolean;
+  onRefresh: () => void;
+}
+
+function EventCard({ event, groupId, isMember, isCreator, onRefresh }: EventCardProps) {
+  const [showAttendees, setShowAttendees] = useState(false);
+  const [attendees, setAttendees] = useState<EventRSVPOption[] | null>(null);
+  const [attendeeError, setAttendeeError] = useState('');
+  const [showEdit, setShowEdit] = useState(false);
+  const [rsvpError, setRsvpError] = useState('');
+
+  async function handleRSVP(optionId: string) {
+    setRsvpError('');
+    try {
+      await respondToEvent(event.id, optionId);
+      onRefresh();
+    } catch {
+      setRsvpError('Failed to save your response. Please try again.');
+    }
+  }
+
+  async function toggleAttendees() {
+    setShowAttendees((prev) => !prev);
+    if (attendees === null) {
+      try {
+        const response = await getEventRSVPs(event.id);
+        setAttendees(response.options);
+        setAttendeeError('');
+      } catch {
+        setAttendeeError('Failed to load attendees.');
+      }
+    }
+  }
+
+  return (
+    <div className="group-event-card">
+      <div className="event-date-badge">
+        <span className="event-month">
+          {new Date(event.eventDate).toLocaleString('en-US', { month: 'short' })}
+        </span>
+        <span className="event-day">{new Date(event.eventDate).getDate()}</span>
+      </div>
+      <div className="event-details">
+        <h3 className="event-title">{event.title}</h3>
+        <p className="event-desc">{event.description}</p>
+        <div className="event-meta">
+          <span className="event-creator">Created by {getDisplayName(event.creator)}</span>
+          <span className="event-time">{formatRelativeDate(event.eventDate)}</span>
+        </div>
+
+        <div className="event-options">
+          {event.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="event-option"
+              disabled={!isMember}
+              onClick={() => handleRSVP(option.id)}
+              title="Click to select this option"
+            >
+              <span className="event-option-label">{option.label}</span>
+              <span className="event-option-tally">{option.tally}</span>
+            </button>
+          ))}
+        </div>
+
+        {rsvpError && <p className="comment-error">{rsvpError}</p>}
+
+        <div className="event-actions">
+          <button type="button" className="event-attendees-toggle" onClick={toggleAttendees}>
+            {showAttendees ? 'Hide attendees' : 'View attendees'}
+          </button>
+          {isCreator && (
+            <button
+              type="button"
+              className="event-edit-btn"
+              onClick={() => setShowEdit((prev) => !prev)}
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        {showAttendees && (
+          <div className="event-attendees">
+            {attendeeError && <p className="comment-error">{attendeeError}</p>}
+            {attendees === null && <p className="group-empty-state">Loading attendees...</p>}
+            {attendees !== null &&
+              attendees.map((option) => (
+                <div key={option.optionId} className="event-attendees-option">
+                  <span className="event-attendees-label">{option.optionLabel}:</span>
+                  {option.users.length > 0 ? (
+                    <ul className="event-attendees-list">
+                      {option.users.map((user) => (
+                        <li key={user.id} className="event-attendee">
+                          <Link href={`/profile/${user.id}`} className="event-attendee-link">
+                            {getDisplayName(user)}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="event-attendees-empty">No one yet</span>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+
+        {showEdit && (
+          <EditEventForm
+            groupId={groupId}
+            event={event}
+            onClose={() => setShowEdit(false)}
+            onUpdated={onRefresh}
+          />
+        )}
+      </div>
     </div>
   );
 }

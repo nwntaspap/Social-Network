@@ -41,12 +41,9 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 	}
 	_ = g
 
-	role, err := h.repo.GetMemberRole(ctx, cmd.GroupID, cmd.InviterID)
+	_, err = h.repo.GetMemberRole(ctx, cmd.GroupID, cmd.InviterID)
 	if err != nil {
 		return nil, group.ErrNotMember
-	}
-	if role != group.RoleCreator && role != group.RoleAdmin {
-		return nil, group.ErrNotAdmin
 	}
 
 	isMember, err := h.repo.IsMember(ctx, cmd.GroupID, cmd.InviteeID)

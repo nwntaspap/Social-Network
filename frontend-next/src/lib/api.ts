@@ -18,6 +18,7 @@ import type {
   GroupInvitation,
   Event,
   GroupEventsResponse,
+  EventRSVPsResponse,
   Chat,
   ChatMessage,
   Notification,
@@ -471,6 +472,14 @@ export async function createEvent(
   return api.post<Event>(`/groups/${groupId}/events`, data);
 }
 
+export async function updateEvent(
+  groupId: string,
+  eventId: string,
+  data: { title: string; description: string; eventDate: string }
+): Promise<Event> {
+  return api.put<Event>(`/groups/${groupId}/events/${eventId}`, data);
+}
+
 export async function getGroupEvents(
   groupId: string,
   cursor?: string
@@ -480,6 +489,10 @@ export async function getGroupEvents(
 
 export async function respondToEvent(eventId: string, response: string): Promise<void> {
   return api.post<void>(`/events/${eventId}/respond`, { response });
+}
+
+export async function getEventRSVPs(eventId: string): Promise<EventRSVPsResponse> {
+  return api.get<EventRSVPsResponse>(`/events/${eventId}/rsvps`);
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────

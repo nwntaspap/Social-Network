@@ -41,7 +41,16 @@ const creatorGroup: Group = {
   title: 'Go Meetup',
   description: 'Gophers hang out',
   creatorId: 'u1',
-  creator: {} as never,
+  creator: {
+    id: 'u1',
+    email: 'alice@example.com',
+    username: 'alice',
+    firstName: 'Alice',
+    lastName: 'Doe',
+    dateOfBirth: '1995-01-01',
+    isPublic: true,
+    createdAt: '2024-01-01T00:00:00Z',
+  },
   membersCount: 2,
   membershipStatus: 'member',
   createdAt: '2026-01-01T00:00:00Z',
@@ -50,6 +59,12 @@ const creatorGroup: Group = {
 describe('GroupHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('shows the group creator in the meta line', () => {
+    render(<GroupHeader group={creatorGroup} isCreator isMember={false} />);
+
+    expect(screen.getByText(/by Alice Doe/)).toBeInTheDocument();
   });
 
   it('shows Edit Group and Delete Group buttons for the creator', () => {

@@ -18,6 +18,7 @@ export default function GroupDetail() {
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [eventRefreshKey, setEventRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +41,10 @@ export default function GroupDetail() {
     getGroup(id)
       .then(setGroup)
       .catch(() => setError('Failed to refresh group.'));
+  }
+
+  function handleEventCreated() {
+    setEventRefreshKey((key) => key + 1);
   }
 
   if (loading) {
@@ -84,6 +89,7 @@ export default function GroupDetail() {
         isCreator={isCreator}
         isMember={isMember}
         onGroupUpdated={handleGroupUpdated}
+        onEventCreated={handleEventCreated}
       />
 
       {isCreator ? (
@@ -106,7 +112,13 @@ export default function GroupDetail() {
                 Events
               </button>
             </div>
-            <GroupContent groupId={group.id} activeTab={activeTab} isMember={isMember} />
+            <GroupContent
+              groupId={group.id}
+              activeTab={activeTab}
+              isMember={isMember}
+              isCreator={isCreator}
+              eventRefreshKey={eventRefreshKey}
+            />
           </div>
         </div>
       ) : (
@@ -126,7 +138,13 @@ export default function GroupDetail() {
               Events
             </button>
           </div>
-          <GroupContent groupId={group.id} activeTab={activeTab} isMember={isMember} />
+          <GroupContent
+            groupId={group.id}
+            activeTab={activeTab}
+            isMember={isMember}
+            isCreator={isCreator}
+            eventRefreshKey={eventRefreshKey}
+          />
         </div>
       )}
     </div>

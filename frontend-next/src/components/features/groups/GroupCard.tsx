@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { requestToJoinGroup, leaveGroup } from '@/lib/api';
-import { formatRelativeDate, truncateText } from '@/lib/helpers';
+import { formatRelativeDate, getDisplayName, truncateText } from '@/lib/helpers';
 import type { Group, MembershipStatus } from '@/lib/types';
 
 interface GroupCardProps {
@@ -62,7 +62,8 @@ export default function GroupCard({ group, onStatusChange }: GroupCardProps) {
             <h3 className="group-card-title">{group.title}</h3>
           </Link>
           <span className="group-card-meta">
-            {group.membersCount} members · {formatRelativeDate(group.createdAt)}
+            {group.membersCount} members · Created by {getDisplayName(group.creator)} ·{' '}
+            {formatRelativeDate(group.createdAt)}
           </span>
         </div>
       </div>

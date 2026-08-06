@@ -182,6 +182,10 @@ func (h *Handler) RespondJoin(w http.ResponseWriter, r *http.Request) {
 		Accept:    accept,
 	})
 	if err != nil {
+		if errors.Is(err, group.ErrNotCreator) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}

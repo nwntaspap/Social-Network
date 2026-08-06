@@ -52,6 +52,14 @@ func (r *fakeRepo) GetEvent(_ context.Context, id string) (*event.Event, error) 
 	return e, nil
 }
 
+func (r *fakeRepo) UpdateEvent(_ context.Context, e *event.Event) error {
+	if _, ok := r.events[e.ID]; !ok {
+		return event.ErrEventNotFound
+	}
+	r.events[e.ID] = e
+	return nil
+}
+
 func (r *fakeRepo) DeleteEvent(_ context.Context, id string) error {
 	delete(r.events, id)
 	return nil
