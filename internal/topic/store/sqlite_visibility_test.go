@@ -150,6 +150,47 @@ func TestGetTopicByID_Visibility(t *testing.T) {
 	}
 }
 
+func TestPrivateAccessRevokedOnUnfollow(t *testing.T) {
+	s := setupTopicStore(t)
+	privateID := seedVisibilityTopics(t, s)
+
+	if _, err := s.GetTopicByID(context.Background(), privateID, strPtr("u2")); err != nil {
+		t.Fatalf("allowed follower should see private topic: %v", err)
+	}
+
+	if _, err := s.db.ExecContext(context.Background(),
+		`DELETE FROM follows WHERE follower_id = 'u2' AND followee_id = 'u1'`); err != nil {
+		t.Fatalf("delete follow: %v", err)
+	}
+	if _, err := s.GetTopicByID(context.Background(), privateID, strPtr("u2")); !errors.Is(err, topic.ErrTopicNotFound) {
+		t.Errorf("private topic after unfollow: err = %v, want ErrTopicNotFound", err)
+	}
+	topics, count, err := s.GetFeed(context.Background(), "u2", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed after unfollow: %v", err)
+	}
+	assertTitles(t, topicTitles(topics), "Public")
+	if count != 1 {
+		t.Errorf("feed count after unfollow = %d, want 1", count)
+	}
+
+	if _, err = s.db.ExecContext(context.Background(),
+		`INSERT INTO follows (follower_id, followee_id) VALUES ('u2', 'u1')`); err != nil {
+		t.Fatalf("insert follow: %v", err)
+	}
+	if _, err = s.GetTopicByID(context.Background(), privateID, strPtr("u2")); err != nil {
+		t.Errorf("private topic after re-follow: %v, want nil", err)
+	}
+	topics, count, err = s.GetFeed(context.Background(), "u2", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed after re-follow: %v", err)
+	}
+	assertTitles(t, topicTitles(topics), "Private", "Followers", "Public")
+	if count != 3 {
+		t.Errorf("feed count after re-follow = %d, want 3", count)
+	}
+}
+
 func TestDeleteVote_Nonexistent(t *testing.T) {
 	s := setupTopicStore(t)
 

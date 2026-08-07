@@ -298,7 +298,8 @@ func (s *SQLiteStore) getAllowedUsers(ctx context.Context, topicID int) ([]strin
 // visibilityGuard returns a SQL fragment (and its arguments) restricting topics
 // to those the requester may see: their own posts, public posts, followers-only
 // posts when the requester follows the author, and private posts when the
-// requester is on the topic's allowed-user list. An empty requesterID (anonymous)
+// requester is on the topic's allowed-user list AND still follows the author
+// (unfollowing revokes private-post access). An empty requesterID (anonymous)
 // only sees public posts.
 func visibilityGuard(requesterID string) (string, []any) {
 	guard := `(t.user_id = ? OR t.visibility = 0 OR
@@ -309,8 +310,11 @@ func visibilityGuard(requesterID string) (string, []any) {
 		(t.visibility = 2 AND EXISTS(
 			SELECT 1 FROM topic_allowed_users a
 			WHERE a.topic_id = t.id AND a.user_id = ?
+		) AND EXISTS(
+			SELECT 1 FROM follows f
+			WHERE f.follower_id = ? AND f.followee_id = t.user_id
 		)))`
-	return guard, []any{requesterID, requesterID, requesterID}
+	return guard, []any{requesterID, requesterID, requesterID, requesterID}
 }
 
 func sanitizeOrderBy(orderBy string) string {
