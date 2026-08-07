@@ -4,6 +4,10 @@ import CreatePostForm from './CreatePostForm';
 
 const mockCreatePost = vi.fn().mockResolvedValue({ id: 't1' });
 const mockCreateGroupPost = vi.fn().mockResolvedValue({ id: 'gp1' });
+const mockGetFollowers = vi.fn().mockResolvedValue([
+  { id: 'f1', username: 'bob', firstName: 'Bob', lastName: 'Builder' },
+  { id: 'f2', username: 'carol', firstName: 'Carol', lastName: 'Day' },
+]);
 
 const { useSearchParams, setSearchParams } = vi.hoisted(() => {
   let current = new URLSearchParams();
@@ -18,6 +22,7 @@ const { useSearchParams, setSearchParams } = vi.hoisted(() => {
 vi.mock('@/lib/api', () => ({
   createPost: (formData: FormData) => mockCreatePost(formData),
   createGroupPost: (formData: FormData, groupId: string) => mockCreateGroupPost(formData, groupId),
+  getFollowers: () => mockGetFollowers(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -82,5 +87,44 @@ describe('CreatePostForm', () => {
       expect(mockCreatePost).toHaveBeenCalledTimes(1);
     });
     expect(mockCreateGroupPost).not.toHaveBeenCalled();
+  });
+
+  it('loads followers and sends allowedUserIds for private posts', async () => {
+    render(<CreatePostForm />);
+    typeContent();
+
+    fireEvent.click(screen.getByRole('radio', { name: /private/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob Builder')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('Bob Builder'));
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => {
+      expect(mockCreatePost).toHaveBeenCalledTimes(1);
+    });
+    const [formData] = mockCreatePost.mock.calls[0];
+    expect(formData.get('privacy')).toBe('private');
+    expect(JSON.parse(formData.get('allowedUserIds'))).toEqual(['f1']);
+  });
+
+  it('requires at least one follower for private posts', async () => {
+    render(<CreatePostForm />);
+    typeContent();
+
+    fireEvent.click(screen.getByRole('radio', { name: /private/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob Builder')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Please select at least one user for private posts.')).toBeTruthy();
+    });
+    expect(mockCreatePost).not.toHaveBeenCalled();
   });
 });

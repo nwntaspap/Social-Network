@@ -37,6 +37,7 @@ func initTopic(db database.DB) *topictransport.Handler {
 		topiccommands.NewUpdateTopicHandler(store, img),
 		topiccommands.NewDeleteTopicHandler(store, bus, img),
 		topiccommands.NewCastVoteHandler(store, bus),
+		topiccommands.NewDeleteVoteHandler(store),
 		topicqueries.NewGetFeedResolver(store),
 		topicqueries.NewGetTopicResolver(store),
 		topicqueries.NewGetTopicsByUserResolver(store),

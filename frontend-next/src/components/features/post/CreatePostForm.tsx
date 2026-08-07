@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { createPost, createGroupPost } from '@/lib/api';
+import { createPost, createGroupPost, getFollowers } from '@/lib/api';
+import { getDisplayName, getFileUrl } from '@/lib/helpers';
 import { useAuth } from '@/context/AuthContext';
-import type { PostPrivacy } from '@/lib/types';
+import type { PostPrivacy, User } from '@/lib/types';
 
 export default function CreatePostForm() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function CreatePostForm() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [privacy, setPrivacy] = useState<PostPrivacy>('public');
   const [allowedUsers, setAllowedUsers] = useState<string[]>([]);
+  const [followers, setFollowers] = useState<User[] | null>(null);
+  const [followersError, setFollowersError] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,6 +32,42 @@ export default function CreatePostForm() {
   // Character limit
   const MAX_CONTENT_LENGTH = 1000;
   const charsRemaining = MAX_CONTENT_LENGTH - content.length;
+
+  useEffect(() => {
+    if (!user || isGroupPost || privacy !== 'private' || followers !== null) {
+      return;
+    }
+    let cancelled = false;
+    getFollowers(user.id)
+      .then((data) => {
+        if (!cancelled) {
+          setFollowers(data);
+          setFollowersError('');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFollowers([]);
+          setFollowersError('Failed to load your followers.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isGroupPost, privacy, followers]);
+
+  function toggleAllowedUser(userId: string) {
+    setAllowedUsers((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+    setError('');
+  }
+
+  function toggleAllFollowers() {
+    const total = followers?.length ?? 0;
+    setAllowedUsers((prev) => (prev.length === total ? [] : (followers ?? []).map((f) => f.id)));
+    setError('');
+  }
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -230,10 +269,54 @@ export default function CreatePostForm() {
         {privacy === 'private' && !isGroupPost && (
           <div className="create-post-field">
             <label className="create-post-label">Select Followers Who Can See This Post</label>
-            {/* TODO: Add follower selection component here */}
-            <p className="create-post-hint">
-              Select followers from your follower list. (Coming soon)
-            </p>
+            <div className="allowed-users-toolbar">
+              <label className="allowed-users-toggle-all">
+                <input
+                  type="checkbox"
+                  checked={
+                    (followers?.length ?? 0) > 0 && allowedUsers.length === followers?.length
+                  }
+                  onChange={toggleAllFollowers}
+                />
+                <span>Select all</span>
+              </label>
+              <span className="allowed-users-count">
+                {allowedUsers.length} of {followers?.length ?? 0} selected
+              </span>
+            </div>
+
+            {followers === null && <p className="create-post-hint">Loading followers...</p>}
+            {followersError && <p className="create-post-error">{followersError}</p>}
+            {followers !== null && !followersError && followers.length === 0 && (
+              <p className="create-post-hint">
+                You have no followers to select. Share your profile to gain followers.
+              </p>
+            )}
+
+            {followers !== null && !followersError && followers.length > 0 && (
+              <div className="allowed-users-list">
+                {followers.map((follower) => (
+                  <label key={follower.id} className="allowed-user-row">
+                    <input
+                      type="checkbox"
+                      checked={allowedUsers.includes(follower.id)}
+                      onChange={() => toggleAllowedUser(follower.id)}
+                    />
+                    <Image
+                      src={getFileUrl(follower.avatarUrl)}
+                      alt={getDisplayName(follower)}
+                      width={36}
+                      height={36}
+                      className="allowed-user-avatar"
+                    />
+                    <span className="allowed-user-name">{getDisplayName(follower)}</span>
+                    <span className="allowed-user-username">
+                      @{follower.username || follower.nickname}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

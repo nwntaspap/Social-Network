@@ -71,10 +71,10 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc(api+"/topics/update", require(h.UpdateTopic))
 		s.mux.HandleFunc(api+"/topics/delete", require(h.DeleteTopic))
 		s.mux.HandleFunc(api+"/topics/vote", require(h.CastVote))
-		s.mux.HandleFunc(api+"/topics/feed", h.GetFeed)
-		s.mux.HandleFunc(api+"/topics/get", h.GetTopic)
-		s.mux.HandleFunc(api+"/topics/user", h.GetUserTopics)
-		s.mux.HandleFunc(api+"/topics/group", h.GetGroupTopics)
+		s.mux.HandleFunc(api+"/topics/feed", optional(h.GetFeed))
+		s.mux.HandleFunc(api+"/topics/get", optional(h.GetTopic))
+		s.mux.HandleFunc(api+"/topics/user", optional(h.GetUserTopics))
+		s.mux.HandleFunc(api+"/topics/group", optional(h.GetGroupTopics))
 		s.mux.HandleFunc(api+"/topics/votes/counts", require(h.GetVoteCounts))
 	}
 

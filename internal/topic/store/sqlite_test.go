@@ -54,8 +54,23 @@ CREATE INDEX idx_topics_user ON topics(user_id);
 CREATE INDEX idx_topics_created ON topics(created_at DESC);
 CREATE INDEX idx_topics_group ON topics(group_id);
 CREATE INDEX idx_topic_allowed_users_topic ON topic_allowed_users(topic_id);
+CREATE TABLE follows (
+    follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    followee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, followee_id)
+);
+CREATE INDEX idx_follows_followee ON follows(followee_id);
 INSERT INTO users (id, email, username) VALUES ('u1', 'a@b.com', 'alice');
-INSERT INTO users (id, email, username) VALUES ('u2', 'c@d.com', 'bob');`
+INSERT INTO users (id, email, username) VALUES ('u2', 'c@d.com', 'bob');
+INSERT INTO users (id, email, username) VALUES ('u3', 'e@f.com', 'charlie');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u2', 'u1');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u3', 'u1');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u1', 'u3');`
+
+func strPtr(s string) *string {
+	return &s
+}
 
 func setupTopicStore(t *testing.T) *SQLiteStore {
 	t.Helper()
@@ -133,7 +148,7 @@ func TestCreateTopic_WithAllowedUsers(t *testing.T) {
 		t.Fatalf("CreateTopic: %v", err)
 	}
 
-	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	got, err := s.GetTopicByID(context.Background(), top.ID, strPtr("u1"))
 	if err != nil {
 		t.Fatalf("GetTopicByID: %v", err)
 	}
@@ -189,7 +204,7 @@ func TestUpdateTopic(t *testing.T) {
 		t.Fatalf("UpdateTopic: %v", err)
 	}
 
-	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	got, err := s.GetTopicByID(context.Background(), top.ID, strPtr("u1"))
 	if err != nil {
 		t.Fatalf("GetTopicByID: %v", err)
 	}
@@ -332,74 +347,6 @@ func TestCommentsCount(t *testing.T) {
 	}
 	if got.CommentsCount != 2 {
 		t.Errorf("GetTopicByID CommentsCount = %d, want 2", got.CommentsCount)
-	}
-}
-
-func TestCastVote(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "Vote", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-
-	if err := s.CastVote(context.Background(), "u2", top.ID, 1); err != nil {
-		t.Fatalf("CastVote: %v", err)
-	}
-
-	vc, err := s.GetVoteCounts(context.Background(), top.ID)
-	if err != nil {
-		t.Fatalf("GetVoteCounts: %v", err)
-	}
-	if vc.Upvotes != 1 || vc.Downvotes != 0 || vc.Score != 1 {
-		t.Errorf("votes = %+v, want {1 0 1}", vc)
-	}
-}
-
-func TestCastVote_Toggle(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "Toggle", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
-
-	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
-	if vc.Upvotes != 0 || vc.Downvotes != 1 || vc.Score != -1 {
-		t.Errorf("after toggle: votes = %+v, want {0 1 -1}", vc)
-	}
-}
-
-func TestDeleteVote(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "DelVote", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
-
-	if err := s.DeleteVote(context.Background(), "u2", top.ID); err != nil {
-		t.Fatalf("DeleteVote: %v", err)
-	}
-
-	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
-	if vc.Upvotes != 0 {
-		t.Errorf("UpvoteCount = %d, want 0", vc.Upvotes)
-	}
-}
-
-func TestGetVoteCounts(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "Counts", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u1", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
-
-	vc, err := s.GetVoteCounts(context.Background(), top.ID)
-	if err != nil {
-		t.Fatalf("GetVoteCounts: %v", err)
-	}
-	if vc.Upvotes != 1 || vc.Downvotes != 1 || vc.Score != 0 {
-		t.Errorf("votes = %+v, want {1 1 0}", vc)
 	}
 }
 

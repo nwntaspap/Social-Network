@@ -33,6 +33,10 @@ type CastVoteExecutor interface {
 	Execute(ctx context.Context, cmd commands.CastVoteCommand) error
 }
 
+type DeleteVoteExecutor interface {
+	Execute(ctx context.Context, cmd commands.DeleteVoteCommand) error
+}
+
 type GetFeedResolver interface {
 	Resolve(ctx context.Context, q queries.GetFeedQuery) (*queries.GetFeedResult, error)
 }
@@ -90,8 +94,10 @@ type TopicResponse struct {
 	CreatedAt     string      `json:"createdAt"`
 	UpdatedAt     string      `json:"updatedAt"`
 	UpvoteCount   int         `json:"likesCount"`
+	DownvoteCount int         `json:"downvotesCount"`
 	CommentsCount int         `json:"commentsCount"`
 	UserVote      *int        `json:"isLiked"`
+	AllowedUsers  []string    `json:"allowedUsers,omitempty"`
 }
 
 type VoteCountsResponse struct {
@@ -138,8 +144,10 @@ func toTopicResponse(t *topic.Topic, user *UserResult) TopicResponse {
 		CreatedAt:     t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     t.UpdatedAt.Format(time.RFC3339),
 		UpvoteCount:   t.UpvoteCount,
+		DownvoteCount: t.DownvoteCount,
 		CommentsCount: t.CommentsCount,
 		UserVote:      t.UserVote,
+		AllowedUsers:  t.AllowedUsers,
 	}
 }
 
@@ -148,6 +156,7 @@ type Handler struct {
 	updateTopic UpdateTopicExecutor
 	deleteTopic DeleteTopicExecutor
 	castVote    CastVoteExecutor
+	deleteVote  DeleteVoteExecutor
 	getFeed     GetFeedResolver
 	getTopic    GetTopicResolver
 	getByUser   GetTopicsByUserResolver
@@ -164,6 +173,7 @@ func NewHandler(
 	updateTopic UpdateTopicExecutor,
 	deleteTopic DeleteTopicExecutor,
 	castVote CastVoteExecutor,
+	deleteVote DeleteVoteExecutor,
 	getFeed GetFeedResolver,
 	getTopic GetTopicResolver,
 	getByUser GetTopicsByUserResolver,
@@ -175,6 +185,7 @@ func NewHandler(
 		updateTopic: updateTopic,
 		deleteTopic: deleteTopic,
 		castVote:    castVote,
+		deleteVote:  deleteVote,
 		getFeed:     getFeed,
 		getTopic:    getTopic,
 		getByUser:   getByUser,

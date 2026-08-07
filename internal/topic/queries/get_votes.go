@@ -7,7 +7,8 @@ import (
 )
 
 type GetVoteCountsQuery struct {
-	TopicID int
+	TopicID     int
+	RequesterID *string
 }
 
 type GetVoteCountsResolver struct {
@@ -19,5 +20,8 @@ func NewGetVoteCountsResolver(repo topic.Repository) *GetVoteCountsResolver {
 }
 
 func (r *GetVoteCountsResolver) Resolve(ctx context.Context, q GetVoteCountsQuery) (*topic.VoteCounts, error) {
+	if _, err := r.repo.GetTopicByID(ctx, q.TopicID, q.RequesterID); err != nil {
+		return nil, err
+	}
 	return r.repo.GetVoteCounts(ctx, q.TopicID)
 }

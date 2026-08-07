@@ -4,12 +4,14 @@ import React from 'react';
 import PostCard from './PostCard';
 
 const mockLikePost = vi.fn().mockResolvedValue(undefined);
-const mockUnlikePost = vi.fn().mockResolvedValue(undefined);
+const mockDislikePost = vi.fn().mockResolvedValue(undefined);
+const mockRemovePostVote = vi.fn().mockResolvedValue(undefined);
 const mockVoteGroupPost = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/lib/api', () => ({
   likePost: (id: number) => mockLikePost(id),
-  unlikePost: (id: number) => mockUnlikePost(id),
+  dislikePost: (id: number) => mockDislikePost(id),
+  removePostVote: (id: number) => mockRemovePostVote(id),
   voteGroupPost: (id: string, reaction: 1 | -1) => mockVoteGroupPost(id, reaction),
 }));
 
@@ -62,13 +64,27 @@ describe('PostCard', () => {
     expect(mockLikePost).not.toHaveBeenCalled();
   });
 
-  it('renders a single like button for a topic post and uses likePost/unlikePost', async () => {
+  it('renders like and dislike buttons for a topic post and votes via likePost/dislikePost', async () => {
     render(<PostCard post={makePost({ groupId: undefined })} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /like/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Like' }));
     await waitFor(() => {
       expect(mockLikePost).toHaveBeenCalledWith(Number('gp1'));
     });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dislike' }));
+    await waitFor(() => {
+      expect(mockDislikePost).toHaveBeenCalledWith(Number('gp1'));
+    });
     expect(mockVoteGroupPost).not.toHaveBeenCalled();
+  });
+
+  it('removes the vote when an active like is clicked again', async () => {
+    render(<PostCard post={makePost({ groupId: undefined, userVote: 1, likesCount: 5 })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Like' }));
+    await waitFor(() => {
+      expect(mockRemovePostVote).toHaveBeenCalledWith(Number('gp1'));
+    });
   });
 });

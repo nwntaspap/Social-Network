@@ -1,9 +1,11 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
 	"social-network/internal/pkg/helpers"
+	"social-network/internal/topic"
 	"social-network/internal/topic/queries"
 )
 
@@ -29,6 +31,10 @@ func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		if errors.Is(err, topic.ErrTopicNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

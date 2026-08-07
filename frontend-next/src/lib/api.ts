@@ -314,10 +314,14 @@ export async function deletePost(postId: number): Promise<void> {
 }
 
 export async function likePost(postId: number): Promise<void> {
-  return api.post<void>(`/topics/vote?id=${postId}`);
+  return api.post<void>(`/topics/vote?id=${postId}`, { reactionType: 1 });
 }
 
-export async function unlikePost(postId: number): Promise<void> {
+export async function dislikePost(postId: number): Promise<void> {
+  return api.post<void>(`/topics/vote?id=${postId}`, { reactionType: -1 });
+}
+
+export async function removePostVote(postId: number): Promise<void> {
   return api.delete<void>(`/topics/vote?id=${postId}`);
 }
 

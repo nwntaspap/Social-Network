@@ -89,22 +89,37 @@ export default function ProfileContent() {
             <p className="profile-bio-text">@{profile.username || profile.nickname}</p>
 
             <div className="profile-stats">
-              <button
-                type="button"
-                className="profile-stat"
-                onClick={() => setStatModal('followers')}
-              >
-                <span className="profile-stat-value">{profile.followersCount ?? 0}</span>
-                <span className="profile-stat-label">Followers</span>
-              </button>
-              <button
-                type="button"
-                className="profile-stat"
-                onClick={() => setStatModal('following')}
-              >
-                <span className="profile-stat-value">{profile.followingCount ?? 0}</span>
-                <span className="profile-stat-label">Following</span>
-              </button>
+              {!isOwnProfile && profile.isPublic === false && !profile.isFollowing ? (
+                <>
+                  <div className="profile-stat">
+                    <span className="profile-stat-value">{profile.followersCount ?? 0}</span>
+                    <span className="profile-stat-label">Followers</span>
+                  </div>
+                  <div className="profile-stat">
+                    <span className="profile-stat-value">{profile.followingCount ?? 0}</span>
+                    <span className="profile-stat-label">Following</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="profile-stat"
+                    onClick={() => setStatModal('followers')}
+                  >
+                    <span className="profile-stat-value">{profile.followersCount ?? 0}</span>
+                    <span className="profile-stat-label">Followers</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="profile-stat"
+                    onClick={() => setStatModal('following')}
+                  >
+                    <span className="profile-stat-value">{profile.followingCount ?? 0}</span>
+                    <span className="profile-stat-label">Following</span>
+                  </button>
+                </>
+              )}
             </div>
 
             {profile.aboutMe && (

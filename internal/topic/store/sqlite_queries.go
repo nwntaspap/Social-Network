@@ -20,9 +20,16 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		args = append(args, fp, fp)
 	}
 
+	guard, guardArgs := visibilityGuard(userID)
+	whereClause += " AND " + guard
+
+	countArgs := make([]any, 0, len(args)+len(guardArgs))
+	countArgs = append(countArgs, args...)
+	countArgs = append(countArgs, guardArgs...)
+
 	countQuery := "SELECT COUNT(DISTINCT t.id) FROM topics t " + whereClause
 	var total int
-	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count feed: %w", err)
 	}
 
@@ -47,9 +54,10 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		"LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL " +
 		whereClause + " ORDER BY " + orderByCol + " " + orderDir + " LIMIT ? OFFSET ?"
 
-	allArgs := make([]any, 0, len(args)+3)
+	allArgs := make([]any, 0, len(args)+len(guardArgs)+3)
 	allArgs = append(allArgs, userID)
 	allArgs = append(allArgs, args...)
+	allArgs = append(allArgs, guardArgs...)
 	offset := (page - 1) * size
 	allArgs = append(allArgs, size, offset)
 
@@ -70,9 +78,16 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 	whereClause := `WHERE t.user_id = ?`
 	args := []any{ownerID}
 
+	guard, guardArgs := visibilityGuard(requesterID)
+	whereClause += " AND " + guard
+
+	countArgs := make([]any, 0, len(args)+len(guardArgs))
+	countArgs = append(countArgs, args...)
+	countArgs = append(countArgs, guardArgs...)
+
 	countQuery := "SELECT COUNT(DISTINCT t.id) FROM topics t " + whereClause
 	var total int
-	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user topics: %w", err)
 	}
 
@@ -95,8 +110,10 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 		whereClause + " ORDER BY t.created_at DESC LIMIT ? OFFSET ?"
 
 	offset := (page - 1) * size
-	allArgs := []any{requesterID}
+	allArgs := make([]any, 0, len(args)+len(guardArgs)+3)
+	allArgs = append(allArgs, requesterID)
 	allArgs = append(allArgs, args...)
+	allArgs = append(allArgs, guardArgs...)
 	allArgs = append(allArgs, size, offset)
 
 	rows, err := s.db.QueryContext(ctx, query, allArgs...)
@@ -199,6 +216,9 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 }
 
 func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) error {
+	if _, err := s.GetTopicByID(ctx, topicID, &userID); err != nil {
+		return err
+	}
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO votes (user_id, topic_id, comment_id, reaction_type)
 		 VALUES (?, ?, NULL, ?)
@@ -273,6 +293,24 @@ func (s *SQLiteStore) getAllowedUsers(ctx context.Context, topicID int) ([]strin
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// visibilityGuard returns a SQL fragment (and its arguments) restricting topics
+// to those the requester may see: their own posts, public posts, followers-only
+// posts when the requester follows the author, and private posts when the
+// requester is on the topic's allowed-user list. An empty requesterID (anonymous)
+// only sees public posts.
+func visibilityGuard(requesterID string) (string, []any) {
+	guard := `(t.user_id = ? OR t.visibility = 0 OR
+		(t.visibility = 1 AND EXISTS(
+			SELECT 1 FROM follows f
+			WHERE f.follower_id = ? AND f.followee_id = t.user_id
+		)) OR
+		(t.visibility = 2 AND EXISTS(
+			SELECT 1 FROM topic_allowed_users a
+			WHERE a.topic_id = t.id AND a.user_id = ?
+		)))`
+	return guard, []any{requesterID, requesterID, requesterID}
 }
 
 func sanitizeOrderBy(orderBy string) string {

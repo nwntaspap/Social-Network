@@ -50,6 +50,14 @@ func (m *mockCastVote) Execute(_ context.Context, cmd commands.CastVoteCommand) 
 	return m.err
 }
 
+type mockDeleteVote struct {
+	err error
+}
+
+func (m *mockDeleteVote) Execute(_ context.Context, cmd commands.DeleteVoteCommand) error {
+	return m.err
+}
+
 type mockGetFeed struct {
 	result *queries.GetFeedResult
 	err    error
@@ -181,6 +189,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var update UpdateTopicExecutor
 	var del DeleteTopicExecutor
 	var cast CastVoteExecutor
+	var delVote DeleteVoteExecutor
 	var getFeed GetFeedResolver
 	var getTopic GetTopicResolver
 	var getByUser GetTopicsByUserResolver
@@ -198,6 +207,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			del = v
 		case *mockCastVote:
 			cast = v
+		case *mockDeleteVote:
+			delVote = v
 		case *mockGetFeed:
 			getFeed = v
 		case *mockGetTopic:
@@ -217,7 +228,7 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 		lookup = &mockUserLookup{}
 	}
 
-	return NewHandler(extractor, lookup, create, update, del, cast, getFeed, getTopic, getByUser, getByGroup, getVotes)
+	return NewHandler(extractor, lookup, create, update, del, cast, delVote, getFeed, getTopic, getByUser, getByGroup, getVotes)
 }
 
 func doMultipartReq(t *testing.T, srv *httptest.Server, method, path string, fields map[string]string) *http.Response {
@@ -317,19 +328,6 @@ func TestDeleteTopic_BadID(t *testing.T) {
 	}
 }
 
-func TestCastVote_Success(t *testing.T) {
-	h := newTestHandler(extractUserOK, &mockCastVote{})
-	srv := httptest.NewServer(mux(h))
-	defer srv.Close()
-
-	resp := doReq(t, srv, http.MethodPost, "/api/posts/vote?id=1")
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-}
-
 func TestGetFeed_Success(t *testing.T) {
 	h := newTestHandler(extractUserOK, &mockGetFeed{
 		result: &queries.GetFeedResult{
@@ -358,6 +356,19 @@ func TestGetTopic_Success(t *testing.T) {
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetTopic_NotFound(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockGetTopic{err: topic.ErrTopicNotFound})
+	srv := httptest.NewServer(mux(h))
+	defer srv.Close()
+
+	resp := doReq(t, srv, http.MethodGet, "/api/posts/get?id=1")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
 
@@ -405,6 +416,15 @@ func TestTopicResponse_MatchesFrontendPost(t *testing.T) {
 	}
 	if got, ok := d["commentsCount"].(float64); !ok || got != 2 {
 		t.Errorf("commentsCount = %#v, want 2", d["commentsCount"])
+	}
+	if got, ok := d["likesCount"].(float64); !ok || got != 3 {
+		t.Errorf("likesCount = %#v, want 3", d["likesCount"])
+	}
+	if got, ok := d["downvotesCount"].(float64); !ok || got != 1 {
+		t.Errorf("downvotesCount = %#v, want 1", d["downvotesCount"])
+	}
+	if _, ok := d["allowedUsers"]; ok {
+		t.Error("allowedUsers should be omitted for non-owner/empty list")
 	}
 	if _, ok := d["ownerUsername"]; ok {
 		t.Error("ownerUsername should be removed from the response")

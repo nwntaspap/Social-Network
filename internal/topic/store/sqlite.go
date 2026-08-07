@@ -167,13 +167,19 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 		LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL`
 	}
 
-	query += ` WHERE t.id = ?`
+	requester := ""
+	if userID != nil {
+		requester = *userID
+	}
+	guard, guardArgs := visibilityGuard(requester)
+	query += ` WHERE t.id = ? AND ` + guard
 
 	args := make([]any, 0)
 	if userID != nil {
 		args = append(args, *userID)
 	}
 	args = append(args, topicID)
+	args = append(args, guardArgs...)
 
 	var t topic.Topic
 	var userVote sql.NullInt32
@@ -211,7 +217,9 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 		t.UserVote = &v
 	}
 
-	t.AllowedUsers, _ = s.getAllowedUsers(ctx, topicID)
+	if userID != nil && *userID == t.UserID {
+		t.AllowedUsers, _ = s.getAllowedUsers(ctx, topicID)
+	}
 	return &t, nil
 }
 

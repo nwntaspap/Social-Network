@@ -4,7 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getPost, getComments, createComment, voteComment, likePost, unlikePost } from '@/lib/api';
+import {
+  getPost,
+  getComments,
+  createComment,
+  voteComment,
+  likePost,
+  dislikePost,
+  removePostVote,
+} from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Comment, Post } from '@/lib/types';
 
@@ -15,8 +23,9 @@ export default function PostDetail() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [liked, setLiked] = useState(false);
+  const [userVote, setUserVote] = useState<number | null>(null);
   const [likesCount, setLikesCount] = useState(0);
+  const [dislikesCount, setDislikesCount] = useState(0);
 
   // Comment form
   const [showCommentForm, setShowCommentForm] = useState(false);
@@ -33,8 +42,12 @@ export default function PostDetail() {
       .then(([postData, commentsData]) => {
         if (ignore) return;
         setPost(postData);
-        setLiked(!!postData.isLiked);
+        setUserVote(
+          postData.userVote ??
+            (typeof postData.isLiked === 'number' ? postData.isLiked : postData.isLiked ? 1 : null)
+        );
         setLikesCount(postData.likesCount ?? 0);
+        setDislikesCount(postData.dislikesCount ?? 0);
         setComments(commentsData);
       })
       .catch(() => {
@@ -48,21 +61,33 @@ export default function PostDetail() {
     };
   }, [postId]);
 
-  async function handleLike() {
+  async function handleVote(reaction: 1 | -1) {
     if (!post) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikesCount((prev) => (wasLiked ? prev - 1 : prev + 1));
+    const prevVote = userVote;
+    const nextVote = prevVote === reaction ? null : reaction;
+
+    const deltaOf = (r: 1 | -1): number => {
+      if (prevVote === r) return -1;
+      if (nextVote === r) return 1;
+      return 0;
+    };
+
+    setUserVote(nextVote);
+    setLikesCount((prev) => prev + deltaOf(1));
+    setDislikesCount((prev) => prev + deltaOf(-1));
 
     try {
-      if (wasLiked) {
-        await unlikePost(Number(post.id));
-      } else {
+      if (nextVote === null) {
+        await removePostVote(Number(post.id));
+      } else if (nextVote === 1) {
         await likePost(Number(post.id));
+      } else {
+        await dislikePost(Number(post.id));
       }
     } catch {
-      setLiked(wasLiked);
-      setLikesCount((prev) => (wasLiked ? prev + 1 : prev - 1));
+      setUserVote(prevVote);
+      setLikesCount((prev) => prev - deltaOf(1));
+      setDislikesCount((prev) => prev - deltaOf(-1));
     }
   }
 
@@ -233,15 +258,35 @@ export default function PostDetail() {
         {/* Actions */}
         {!post.groupId && (
           <div className="post-actions">
-            <button className="post-action-btn" onClick={handleLike}>
+            <button
+              type="button"
+              aria-label="Like"
+              className="post-action-btn"
+              onClick={() => handleVote(1)}
+            >
               <Image
-                src="/images/icons/heart.png"
-                alt={liked ? 'Unlike' : 'Like'}
+                src="/images/icons/icon-like.png"
+                alt="Like"
                 width={20}
                 height={20}
-                className={liked ? 'icon-liked' : 'icon-not-liked'}
+                className={userVote === 1 ? 'icon-liked' : 'icon-not-liked'}
               />
               <span>{likesCount}</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Dislike"
+              className="post-action-btn"
+              onClick={() => handleVote(-1)}
+            >
+              <Image
+                src="/images/icons/icon-dislike.png"
+                alt="Dislike"
+                width={20}
+                height={20}
+                className={userVote === -1 ? 'icon-liked' : 'icon-not-liked'}
+              />
+              <span>{dislikesCount}</span>
             </button>
             <div className="post-action-btn">
               <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />

@@ -1,9 +1,11 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
 	"social-network/internal/pkg/helpers"
+	"social-network/internal/topic"
 	"social-network/internal/topic/queries"
 )
 
@@ -19,10 +21,20 @@ func (h *Handler) GetVoteCounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var userID *string
+	if uid, ok := h.extractUser(r); ok {
+		userID = &uid
+	}
+
 	vc, err := h.getVotes.Resolve(r.Context(), queries.GetVoteCountsQuery{
-		TopicID: topicID,
+		TopicID:     topicID,
+		RequesterID: userID,
 	})
 	if err != nil {
+		if errors.Is(err, topic.ErrTopicNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

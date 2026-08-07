@@ -162,6 +162,9 @@ func TestGetTopicsByGroup_Resolve(t *testing.T) {
 
 func TestGetVoteCounts_Resolve(t *testing.T) {
 	repo := &mockTopicRepo{
+		getByIDFn: func(_ context.Context, _ int, _ *string) (*topic.Topic, error) {
+			return &topic.Topic{ID: 1}, nil
+		},
 		getCountsFn: func(_ context.Context, _ int) (*topic.VoteCounts, error) {
 			return &topic.VoteCounts{Upvotes: 3, Downvotes: 1, Score: 2}, nil
 		},
@@ -174,5 +177,14 @@ func TestGetVoteCounts_Resolve(t *testing.T) {
 	}
 	if vc.Score != 2 {
 		t.Errorf("Score = %d, want 2", vc.Score)
+	}
+}
+
+func TestGetVoteCounts_NotVisible(t *testing.T) {
+	r := NewGetVoteCountsResolver(&mockTopicRepo{})
+
+	_, err := r.Resolve(context.Background(), GetVoteCountsQuery{TopicID: 999})
+	if !errors.Is(err, topic.ErrTopicNotFound) {
+		t.Errorf("err = %v, want ErrTopicNotFound", err)
 	}
 }

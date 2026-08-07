@@ -47,12 +47,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- Altered in 000003_topic_privacy.up.sql: added visibility, image_url.
+-- visibility INTEGER: 0 = public, 1 = followers-only, 2 = private (allowed users in topic_allowed_users).
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    visibility TEXT NOT NULL CHECK(visibility IN ('public', 'almost_private', 'private')),
+    visibility INTEGER NOT NULL DEFAULT 0,
     image_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
