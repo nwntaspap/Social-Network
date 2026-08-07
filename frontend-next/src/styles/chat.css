@@ -1,60 +1,3 @@
-/* Full-page chat layout (src/app/chat) */
-.chat-page {
-  display: flex;
-  height: calc(100vh - 60px);
-  max-width: 1100px;
-  margin: 0 auto;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.chat-page-sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-page-sidebar-header {
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.chat-page-sidebar-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-}
-
-.chat-page-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.chat-page-placeholder {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #999;
-  gap: 8px;
-}
-
-.chat-page-placeholder-icon {
-  font-size: 48px;
-  opacity: 0.5;
-}
-
 .chat-empty-state {
   height: 100%;
 }
@@ -750,4 +693,23 @@
   .group-chat-panel {
     height: 420px;
   }
+}
+
+/* Chat popup widget (embedded chat window inside the modal) */
+.chat-modal--conversation .chat-modal-content {
+  overflow: hidden;
+}
+
+.chat-window--embedded {
+  position: static;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  box-shadow: none;
+  border-radius: 0;
+  animation: none;
+}
+
+.chat-window--embedded .chat-window-header {
+  border-radius: 0;
 }

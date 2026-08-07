@@ -6,6 +6,9 @@
  * Private 1:1 conversation: loads history over HTTP, then lives over the
  * WebSocket. Listens for chat.message on the active chat, marks messages
  * read, and sends chat.send envelopes.
+ *
+ * Incoming messages are deduplicated by id so a single WS delivery can never
+ * produce duplicate rows (and React duplicate-key warnings).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -20,6 +23,10 @@ interface ChatWindowProps {
   chatId: string;
   currentUserId: string;
   otherUser: ChatUser;
+  /** Render inside a modal/container instead of the fixed floating window. */
+  embedded?: boolean;
+  onBack?: () => void;
+  onClose?: () => void;
 }
 
 interface DisplayMessage {
@@ -38,7 +45,14 @@ function toDisplayMessage(msg: PrivateWsMessage): DisplayMessage {
   };
 }
 
-export default function ChatWindow({ chatId, currentUserId, otherUser }: ChatWindowProps) {
+export default function ChatWindow({
+  chatId,
+  currentUserId,
+  otherUser,
+  embedded,
+  onBack,
+  onClose,
+}: ChatWindowProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,7 +92,8 @@ export default function ChatWindow({ chatId, currentUserId, otherUser }: ChatWin
     const unsubscribeMessage = chatSocket.on('chat.message', (payload) => {
       const msg = payload as PrivateWsMessage;
       if (msg.chat_id !== chatId) return;
-      setMessages((prev) => [...prev, toDisplayMessage(msg)]);
+      const display = toDisplayMessage(msg);
+      setMessages((prev) => (prev.some((m) => m.id === display.id) ? prev : [...prev, display]));
       chatSocket.send('chat.mark_read', { chat_id: chatId, up_to_message_id: msg.id });
     });
 
@@ -114,8 +129,18 @@ export default function ChatWindow({ chatId, currentUserId, otherUser }: ChatWin
   }
 
   return (
-    <div className="chat-window">
+    <div className={`chat-window${embedded ? ' chat-window--embedded' : ''}`}>
       <div className="chat-window-header">
+        {onBack && (
+          <button
+            type="button"
+            className="chat-window-back"
+            aria-label="Back to conversations"
+            onClick={onBack}
+          >
+            ←
+          </button>
+        )}
         <div className="chat-window-header-user">
           <span className="chat-user-avatar">
             <Image
@@ -136,6 +161,16 @@ export default function ChatWindow({ chatId, currentUserId, otherUser }: ChatWin
             </span>
           </div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            className="chat-window-close"
+            aria-label="Close chat"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        )}
       </div>
 
       <div className="chat-messages-container">

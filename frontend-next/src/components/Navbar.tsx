@@ -101,7 +101,6 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
   }
 
   const navLinks = [
-    { href: '/chat', label: 'Chat' },
     { href: '/groups', label: 'Groups' },
     // { href: '/activity', label: 'Activity' },
   ];

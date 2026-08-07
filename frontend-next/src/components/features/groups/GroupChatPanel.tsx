@@ -78,7 +78,8 @@ export default function GroupChatPanel({ groupId }: GroupChatPanelProps) {
     const unsubscribe = chatSocket.on('group_chat.message', (payload) => {
       const msg = payload as GroupChatMessageWire;
       if (msg.group_id !== groupId) return;
-      setMessages((prev) => [...prev, toDisplayMessage(msg)]);
+      const display = toDisplayMessage(msg);
+      setMessages((prev) => (prev.some((m) => m.id === display.id) ? prev : [...prev, display]));
     });
     return () => {
       unsubscribe();

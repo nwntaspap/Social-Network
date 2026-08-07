@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { getUserProfile, getUserPosts, sendFollowRequest, unfollowUser } from '@/lib/api';
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
+import { openChatWithUser } from '@/lib/chatWidget';
 import { useAuth } from '@/context/AuthContext';
 import PostCard from '@/components/features/home/PostCard';
 import FollowRequestsSection from './FollowRequestsSection';
@@ -14,7 +14,6 @@ import type { Post, Profile } from '@/lib/types';
 export default function ProfileContent() {
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useAuth();
-  const router = useRouter();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -148,7 +147,7 @@ export default function ProfileContent() {
               <button
                 type="button"
                 className="group-action-btn"
-                onClick={() => router.push(`/chat?chat=${profile.id}`)}
+                onClick={() => openChatWithUser(profile.id)}
               >
                 Message
               </button>

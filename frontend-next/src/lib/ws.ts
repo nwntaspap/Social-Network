@@ -8,6 +8,12 @@
  *
  * Auth is cookie-based (credentials travel with the upgrade request since
  * the socket is opened against the same origin /api/v1/ws proxy).
+ *
+ * connect()/disconnect() are reference-counted so a global chat widget and
+ * page-level components can share one socket without tearing it down while
+ * another consumer still needs it. Only a single WebSocket connection is ever
+ * created; redundant connect() calls while a socket is OPEN or CONNECTING are
+ * no-ops, which prevents duplicate deliveries.
  */
 
 export type WsMessageHandler = (payload: unknown, requestId?: string) => void;
@@ -23,11 +29,13 @@ function wsUrl(): string {
 
 class ChatSocket {
   private socket: WebSocket | null = null;
+  private connecting = false;
   private subscribers: WsSubscribers = new Map();
   private listeners: Array<() => void> = [];
   private shouldReconnect = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
+  private connectCount = 0;
 
   private connected = false;
 
@@ -54,13 +62,29 @@ class ChatSocket {
     return this.connected;
   }
 
+  /** Open the socket. Safe to call from multiple components (ref-counted). */
   connect(): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+    this.connectCount += 1;
+    if (this.socket) return;
+    this.open();
+  }
+
+  /** Release a connect() call. The socket closes when the count reaches zero. */
+  disconnect(): void {
+    this.connectCount = Math.max(0, this.connectCount - 1);
+    if (this.connectCount > 0) return;
+    this.teardown();
+  }
+
+  private open(): void {
     this.shouldReconnect = true;
+    this.connecting = true;
 
     const socket = new WebSocket(wsUrl());
 
     socket.onopen = () => {
+      if (this.socket !== socket) return;
+      this.connecting = false;
       this.connected = true;
       this.reconnectAttempts = 0;
       this.notifyConnection();
@@ -81,10 +105,11 @@ class ChatSocket {
     };
 
     socket.onclose = () => {
+      if (this.socket === socket) this.socket = null;
+      this.connecting = false;
       this.connected = false;
-      this.socket = null;
       this.notifyConnection();
-      if (this.shouldReconnect) {
+      if (this.connectCount > 0 && this.shouldReconnect) {
         this.scheduleReconnect();
       }
     };
@@ -96,15 +121,17 @@ class ChatSocket {
     this.socket = socket;
   }
 
-  disconnect(): void {
+  private teardown(): void {
     this.shouldReconnect = false;
+    this.connecting = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.socket) {
-      this.socket.close();
+      const closing = this.socket;
       this.socket = null;
+      closing.close();
     }
     this.connected = false;
   }
@@ -124,7 +151,9 @@ class ChatSocket {
     this.reconnectAttempts += 1;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      this.connect();
+      if (this.connectCount > 0) {
+        this.open();
+      }
     }, backoff);
   }
 
