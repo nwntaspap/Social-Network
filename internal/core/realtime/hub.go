@@ -146,6 +146,22 @@ func (h *Hub) Send(toUserID string, msg []byte) {
 	}
 }
 
+// SendToUsers delivers a message to all connections of every listed user.
+func (h *Hub) SendToUsers(userIDs []string, msg []byte) {
+	h.mu.RLock()
+	clients := make([]*Client, 0)
+	for _, userID := range userIDs {
+		for client := range h.clients[userID] {
+			clients = append(clients, client)
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, client := range clients {
+		client.send <- msg
+	}
+}
+
 func (h *Hub) BroadCast(msg []byte) {
 	h.mu.RLock()
 	clients := make([]*Client, 0)

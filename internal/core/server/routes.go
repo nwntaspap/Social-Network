@@ -21,6 +21,11 @@ func RegisterRoutes(s *Server) {
 	require := s.requireAuth
 	optional := s.optionalAuth
 
+	// Realtime WebSocket
+	if s.realtime != nil {
+		s.mux.HandleFunc(api+"/ws", require(s.wsHandler))
+	}
+
 	// User routes
 	if h := s.handlers.User; h != nil {
 		s.mux.HandleFunc(api+"/register", h.Register)
@@ -51,6 +56,7 @@ func RegisterRoutes(s *Server) {
 	if h := s.handlers.Chat; h != nil {
 		s.mux.HandleFunc(api+"/chat/users", require(h.GetConversations))
 		s.mux.HandleFunc(api+"/chat/history", require(h.GetChatHistory))
+		s.mux.HandleFunc(api+"/chat/start", require(h.StartChat))
 	}
 
 	// Comment routes
@@ -103,6 +109,7 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc("POST "+api+"/groups/posts/{postId}/comments", require(h.CreateGroupPostComment))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/members", require(h.GetGroupMembers))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/requests/pending", require(h.GetPendingJoinRequests))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/chat/messages", require(h.GetGroupChat))
 	}
 
 	// Event routes
