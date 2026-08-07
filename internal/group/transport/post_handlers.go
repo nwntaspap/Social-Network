@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
 	"social-network/internal/pkg/helpers"
@@ -64,21 +66,34 @@ func (h *Handler) GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userID string
-	if uid, ok := h.extractUser(r); ok {
-		userID = uid
-	}
-
-	_ = userID
-	_, err := h.getGroupChat.Resolve(r.Context(), queries.GetGroupChatQuery{
-		GroupID: groupID,
-	})
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+	userID, ok := h.extractUser(r)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, []any{})
+	limit := 20
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	result, err := h.getGroupChat.Resolve(r.Context(), queries.GetGroupChatQuery{
+		GroupID: groupID,
+		UserID:  userID,
+		Limit:   limit,
+	})
+	if err != nil {
+		if errors.Is(err, group.ErrNotMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, "You are not a member of this group")
+			return
+		}
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Failed to get group chat")
+		return
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, result.Messages)
 }
 
 func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {

@@ -43,6 +43,7 @@ type App struct {
 	LegacyOAuth    *pkgoauth.OAuth
 	Notifier       *notifications.Notifier
 	Hub            *ws.Hub
+	Realtime       *Realtime
 	Middlware      *middleware.Middleware
 	SessionManager session.Manager
 	CookieManager  *authcookies.Manager
@@ -87,6 +88,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 		LegacyOAuth:    legacyOAuth,
 		Notifier:       notifier,
 		Hub:            hub,
+		Realtime:       initRealtime(db),
 		Middlware:      mw,
 		SessionManager: sessionManager,
 		CookieManager:  cookieManager,

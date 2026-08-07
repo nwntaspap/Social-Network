@@ -93,6 +93,15 @@ type PostComment struct {
 	CreatedAt time.Time
 }
 
+// ChatMessage is a message in a group chat room.
+type ChatMessage struct {
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	SenderID  string    `json:"sender_id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Repository interface {
 	Repo
 	MemberRepository
@@ -100,6 +109,7 @@ type Repository interface {
 	JoinRequestRepository
 	PostRepository
 	PostCommentRepository
+	ChatRepository
 }
 
 type Repo interface {
@@ -147,6 +157,12 @@ type PostCommentRepository interface {
 	CreatePostComment(ctx context.Context, c *PostComment) error
 	GetPostComments(ctx context.Context, postID string, page, size int) ([]PostComment, int, error)
 	CountPostComments(ctx context.Context, postID string) (int, error)
+}
+
+type ChatRepository interface {
+	SendGroupChatMessage(ctx context.Context, msg *ChatMessage) error
+	GetGroupChatMessages(ctx context.Context, groupID string, limit int) ([]ChatMessage, error)
+	ListGroupMemberIDs(ctx context.Context, groupID string) ([]string, error)
 }
 
 type FollowChecker interface {

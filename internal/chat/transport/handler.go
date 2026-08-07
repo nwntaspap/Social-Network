@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"social-network/internal/chat"
+	"social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
 )
 
@@ -37,9 +38,14 @@ type ChatUsersResolver interface {
 	Resolve(ctx context.Context, q queries.GetChatUsersRequest) ([]queries.Conversation, error)
 }
 
+type StartChatExecutor interface {
+	Execute(ctx context.Context, cmd commands.OpenPrivateChatCommand) (commands.OpenPrivateChatResult, error)
+}
+
 type Handler struct {
 	getHistory  ChatHistoryResolver
 	getUsers    ChatUsersResolver
+	startChat   StartChatExecutor
 	extractUser UserExtractor
 	userLookup  UserLookup
 }
@@ -56,6 +62,18 @@ func NewHandler(
 		extractUser: extract,
 		userLookup:  userLookup,
 	}
+}
+
+func NewHandlerWithStart(
+	extract UserExtractor,
+	userLookup UserLookup,
+	getHistory ChatHistoryResolver,
+	getUsers ChatUsersResolver,
+	startChat StartChatExecutor,
+) *Handler {
+	h := NewHandler(extract, userLookup, getHistory, getUsers)
+	h.startChat = startChat
+	return h
 }
 
 func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {

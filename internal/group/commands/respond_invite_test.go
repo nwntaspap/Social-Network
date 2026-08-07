@@ -121,6 +121,18 @@ func (s *respondInviteStub) CountPostComments(_ context.Context, _ string) (int,
 	return 0, nil
 }
 
+func (s *respondInviteStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *respondInviteStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *respondInviteStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func TestRespondInviteHandler_Validation(t *testing.T) {
 	ctx := context.Background()
 	handler := NewRespondInviteHandler(&respondInviteStub{})

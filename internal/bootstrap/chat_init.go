@@ -5,11 +5,13 @@ import (
 	"net/http"
 
 	"social-network/internal/chat"
+	chatcommands "social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
 	chatstore "social-network/internal/chat/store"
 	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/core/middleware"
 	domainuser "social-network/internal/domain/user"
+	followstore "social-network/internal/follow/store"
 	"social-network/internal/infra/ws"
 	"social-network/internal/platform/database"
 	"social-network/internal/user"
@@ -18,6 +20,8 @@ import (
 
 func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
+	followStore := followstore.NewSQLiteStore(db)
+	userStore := userstore.NewSQLiteStore(db)
 
 	ba := &chat.BroadcasterAdapter{
 		IsOnlineFn: hub.IsOnline,
@@ -43,7 +47,7 @@ func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chat
 	getHistory := queries.NewGetChatHistoryResolver(store)
 	getUsers := queries.NewGetChatUsersResolver(store, ua, ba)
 
-	userLookup := &chatUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+	userLookup := &chatUserLookupAdapter{repo: userStore}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -53,7 +57,13 @@ func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chat
 		return uid, true
 	}
 
-	return chattransport.NewHandler(extractUser, userLookup, getHistory, getUsers)
+	gate := chatcommands.NewMessageGate(
+		&chat.FollowAdapter{AreConnectedFn: followStore.AreConnected},
+		&chat.PrivacyAdapter{IsPrivateFn: userStore.IsPrivate},
+	)
+	startChat := chatcommands.NewOpenPrivateChatHandler(store, gate)
+
+	return chattransport.NewHandlerWithStart(extractUser, userLookup, getHistory, getUsers, startChat)
 }
 
 type chatUserLookupAdapter struct {

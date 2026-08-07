@@ -103,6 +103,18 @@ func (s *updateGroupStub) GetPostComments(_ context.Context, _ string, _, _ int)
 
 func (s *updateGroupStub) CountPostComments(_ context.Context, _ string) (int, error) { return 0, nil }
 
+func (s *updateGroupStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *updateGroupStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *updateGroupStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func TestUpdateGroupHandler_Execute(t *testing.T) {
 	ctx := context.Background()
 

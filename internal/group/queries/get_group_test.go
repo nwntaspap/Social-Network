@@ -115,6 +115,18 @@ func (s *getGroupStub) CountPostComments(_ context.Context, _ string) (int, erro
 	return 0, nil
 }
 
+func (s *getGroupStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *getGroupStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *getGroupStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func TestGetGroupResolver_IncludesMembersCount(t *testing.T) {
 	ctx := context.Background()
 	stub := &getGroupStub{

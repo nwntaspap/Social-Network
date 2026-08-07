@@ -1,14 +1,18 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"social-network/internal/chat"
+	"social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
 )
 
@@ -237,5 +241,176 @@ func TestGetChatHistory_MatchesFrontendChatMessage(t *testing.T) {
 		if _, ok := d[snake]; ok {
 			t.Errorf("snake_case key %q should not be present", snake)
 		}
+	}
+}
+
+type mockStartChat struct {
+	result commands.OpenPrivateChatResult
+	err    error
+}
+
+func (m *mockStartChat) Execute(_ context.Context, _ commands.OpenPrivateChatCommand) (commands.OpenPrivateChatResult, error) {
+	if m.err != nil {
+		return commands.OpenPrivateChatResult{}, m.err
+	}
+	return m.result, nil
+}
+
+func TestStartChat_ReturnsChat(t *testing.T) {
+	h := NewHandlerWithStart(
+		func(_ *http.Request) (string, bool) { return "me", true },
+		&mockChatUserLookup{},
+		nil,
+		&mockChatUsers{},
+		&mockStartChat{result: commands.OpenPrivateChatResult{Chat: &chat.Chat{ID: "c1", UserOneID: "me", UserTwoID: "u2"}}},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.StartChat))
+	defer srv.Close()
+
+	body := bytes.NewBufferString(`{"userId":"u2"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/chat/start", body)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Data *chat.Chat `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if payload.Data == nil || payload.Data.ID != "c1" {
+		t.Fatalf("data = %#v, want chat c1", payload.Data)
+	}
+}
+
+func TestStartChat_GateRejection(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not connected", commands.ErrNotConnected, http.StatusForbidden},
+		{"cannot message", commands.ErrCannotMessage, http.StatusForbidden},
+		{"missing user", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHandlerWithStart(
+				func(_ *http.Request) (string, bool) { return "me", true },
+				&mockChatUserLookup{},
+				nil,
+				&mockChatUsers{},
+				&mockStartChat{err: tc.err},
+			)
+			srv := httptest.NewServer(http.HandlerFunc(h.StartChat))
+			defer srv.Close()
+
+			body := bytes.NewBufferString(`{"userId":"u2"}`)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/chat/start", body)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tc.want {
+				t.Fatalf("expected %d, got %d", tc.want, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestStartChat_BadPayload(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"empty user id", `{"userId":""}`},
+		{"self chat", `{"userId":"me"}`},
+		{"invalid json", `{not json`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHandlerWithStart(
+				func(_ *http.Request) (string, bool) { return "me", true },
+				&mockChatUserLookup{},
+				nil,
+				&mockChatUsers{},
+				&mockStartChat{},
+			)
+			srv := httptest.NewServer(http.HandlerFunc(h.StartChat))
+			defer srv.Close()
+
+			body := bytes.NewBufferString(tc.body)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/chat/start", body)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestGetChatHistory_RejectsNonParticipant(t *testing.T) {
+	h := NewHandler(
+		func(_ *http.Request) (string, bool) { return "intruder", true },
+		&mockChatUserLookup{},
+		&mockChatHistory{err: chat.ErrNotParticipant},
+		&mockChatUsers{},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.GetChatHistory))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/chat/history?chatId=c1", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestStartChat_Unauthenticated(t *testing.T) {
+	h := NewHandlerWithStart(
+		func(_ *http.Request) (string, bool) { return "", false },
+		&mockChatUserLookup{},
+		nil,
+		&mockChatUsers{},
+		&mockStartChat{},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.StartChat))
+	defer srv.Close()
+
+	body := strings.NewReader(`{"userId":"u2"}`)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/chat/start", body)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
 	}
 }

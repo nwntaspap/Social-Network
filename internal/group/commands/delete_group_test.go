@@ -102,6 +102,18 @@ func (s *deleteGroupStub) GetPostComments(_ context.Context, _ string, _, _ int)
 
 func (s *deleteGroupStub) CountPostComments(_ context.Context, _ string) (int, error) { return 0, nil }
 
+func (s *deleteGroupStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *deleteGroupStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *deleteGroupStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func TestDeleteGroupHandler_Execute(t *testing.T) {
 	ctx := context.Background()
 

@@ -28,6 +28,7 @@ func main() {
 		cfg,
 		coreserver.WithCORS(cfg.AllowedOrigins),
 		coreserver.WithAuth(app.SessionStore, cfg.SessionManager.AccessCookieName),
+		coreserver.WithRealtime(app.Realtime.Hub, app.Realtime.Router, cfg.AllowedOrigins),
 		coreserver.WithHandlers(&coreserver.AllHandlers{
 			User:    app.User,
 			Follow:  app.Follow,
