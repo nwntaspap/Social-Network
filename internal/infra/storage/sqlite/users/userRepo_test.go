@@ -113,3 +113,54 @@ func setupDB(t *testing.T) *sql.DB {
 
 	return db
 }
+
+// productionSchema mirrors db/migrations/000001_initial_schema.up.sql exactly.
+const productionSchema = `
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    avatar_url TEXT,
+    username TEXT UNIQUE,
+    date_of_birth DATE,
+    about_me TEXT,
+    is_private BOOLEAN NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+);`
+
+// TestGetAll_AgainstProductionSchema reproduces a bug where Repo.GetAll
+// selected legacy age/gender columns that do not exist in the production
+// schema, breaking GET /api/v1/chat/users.
+func TestGetAll_AgainstProductionSchema(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(productionSchema); err != nil {
+		t.Fatalf("failed to create production schema: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO users (id, username, email, password_hash, first_name, last_name)
+		VALUES ('user-1', 'alice', 'alice@example.com', 'hash', 'Alice', 'A')`)
+	if err != nil {
+		t.Fatalf("failed to seed user: %v", err)
+	}
+
+	repo := Repo{DB: db}
+	users, err := repo.GetAll(context.Background())
+	if err != nil {
+		t.Fatalf("GetAll() against production schema error = %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("len(users) = %d, want 1", len(users))
+	}
+	if users[0].ID != "user-1" || users[0].Nickname != "alice" {
+		t.Errorf("got %+v, want user-1/alice", users[0])
+	}
+}

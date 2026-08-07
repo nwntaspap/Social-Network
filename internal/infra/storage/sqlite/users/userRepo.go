@@ -23,7 +23,7 @@ func NewRepo(db database.DB) *Repo {
 // TODO: retrieves all users from the repository.
 func (r Repo) GetAll(ctx context.Context) ([]user.User, error) {
 	rows, err := r.DB.QueryContext(ctx, `
-		SELECT id, username, email, first_name, last_name, age, gender, created_at
+		SELECT id, username, email, first_name, last_name, avatar_url, created_at
 		FROM users
 		ORDER BY username ASC
 		`)
@@ -35,16 +35,15 @@ func (r Repo) GetAll(ctx context.Context) ([]user.User, error) {
 	var users []user.User
 	for rows.Next() {
 		var u user.User
-		var firstName, lastName, gender sql.NullString
-		var age sql.NullInt64
+		var firstName, lastName sql.NullString
+		var avatarURL sql.NullString
 		err := rows.Scan(
 			&u.ID,
 			&u.Nickname,
 			&u.Email,
 			&firstName,
 			&lastName,
-			&age,
-			&gender,
+			&avatarURL,
 			&u.CreatedAt,
 		)
 		if err != nil {
@@ -52,8 +51,9 @@ func (r Repo) GetAll(ctx context.Context) ([]user.User, error) {
 		}
 		u.FirstName = firstName.String
 		u.LastName = lastName.String
-		u.Age = int(age.Int64)
-		u.Gender = gender.String
+		if avatarURL.Valid {
+			u.AvatarURL = &avatarURL.String
+		}
 		users = append(users, u)
 	}
 	err = rows.Err()
