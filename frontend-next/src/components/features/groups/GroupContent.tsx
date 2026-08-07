@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import PostCard from '@/components/features/home/PostCard';
 import EditEventForm from './EditEventForm';
+import GroupChatPanel from './GroupChatPanel';
 import { formatRelativeDate, getDisplayName, getFileUrl } from '@/lib/helpers';
 import type { Comment, Event, EventRSVPOption, Post } from '@/lib/types';
 import { tabView } from './GroupDetail';
@@ -38,6 +39,8 @@ export default function GroupContent({
     <div className="group-content-area">
       {activeTab === 'posts' ? (
         <PostsTab groupId={groupId} />
+      ) : activeTab === 'chat' ? (
+        <ChatTab groupId={groupId} />
       ) : (
         <EventsTab
           groupId={groupId}
@@ -48,6 +51,10 @@ export default function GroupContent({
       )}
     </div>
   );
+}
+
+function ChatTab({ groupId }: { groupId: string }) {
+  return <GroupChatPanel groupId={groupId} />;
 }
 
 function PostsTab({ groupId }: { groupId: string }) {

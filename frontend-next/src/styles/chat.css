@@ -692,3 +692,62 @@
     background-position: -200% 0;
   }
 }
+
+/* Group chat panel (groups page chat tab) */
+.group-chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.group-chat-panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.group-chat-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.group-chat-panel .chat-messages-container {
+  flex: 1;
+  height: auto;
+}
+
+.group-chat-sender-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.group-chat-message-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 70%;
+}
+
+.group-chat-sender-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.group-chat-sender-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #777;
+}
+
+@media only screen and (max-width: 768px) {
+  .group-chat-panel {
+    height: 420px;
+  }
+}

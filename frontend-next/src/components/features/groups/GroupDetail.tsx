@@ -9,7 +9,7 @@ import { getGroup } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Group } from '@/lib/types';
 
-export type tabView = 'posts' | 'events';
+export type tabView = 'posts' | 'events' | 'chat';
 
 export default function GroupDetail() {
   const { id } = useParams<{ id: string }>();
@@ -111,6 +111,12 @@ export default function GroupDetail() {
               >
                 Events
               </button>
+              <button
+                className={`group-tab ${activeTab === 'chat' ? 'group-tab--active' : ''}`}
+                onClick={() => setActiveTab('chat')}
+              >
+                Chat
+              </button>
             </div>
             <GroupContent
               groupId={group.id}
@@ -136,6 +142,12 @@ export default function GroupDetail() {
               onClick={() => setActiveTab('events')}
             >
               Events
+            </button>
+            <button
+              className={`group-tab ${activeTab === 'chat' ? 'group-tab--active' : ''}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              Chat
             </button>
           </div>
           <GroupContent

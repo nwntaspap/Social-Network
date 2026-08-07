@@ -21,6 +21,7 @@ import type {
   EventRSVPsResponse,
   Chat,
   ChatMessage,
+  GroupChatMessageWire,
   Notification,
   FollowRequest,
   PaginatedResponse,
@@ -520,6 +521,13 @@ export async function startChat(userId: string): Promise<Chat> {
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
   return api.get<ChatMessage[]>('/chat/history', { chatId });
+}
+
+export async function getGroupChatHistory(
+  groupId: string,
+  limit = 50
+): Promise<GroupChatMessageWire[]> {
+  return api.get<GroupChatMessageWire[]>(`/groups/${groupId}/chat/messages`, { limit });
 }
 
 // ─── Notifications (not yet wired) ───────────────────────────────────────────
