@@ -1,3 +1,146 @@
+/* Full-page chat layout (src/app/chat) */
+.chat-page {
+  display: flex;
+  height: calc(100vh - 60px);
+  max-width: 1100px;
+  margin: 0 auto;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.chat-page-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-page-sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-page-sidebar-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.chat-page-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chat-page-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  gap: 8px;
+}
+
+.chat-page-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.chat-empty-state {
+  height: 100%;
+}
+
+/* Emoji picker */
+.chat-input-emoji-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chat-emoji-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.chat-emoji-button:hover {
+  background: #f0f0f0;
+}
+
+.emoji-picker {
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  width: 280px;
+  z-index: 1002;
+  overflow: hidden;
+}
+
+.emoji-picker-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.emoji-picker-tab {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.emoji-picker-tab:hover,
+.emoji-picker-tab--active {
+  background: #f0f0f0;
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.emoji-picker-emoji {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background-color 0.1s ease;
+}
+
+.emoji-picker-emoji:hover {
+  background: #f0f0f0;
+}
+
 /* Chat Widget & Modal Styles */
 .chat-widget-button {
   position: fixed;

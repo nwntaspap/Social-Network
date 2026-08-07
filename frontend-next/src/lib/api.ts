@@ -514,6 +514,10 @@ export async function getChats(): Promise<Chat[]> {
   return api.get<Chat[]>('/chat/users');
 }
 
+export async function startChat(userId: string): Promise<Chat> {
+  return api.post<Chat>('/chat/start', { userId });
+}
+
 export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
   return api.get<ChatMessage[]>('/chat/history', { chatId });
 }

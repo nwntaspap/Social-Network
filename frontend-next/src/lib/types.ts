@@ -187,6 +187,58 @@ export interface ChatUser {
   lastMessageAt?: string;
 }
 
+// ─── Realtime (WebSocket) ─────────────────────────────────────────────────────
+
+/** Wire envelope for every WebSocket message (matches backend realtime.Envelope). */
+export interface WsEnvelope {
+  type: string;
+  request_id?: string;
+  payload: unknown;
+}
+
+/** Private chat message as pushed over the WebSocket (snake_case from backend). */
+export interface PrivateWsMessage {
+  id: number;
+  chat_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  client_message_id?: string;
+}
+
+/** Group chat message as pushed over the WebSocket / returned by HTTP history. */
+export interface GroupChatMessageWire {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+/** Payload of the isOnlineStatus.update broadcast. */
+export interface IsOnlineStatusPayload {
+  user_id: string;
+  isOnline: boolean;
+}
+
+/** Payload of the chat.is_typing broadcast. */
+export interface IsTypingPayload {
+  chat_id: string;
+  user_id: string;
+}
+
+/** Payload of an error envelope. */
+export interface WsErrorPayload {
+  message: string;
+}
+
+export interface WsConversation extends Chat {
+  id: string;
+  participants: ChatUser[];
+  unreadCount: number;
+  createdAt: string;
+}
+
 export type NotificationType =
   | 'followRequest'
   | 'followAccepted'
