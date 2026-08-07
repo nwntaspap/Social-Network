@@ -8,6 +8,7 @@ import (
 
 type GetChatHistoryQuery struct {
 	ChatID          string
+	RequesterID     string
 	BeforeMessageID int
 	Limit           int
 }
@@ -21,6 +22,16 @@ func NewGetChatHistoryResolver(repo chat.Repository) *GetChatHistoryResolver {
 }
 
 func (r *GetChatHistoryResolver) Resolve(ctx context.Context, q GetChatHistoryQuery) ([]*chat.Message, error) {
+	if q.RequesterID != "" {
+		c, err := r.repo.GetChat(ctx, q.ChatID)
+		if err != nil {
+			return nil, err
+		}
+		if c.UserOneID != q.RequesterID && c.UserTwoID != q.RequesterID {
+			return nil, chat.ErrNotParticipant
+		}
+	}
+
 	limit := q.Limit
 	if limit <= 0 || limit > 20 {
 		limit = 10

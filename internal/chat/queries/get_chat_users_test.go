@@ -9,14 +9,18 @@ import (
 )
 
 type chatRepoStub struct {
-	chatsFn func(ctx context.Context, userID string) ([]*chat.Chat, error)
+	chatsFn   func(ctx context.Context, userID string) ([]*chat.Chat, error)
+	getChatFn func(ctx context.Context, chatID string) (*chat.Chat, error)
 }
 
 func (s *chatRepoStub) GetOrCreateChat(_ context.Context, _, _ string) (*chat.Chat, error) {
 	return &chat.Chat{}, nil
 }
 
-func (s *chatRepoStub) GetChat(_ context.Context, _ string) (*chat.Chat, error) {
+func (s *chatRepoStub) GetChat(ctx context.Context, chatID string) (*chat.Chat, error) {
+	if s.getChatFn != nil {
+		return s.getChatFn(ctx, chatID)
+	}
 	return &chat.Chat{}, nil
 }
 

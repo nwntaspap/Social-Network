@@ -2,12 +2,9 @@ package commands
 
 import (
 	"context"
-	"errors"
 
 	"social-network/internal/chat"
 )
-
-var ErrNotConnected = errors.New("users are not connected: at least one must follow the other")
 
 type SendPrivateMessageCommand struct {
 	SenderID        string
@@ -23,21 +20,17 @@ type SendPrivateMessageResult struct {
 }
 
 type SendPrivateMessageHandler struct {
-	repo   chat.Repository
-	follow chat.FollowChecker
+	repo chat.Repository
+	gate *MessageGate
 }
 
-func NewSendPrivateMessageHandler(repo chat.Repository, follow chat.FollowChecker) *SendPrivateMessageHandler {
-	return &SendPrivateMessageHandler{repo: repo, follow: follow}
+func NewSendPrivateMessageHandler(repo chat.Repository, gate *MessageGate) *SendPrivateMessageHandler {
+	return &SendPrivateMessageHandler{repo: repo, gate: gate}
 }
 
 func (h *SendPrivateMessageHandler) Execute(ctx context.Context, cmd SendPrivateMessageCommand) (SendPrivateMessageResult, error) {
-	connected, err := h.follow.AreConnected(ctx, cmd.SenderID, cmd.ReceiverID)
-	if err != nil {
+	if err := h.gate.Validate(ctx, cmd.SenderID, cmd.ReceiverID); err != nil {
 		return SendPrivateMessageResult{}, err
-	}
-	if !connected {
-		return SendPrivateMessageResult{}, ErrNotConnected
 	}
 
 	c, err := h.repo.GetOrCreateChat(ctx, cmd.SenderID, cmd.ReceiverID)

@@ -122,7 +122,7 @@ func (s *SQLiteStore) GetChat(ctx context.Context, chatID string) (*chat.Chat, e
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("chat not found")
+			return nil, chat.ErrChatNotFound
 		}
 		return nil, err
 	}

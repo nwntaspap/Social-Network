@@ -80,6 +80,17 @@ func (s *SQLiteStore) GetByID(ctx context.Context, id string) (*user.User, error
 	return u, err
 }
 
+// IsPrivate reports whether a user's profile is private.
+func (s *SQLiteStore) IsPrivate(ctx context.Context, userID string) (bool, error) {
+	var isPrivate bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT is_private FROM users WHERE id = ?`, userID).Scan(&isPrivate)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("user %s: %w", userID, user.ErrUserNotFound)
+	}
+	return isPrivate, err
+}
+
 func (s *SQLiteStore) GetByEmail(ctx context.Context, email string) (*user.User, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT `+userColumns+` FROM users WHERE email = ?`, email)
