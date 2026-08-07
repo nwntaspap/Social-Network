@@ -9,6 +9,16 @@ import (
 
 var ErrSelfFollow = errors.New("cannot follow yourself")
 
+// FollowUserResult reports what happened on a follow action:
+// "following" when the follower joined immediately, "pending" when the
+// followee is private and the action became a follow request awaiting approval.
+type FollowUserResult string
+
+const (
+	FollowedDirect FollowUserResult = "following"
+	FollowPending  FollowUserResult = "pending"
+)
+
 type FollowUserCommand struct {
 	FollowerID string
 	TargetID   string
@@ -28,14 +38,14 @@ func NewFollowUserHandler(repo follow.Repository, privacy follow.UserPrivacyChec
 	}
 }
 
-func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) error {
+func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) (FollowUserResult, error) {
 	if cmd.FollowerID == cmd.TargetID {
-		return ErrSelfFollow
+		return "", ErrSelfFollow
 	}
 
 	isPrivate, err := h.privacy.IsPrivate(ctx, cmd.TargetID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if isPrivate {
@@ -45,10 +55,14 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 		}
 		err = h.repo.CreateFollowRequest(ctx, req)
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		return h.bus.Publish(ctx, "follow.requested", req)
+		err = h.bus.Publish(ctx, "follow.requested", req)
+		if err != nil {
+			return "", err
+		}
+		return FollowPending, nil
 	}
 	f := &follow.Follow{
 		FollowerID: cmd.FollowerID,
@@ -56,7 +70,11 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 	}
 	err = h.repo.CreateFollow(ctx, f)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return h.bus.Publish(ctx, "follow.accepted", f)
+	err = h.bus.Publish(ctx, "follow.accepted", f)
+	if err != nil {
+		return "", err
+	}
+	return FollowedDirect, nil
 }

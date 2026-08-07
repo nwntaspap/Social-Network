@@ -28,13 +28,16 @@ func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if err := h.followUser.Execute(r.Context(), commands.FollowUserCommand{
+	result, err := h.followUser.Execute(r.Context(), commands.FollowUserCommand{
 		FollowerID: userID,
 		TargetID:   req.TargetID,
-	}); err != nil {
+	})
+	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"message": "Followed successfully"})
+	helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{
+		"status": string(result),
+	})
 }

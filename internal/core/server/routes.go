@@ -28,7 +28,7 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc(api+"/login/username", h.Login)
 		s.mux.HandleFunc(api+"/logout", require(h.Logout))
 		s.mux.HandleFunc(api+"/me", require(h.GetMe))
-		s.mux.HandleFunc(api+"/user/profile", h.GetProfile)
+		s.mux.HandleFunc(api+"/user/profile", optional(h.GetProfile))
 		s.mux.HandleFunc(api+"/user/update", require(h.UpdateProfile))
 		s.mux.HandleFunc(api+"/user/privacy", require(h.TogglePrivacy))
 		s.mux.HandleFunc(api+"/user/activity", h.GetActivity)

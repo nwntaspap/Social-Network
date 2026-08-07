@@ -7,6 +7,8 @@ import { getUserProfile, getUserPosts, sendFollowRequest, unfollowUser } from '@
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
 import { useAuth } from '@/context/AuthContext';
 import PostCard from '@/components/features/home/PostCard';
+import FollowRequestsSection from './FollowRequestsSection';
+import FollowersFollowingModal from './FollowersFollowingModal';
 import type { Post, Profile } from '@/lib/types';
 
 export default function ProfileContent() {
@@ -19,6 +21,7 @@ export default function ProfileContent() {
   const [error, setError] = useState('');
   const [followState, setFollowState] = useState<'none' | 'following' | 'pending'>('none');
   const [followBusy, setFollowBusy] = useState(false);
+  const [statModal, setStatModal] = useState<'followers' | 'following' | null>(null);
 
   const isOwnProfile = currentUser?.id === id;
 
@@ -50,8 +53,8 @@ export default function ProfileContent() {
         await unfollowUser(profile.id);
         setFollowState('none');
       } else if (followState === 'none') {
-        await sendFollowRequest(profile.id);
-        setFollowState('pending');
+        const response = await sendFollowRequest(profile.id);
+        setFollowState(response.status === 'pending' ? 'pending' : 'following');
       }
     } catch (err) {
       console.error('Follow action failed:', err);
@@ -86,14 +89,22 @@ export default function ProfileContent() {
             <p className="profile-bio-text">@{profile.username || profile.nickname}</p>
 
             <div className="profile-stats">
-              <div className="profile-stat">
+              <button
+                type="button"
+                className="profile-stat"
+                onClick={() => setStatModal('followers')}
+              >
                 <span className="profile-stat-value">{profile.followersCount ?? 0}</span>
                 <span className="profile-stat-label">Followers</span>
-              </div>
-              <div className="profile-stat">
+              </button>
+              <button
+                type="button"
+                className="profile-stat"
+                onClick={() => setStatModal('following')}
+              >
                 <span className="profile-stat-value">{profile.followingCount ?? 0}</span>
                 <span className="profile-stat-label">Following</span>
-              </div>
+              </button>
             </div>
 
             {profile.aboutMe && (
@@ -120,11 +131,17 @@ export default function ProfileContent() {
         </div>
       </div>
 
+      {isOwnProfile && <FollowRequestsSection />}
+
       <h2 className="activity-page-title">Posts</h2>
       {posts.length === 0 ? (
         <p className="activity-section">No posts yet.</p>
       ) : (
         posts.map((post) => <PostCard key={post.id} post={post} />)
+      )}
+
+      {statModal && (
+        <FollowersFollowingModal userId={id} mode={statModal} onClose={() => setStatModal(null)} />
       )}
     </div>
   );

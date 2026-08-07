@@ -25,5 +25,10 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, followers)
+	users := make([]*UserResult, len(followers))
+	for i, f := range followers {
+		users[i] = h.lookupUser(r.Context(), f.FollowerID)
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, users)
 }

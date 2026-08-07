@@ -71,12 +71,15 @@ func TestFollowUserHandler_PublicUser(t *testing.T) {
 	bus := &mockBus{}
 	h := NewFollowUserHandler(repo, privacy, bus)
 
-	err := h.Execute(context.Background(), FollowUserCommand{
+	result, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
 		TargetID:   "user-2",
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
+	}
+	if result != FollowedDirect {
+		t.Errorf("result = %q, want %q", result, FollowedDirect)
 	}
 	if bus.eventType != "follow.accepted" {
 		t.Errorf("eventType = %q, want %q", bus.eventType, "follow.accepted")
@@ -96,12 +99,15 @@ func TestFollowUserHandler_PrivateUser(t *testing.T) {
 	bus := &mockBus{}
 	h := NewFollowUserHandler(repo, privacy, bus)
 
-	err := h.Execute(context.Background(), FollowUserCommand{
+	result, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
 		TargetID:   "user-2",
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
+	}
+	if result != FollowPending {
+		t.Errorf("result = %q, want %q", result, FollowPending)
 	}
 	if bus.eventType != "follow.requested" {
 		t.Errorf("eventType = %q, want %q", bus.eventType, "follow.requested")
@@ -118,7 +124,7 @@ func TestFollowUserHandler_PrivateUser(t *testing.T) {
 func TestFollowUserHandler_SelfFollow(t *testing.T) {
 	h := NewFollowUserHandler(&mockRepo{}, &mockPrivacy{}, &mockBus{})
 
-	err := h.Execute(context.Background(), FollowUserCommand{
+	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
 		TargetID:   "user-1",
 	})
@@ -131,7 +137,7 @@ func TestFollowUserHandler_PrivacyCheckError(t *testing.T) {
 	privacy := &mockPrivacy{err: errors.New("db down")}
 	h := NewFollowUserHandler(&mockRepo{}, privacy, &mockBus{})
 
-	err := h.Execute(context.Background(), FollowUserCommand{
+	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
 		TargetID:   "user-2",
 	})
@@ -146,7 +152,7 @@ func TestFollowUserHandler_RepoCreateFollowError(t *testing.T) {
 	bus := &mockBus{}
 	h := NewFollowUserHandler(repo, privacy, bus)
 
-	err := h.Execute(context.Background(), FollowUserCommand{
+	_, err := h.Execute(context.Background(), FollowUserCommand{
 		FollowerID: "user-1",
 		TargetID:   "user-2",
 	})

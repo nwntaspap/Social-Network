@@ -51,15 +51,18 @@ export default function SuggestedUsers() {
 }
 
 function SuggestedUserCard({ user }: { user: User }) {
-  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<'none' | 'pending' | 'following'>('none');
+  const [busy, setBusy] = useState(false);
 
   async function handleFollow() {
-    setPending(true);
+    setBusy(true);
     try {
-      await sendFollowRequest(user.id);
+      const response = await sendFollowRequest(user.id);
+      setStatus(response.status === 'pending' ? 'pending' : 'following');
     } catch (err) {
       console.error('Failed to send follow request:', err);
-      setPending(false);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -79,8 +82,8 @@ function SuggestedUserCard({ user }: { user: User }) {
           {user.aboutMe && <p className="suggested-user-bio">{truncateText(user.aboutMe, 60)}</p>}
         </div>
       </Link>
-      <button className="follow-btn" onClick={handleFollow} disabled={pending}>
-        {pending ? 'Requested' : 'Follow'}
+      <button className="follow-btn" onClick={handleFollow} disabled={busy || status !== 'none'}>
+        {status === 'following' ? 'Following' : status === 'pending' ? 'Requested' : 'Follow'}
       </button>
     </div>
   );

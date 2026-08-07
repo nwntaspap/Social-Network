@@ -20,6 +20,7 @@ func TestGetProfile_Success(t *testing.T) {
 				User:           user.User{ID: "u1", Nickname: "nick"},
 				FollowerCount:  5,
 				FollowingCount: 3,
+				IsFollowing:    true,
 			},
 		}
 	})
@@ -32,6 +33,18 @@ func TestGetProfile_Success(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp struct {
+		Data struct {
+			IsFollowing bool `json:"isFollowing"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !resp.Data.IsFollowing {
+		t.Error("isFollowing = false, want true")
 	}
 }
 

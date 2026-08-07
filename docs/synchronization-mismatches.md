@@ -70,7 +70,21 @@
 >   `GET`/`POST /groups/posts/{postId}/comments` on the group feed; the separate
 >   "Show comments/Hide comments" toggle was removed),
 >   groups live search (`GroupSearchBar` is now a plain input that filters the groups grid via
->   the existing `GET /groups?query=` SQL LIKE filter, replacing the autocomplete dropdown).
+>   the existing `GET /groups?query=` SQL LIKE filter, replacing the autocomplete dropdown),
+>   follow action returns a status (`POST /follow` now responds `{ "status": "following" }` for
+>   public targets and `{ "status": "pending" }` for private targets — the frontend follow button
+>   is driven by the returned status instead of assuming "pending"),
+>   followers/following lists (`GET /follow/followers` and `GET /follow/following` now return
+>   enriched `User[]` objects — previously they returned bare `{followerId, followeeId}` pairs the
+>   frontend couldn't render),
+>   profile `isFollowing` (`GET /user/profile` now includes `isFollowing`, computed for the
+>   authenticated viewer; the route is now optional-auth so the requester is known while still
+>   allowing anonymous viewing; private targets only expose the full profile to followers),
+>   private-user detection (`followPrivacyAdapter` reads the user store `IsPrivate` instead of the
+>   always-`false` `follow.PrivacyStub`, so private accounts are actually treated as private),
+>   frontend follow system (own-profile `FollowRequestsSection` with Accept/Decline for
+>   `GET /follow/requests`; clickable Followers/Following stats opening a list modal;
+>   `SuggestedUsers` shows Following/Requested states).
 
 ---
 

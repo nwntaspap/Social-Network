@@ -31,7 +31,7 @@ type UserLookup interface {
 }
 
 type FollowUserExecutor interface {
-	Execute(ctx context.Context, cmd commands.FollowUserCommand) error
+	Execute(ctx context.Context, cmd commands.FollowUserCommand) (commands.FollowUserResult, error)
 }
 
 type UnfollowUserExecutor interface {

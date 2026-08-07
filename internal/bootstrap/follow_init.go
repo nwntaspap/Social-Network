@@ -17,10 +17,11 @@ import (
 
 func initFollow(db database.DB) *followtransport.Handler {
 	store := followstore.NewSQLiteStore(db)
-	privacy := &follow.PrivacyStub{}
+	userStore := userstore.NewSQLiteStore(db)
+	privacy := &followPrivacyAdapter{repo: userStore}
 	bus := &follow.NoopEventBus{}
 
-	userLookup := &followUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+	userLookup := &followUserLookupAdapter{repo: userStore}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -78,3 +79,17 @@ func (a *followUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*
 }
 
 var _ followtransport.UserLookup = (*followUserLookupAdapter)(nil)
+
+type followPrivacyAdapter struct {
+	repo user.Repository
+}
+
+func (a *followPrivacyAdapter) IsPrivate(ctx context.Context, userID string) (bool, error) {
+	u, err := a.repo.GetByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return u.IsPrivate, nil
+}
+
+var _ follow.UserPrivacyChecker = (*followPrivacyAdapter)(nil)

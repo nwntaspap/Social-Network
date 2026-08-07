@@ -10,11 +10,12 @@ import (
 )
 
 type mockFollowUser struct {
-	err error
+	result commands.FollowUserResult
+	err    error
 }
 
-func (m *mockFollowUser) Execute(_ context.Context, _ commands.FollowUserCommand) error {
-	return m.err
+func (m *mockFollowUser) Execute(_ context.Context, _ commands.FollowUserCommand) (commands.FollowUserResult, error) {
+	return m.result, m.err
 }
 
 type mockUnfollowUser struct {

@@ -42,6 +42,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	resp := userResponse(&result.User)
 	resp["followersCount"] = result.FollowerCount
 	resp["followingCount"] = result.FollowingCount
+	resp["isFollowing"] = result.IsFollowing
 
 	helpers.RespondWithJSON(w, http.StatusOK, nil, resp)
 }

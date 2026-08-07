@@ -22,6 +22,7 @@ import type {
   Chat,
   ChatMessage,
   Notification,
+  FollowRequest,
   PaginatedResponse,
 } from './types';
 
@@ -220,8 +221,12 @@ export async function searchUsers(query: string, page = 1): Promise<PaginatedRes
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
 
-export async function sendFollowRequest(userId: string): Promise<void> {
-  return api.post<void>('/follow', { targetId: userId });
+export interface FollowResponse {
+  status: 'following' | 'pending';
+}
+
+export async function sendFollowRequest(userId: string): Promise<FollowResponse> {
+  return api.post<FollowResponse>('/follow', { targetId: userId });
 }
 
 export async function handleFollowRequest(
@@ -238,16 +243,16 @@ export async function unfollowUser(userId: string): Promise<void> {
   return api.post<void>('/follow/unfollow', { targetId: userId });
 }
 
-export async function getFollowers(userId: string): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/followers', { userId });
+export async function getFollowers(userId: string): Promise<User[]> {
+  return api.get<User[]>('/follow/followers', { userId });
 }
 
-export async function getFollowing(userId: string): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/following', { userId });
+export async function getFollowing(userId: string): Promise<User[]> {
+  return api.get<User[]>('/follow/following', { userId });
 }
 
-export async function getPendingFollowRequests(): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/requests');
+export async function getPendingFollowRequests(): Promise<FollowRequest[]> {
+  return api.get<FollowRequest[]>('/follow/requests');
 }
 
 // ─── Posts (Topics) ───────────────────────────────────────────────────────────

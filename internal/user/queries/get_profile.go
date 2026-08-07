@@ -10,6 +10,7 @@ type ProfileResult struct {
 	User           user.User
 	FollowerCount  int
 	FollowingCount int
+	IsFollowing    bool
 }
 
 type GetProfileQuery struct {
@@ -37,21 +38,22 @@ func (r *GetProfileResolver) Resolve(ctx context.Context, q GetProfileQuery) (*P
 		return nil, err
 	}
 
-	if u.IsPrivate && q.TargetID != q.RequesterID {
-		var isFollowing bool
+	var isFollowing bool
+	if q.RequesterID != "" && q.RequesterID != q.TargetID {
 		isFollowing, err = r.followChecker.IsFollowing(ctx, q.RequesterID, q.TargetID)
 		if err != nil {
 			return nil, err
 		}
-		if !isFollowing {
-			return &ProfileResult{
-				User: user.User{
-					ID:         u.ID,
-					Nickname:   u.Nickname,
-					AvatarPath: u.AvatarPath,
-				},
-			}, nil
-		}
+	}
+
+	if u.IsPrivate && q.TargetID != q.RequesterID && !isFollowing {
+		return &ProfileResult{
+			User: user.User{
+				ID:         u.ID,
+				Nickname:   u.Nickname,
+				AvatarPath: u.AvatarPath,
+			},
+		}, nil
 	}
 
 	followerCount, err := r.followCounter.GetFollowerCount(ctx, q.TargetID)
@@ -68,5 +70,6 @@ func (r *GetProfileResolver) Resolve(ctx context.Context, q GetProfileQuery) (*P
 		User:           *u,
 		FollowerCount:  followerCount,
 		FollowingCount: followingCount,
+		IsFollowing:    isFollowing,
 	}, nil
 }
