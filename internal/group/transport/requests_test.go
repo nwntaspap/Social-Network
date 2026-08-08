@@ -32,6 +32,8 @@ func newRequestsTestHandler(extractUser UserExtractor, pending GetPendingJoinReq
 		&mockGroupUserLookup{},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		pending,
+		nil,
+		nil,
 	)
 }
 

@@ -295,6 +295,42 @@ func (s *SQLiteStore) SearchGroups(ctx context.Context, query string, page, size
 	return groups, total, rows.Err()
 }
 
+// ListUserGroups returns the groups a user belongs to, newest first.
+func (s *SQLiteStore) ListUserGroups(ctx context.Context, userID string, page, size int) ([]group.Group, int, error) {
+	var total int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*)
+		 FROM groups g JOIN group_members gm ON gm.group_id = g.id
+		 WHERE gm.user_id = ?`, userID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count user groups: %w", err)
+	}
+
+	offset := (page - 1) * size
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT g.id, g.title, g.description, g.creator_id, g.created_at, g.updated_at
+		 FROM groups g JOIN group_members gm ON gm.group_id = g.id
+		 WHERE gm.user_id = ?
+		 ORDER BY g.created_at DESC LIMIT ? OFFSET ?`,
+		userID, size, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []group.Group
+	for rows.Next() {
+		var g group.Group
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan user group: %w", err)
+		}
+		g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
+		groups = append(groups, g)
+	}
+	return groups, total, rows.Err()
+}
+
 func (s *SQLiteStore) GetPendingInvitations(ctx context.Context, userID string) ([]group.Invitation, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, group_id, inviter_id, invitee_id, created_at

@@ -1,25 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import ChatWidget from './ChatWidget';
 
 const mockGetChats = vi.fn();
 const mockStartChat = vi.fn();
 const mockGetChatMessages = vi.fn();
+const mockGetMyGroups = vi.fn();
+const mockGetGroupPresence = vi.fn();
+const mockGetGroupChatHistory = vi.fn();
+const mockGetGroupMembers = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   getChats: () => mockGetChats(),
   startChat: (userId: string) => mockStartChat(userId),
   getChatMessages: (chatId: string) => mockGetChatMessages(chatId),
+  getMyGroups: () => mockGetMyGroups(),
+  getGroupPresence: (groupId: string) => mockGetGroupPresence(groupId),
+  getGroupChatHistory: (groupId: string) => mockGetGroupChatHistory(groupId),
+  getGroupMembers: (groupId: string) => mockGetGroupMembers(groupId),
+}));
+
+const wsHandlers: Record<string, (payload: unknown) => void> = {};
+const mockChatSocket = vi.hoisted(() => ({
+  on: vi.fn((type: string, handler: (payload: unknown) => void) => {
+    wsHandlers[type] = handler;
+    return () => {
+      delete wsHandlers[type];
+    };
+  }),
+  send: vi.fn(),
+  connect: vi.fn(),
+  disconnect: vi.fn(),
 }));
 
 vi.mock('@/lib/ws', () => ({
-  chatSocket: {
-    on: vi.fn(() => () => {}),
-    send: vi.fn(),
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-  },
+  chatSocket: mockChatSocket,
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -52,12 +68,42 @@ const conversation = {
   createdAt: '2024-01-01T00:00:00Z',
 };
 
+const group = {
+  id: 'g1',
+  title: 'Go Meetup',
+  description: 'Gophers',
+  creatorId: 'u1',
+  creator: { id: 'u1', username: 'alice', firstName: 'Alice', lastName: 'Smith' },
+  membersCount: 3,
+  membershipStatus: 'member' as const,
+  createdAt: '2024-01-01T00:00:00Z',
+};
+
+function openWidget() {
+  render(<ChatWidget />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
+}
+
 describe('ChatWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetChats.mockResolvedValue([]);
     mockStartChat.mockResolvedValue({ id: 'c1' });
     mockGetChatMessages.mockResolvedValue([]);
+    mockGetMyGroups.mockResolvedValue({ data: [group], totalCount: 1 });
+    mockGetGroupPresence.mockResolvedValue({
+      groupId: 'g1',
+      total: 3,
+      online: 2,
+      members: [
+        { id: 'u1', isOnline: true },
+        { id: 'u2', isOnline: true },
+        { id: 'u3', isOnline: false },
+      ],
+    });
+    mockGetGroupChatHistory.mockResolvedValue([]);
+    mockGetGroupMembers.mockResolvedValue({ data: [], totalCount: 0 });
+    for (const key of Object.keys(wsHandlers)) delete wsHandlers[key];
   });
 
   it('opens an existing chat when /chat/start returns a chat without participants', async () => {
@@ -91,5 +137,59 @@ describe('ChatWidget', () => {
     const widgetButton = container.querySelector('.chat-widget-button');
     expect(widgetButton).toBeTruthy();
     expect(widgetButton).not.toHaveAttribute('data-unread');
+  });
+
+  it('switches to the Groups tab and lists the user groups', async () => {
+    openWidget();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Go Meetup')).toBeTruthy();
+    });
+    expect(mockGetMyGroups).toHaveBeenCalled();
+  });
+
+  it('opens a group chat room with the live online indicator', async () => {
+    openWidget();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+    fireEvent.click(await screen.findByText('Go Meetup'));
+
+    await waitFor(() => {
+      expect(mockGetGroupPresence).toHaveBeenCalledWith('g1');
+    });
+    expect(await screen.findByText('2 online')).toBeTruthy();
+  });
+
+  it('recomputes the online count on isOnlineStatus.update for a group member', async () => {
+    openWidget();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+    fireEvent.click(await screen.findByText('Go Meetup'));
+    await screen.findByText('2 online');
+
+    // u3 comes online -> 3 online.
+    wsHandlers['isOnlineStatus.update']({ user_id: 'u3', isOnline: true });
+
+    expect(await screen.findByText('3 online')).toBeTruthy();
+
+    // u1 goes offline -> 2 online.
+    wsHandlers['isOnlineStatus.update']({ user_id: 'u1', isOnline: false });
+
+    expect(await screen.findByText('2 online')).toBeTruthy();
+  });
+
+  it('back button returns from a group room to the Groups list', async () => {
+    openWidget();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+    fireEvent.click(await screen.findByText('Go Meetup'));
+    await screen.findByText('2 online');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to groups' }));
+
+    expect(await screen.findByText('Go Meetup')).toBeTruthy();
+    expect(screen.getByText('3 members')).toBeTruthy();
   });
 });

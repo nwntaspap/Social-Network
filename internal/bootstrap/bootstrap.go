@@ -84,7 +84,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 		Chat:           initChat(db, rtHub, repos.UserRepo),
 		Comment:        initComment(db),
 		Topic:          initTopic(db),
-		Group:          initGroup(db),
+		Group:          initGroup(db, rtHub.IsOnline),
 		Event:          initEvent(db),
 		OAuth:          oauthHandler,
 		LegacyOAuth:    legacyOAuth,

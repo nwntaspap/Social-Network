@@ -95,6 +95,14 @@ type GetPendingJoinRequestsResolver interface {
 	Resolve(ctx context.Context, q queries.GetPendingJoinRequestsQuery) (*queries.GetPendingJoinRequestsResult, error)
 }
 
+type ListMyGroupsResolver interface {
+	Resolve(ctx context.Context, q queries.ListMyGroupsQuery) (*queries.ListMyGroupsResult, error)
+}
+
+type GetGroupPresenceResolver interface {
+	Resolve(ctx context.Context, q queries.GetGroupPresenceQuery) (*queries.GetGroupPresenceResult, error)
+}
+
 type Handler struct {
 	createGroup            CreateGroupExecutor
 	inviteMember           InviteMemberExecutor
@@ -115,6 +123,8 @@ type Handler struct {
 	getGroupMembers        GetGroupMembersResolver
 	getPendingInvitations  GetPendingInvitationsResolver
 	getPendingJoinRequests GetPendingJoinRequestsResolver
+	listMyGroups           ListMyGroupsResolver
+	getGroupPresence       GetGroupPresenceResolver
 	userLookup             UserLookup
 	extractUser            UserExtractor
 }
@@ -141,6 +151,8 @@ func NewHandler(
 	getGroupMembers GetGroupMembersResolver,
 	getPendingInvitations GetPendingInvitationsResolver,
 	getPendingJoinRequests GetPendingJoinRequestsResolver,
+	listMyGroups ListMyGroupsResolver,
+	getGroupPresence GetGroupPresenceResolver,
 ) *Handler {
 	return &Handler{
 		createGroup:            createGroup,
@@ -162,6 +174,8 @@ func NewHandler(
 		getGroupMembers:        getGroupMembers,
 		getPendingInvitations:  getPendingInvitations,
 		getPendingJoinRequests: getPendingJoinRequests,
+		listMyGroups:           listMyGroups,
+		getGroupPresence:       getGroupPresence,
 		userLookup:             userLookup,
 		extractUser:            extractUser,
 	}

@@ -87,6 +87,8 @@ func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, mem
 		members,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 }
 

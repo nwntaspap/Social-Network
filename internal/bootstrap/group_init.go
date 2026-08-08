@@ -16,7 +16,7 @@ import (
 	userstore "social-network/internal/user/store"
 )
 
-func initGroup(db database.DB) *grouptransport.Handler {
+func initGroup(db database.DB, isOnline func(string) bool) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
 	img := localstorage.NewLocalStorage()
 
@@ -55,6 +55,8 @@ func initGroup(db database.DB) *grouptransport.Handler {
 		groupqueries.NewGetGroupMembersResolver(store),
 		groupqueries.NewGetPendingInvitationsResolver(store),
 		groupqueries.NewGetPendingJoinRequestsResolver(store),
+		groupqueries.NewListMyGroupsResolver(store),
+		groupqueries.NewGetGroupPresenceResolver(store, isOnline),
 	)
 }
 

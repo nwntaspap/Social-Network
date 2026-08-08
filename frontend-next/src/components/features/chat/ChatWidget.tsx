@@ -4,28 +4,58 @@
  * components/features/chat/ChatWidget.tsx
  *
  * Floating chat popup (bottom-right) shown app-wide for authenticated users.
- * The button opens a modal with the conversation list; selecting a
- * conversation shows an embedded ChatWindow. Unread counts accumulate across
- * the app and are shown on the button.
+ * The button opens a modal with two tabs: Chats (private conversations) and
+ * Groups (the user's group chats). Selecting a conversation shows an embedded
+ * ChatWindow; selecting a group shows the group chat room with a live
+ * "members online" indicator. Unread counts accumulate across the app and are
+ * shown on the button.
  *
  * Other components can open a conversation with a specific user by dispatching
  * the `chat:open` CustomEvent (see lib/chatWidget.ts).
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { getChats, startChat } from '@/lib/api';
+import { getChats, getMyGroups, startChat } from '@/lib/api';
 import { chatSocket } from '@/lib/ws';
+import { useGroupPresence } from '@/lib/useGroupPresence';
 import { OPEN_CHAT_EVENT } from '@/lib/chatWidget';
 import { useAuth } from '@/context/AuthContext';
 import ConversationList from './ConversationList';
+import GroupChatList from './GroupChatList';
 import ChatWindow from './ChatWindow';
-import type { Chat } from '@/lib/types';
+import GroupChatRoom from '@/components/features/groups/GroupChatRoom';
+import type { Chat, Group } from '@/lib/types';
+
+type WidgetTab = 'chats' | 'groups';
+
+interface ActiveGroupRoomProps {
+  group: Group;
+  onBack: () => void;
+  onClose: () => void;
+}
+
+function ActiveGroupRoom({ group, onBack, onClose }: ActiveGroupRoomProps) {
+  const presence = useGroupPresence(group.id);
+  return (
+    <GroupChatRoom
+      groupId={group.id}
+      groupTitle={group.title}
+      presence={presence}
+      embedded
+      onBack={onBack}
+      onClose={onClose}
+    />
+  );
+}
 
 export default function ChatWidget() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<WidgetTab>('chats');
   const [conversations, setConversations] = useState<Chat[]>([]);
+  const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
+  const [activeGroup, setActiveGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [startingChat, setStartingChat] = useState(false);
@@ -37,6 +67,16 @@ export default function ChatWidget() {
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chats.');
+    }
+  }, []);
+
+  const loadMyGroups = useCallback(async () => {
+    try {
+      const response = await getMyGroups();
+      setMyGroups(response.data);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load groups.');
     }
   }, []);
 
@@ -117,10 +157,24 @@ export default function ChatWidget() {
   if (!user) return null;
 
   const unreadTotal = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const inConversation = activeChat !== null || activeGroup !== null;
 
   function selectConversation(chat: Chat) {
     setActiveChat(chat);
     setConversations((prev) => prev.map((c) => (c.id === chat.id ? { ...c, unreadCount: 0 } : c)));
+  }
+
+  function selectGroup(group: Group) {
+    setActiveGroup(group);
+  }
+
+  function switchTab(next: WidgetTab) {
+    setTab(next);
+    setActiveChat(null);
+    setActiveGroup(null);
+    if (next === 'groups' && myGroups.length === 0) {
+      void loadMyGroups();
+    }
   }
 
   function openModal() {
@@ -133,10 +187,12 @@ export default function ChatWidget() {
   function closeModal() {
     setOpen(false);
     setActiveChat(null);
+    setActiveGroup(null);
   }
 
   function backToList() {
     setActiveChat(null);
+    setActiveGroup(null);
   }
 
   const otherUser = activeChat
@@ -156,10 +212,10 @@ export default function ChatWidget() {
       </button>
 
       {open && (
-        <div className={`chat-modal${activeChat ? ' chat-modal--conversation' : ''}`}>
-          {!activeChat && (
+        <div className={`chat-modal${inConversation ? ' chat-modal--conversation' : ''}`}>
+          {!inConversation && (
             <div className="chat-modal-header">
-              <h2>Chats</h2>
+              <h2>{tab === 'chats' ? 'Chats' : 'Groups'}</h2>
               <button
                 type="button"
                 className="chat-modal-close"
@@ -170,12 +226,30 @@ export default function ChatWidget() {
               </button>
             </div>
           )}
+          {!inConversation && (
+            <div className="chat-tabs">
+              <button
+                type="button"
+                className={`chat-tab${tab === 'chats' ? ' active' : ''}`}
+                onClick={() => switchTab('chats')}
+              >
+                Chats
+              </button>
+              <button
+                type="button"
+                className={`chat-tab${tab === 'groups' ? ' active' : ''}`}
+                onClick={() => switchTab('groups')}
+              >
+                Groups
+              </button>
+            </div>
+          )}
           <div className="chat-modal-content">
             {loading || startingChat ? (
               <div className="chat-loading">
                 <div className="chat-spinner" />
               </div>
-            ) : error ? (
+            ) : error && !inConversation ? (
               <div className="chat-empty-state">
                 <span className="chat-empty-state-text">{error}</span>
               </div>
@@ -189,6 +263,15 @@ export default function ChatWidget() {
                 onBack={backToList}
                 onClose={closeModal}
               />
+            ) : activeGroup ? (
+              <ActiveGroupRoom
+                key={activeGroup.id}
+                group={activeGroup}
+                onBack={backToList}
+                onClose={closeModal}
+              />
+            ) : tab === 'groups' ? (
+              <GroupChatList groups={myGroups} onSelect={selectGroup} />
             ) : (
               <ConversationList
                 conversations={conversations}

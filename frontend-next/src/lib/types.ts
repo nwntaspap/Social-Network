@@ -221,6 +221,20 @@ export interface IsOnlineStatusPayload {
   isOnline: boolean;
 }
 
+/** Per-member online flag returned by the group presence endpoint. */
+export interface GroupPresenceMember {
+  id: string;
+  isOnline: boolean;
+}
+
+/** Live "how many members are online" snapshot for a group. */
+export interface GroupPresence {
+  groupId: string;
+  total: number;
+  online: number;
+  members: GroupPresenceMember[];
+}
+
 /** Payload of the chat.is_typing broadcast. */
 export interface IsTypingPayload {
   chat_id: string;

@@ -22,6 +22,7 @@ import type {
   Chat,
   ChatMessage,
   GroupChatMessageWire,
+  GroupPresence,
   Notification,
   FollowRequest,
   PaginatedResponse,
@@ -532,6 +533,16 @@ export async function getGroupChatHistory(
   limit = 50
 ): Promise<GroupChatMessageWire[]> {
   return api.get<GroupChatMessageWire[]>(`/groups/${groupId}/chat/messages`, { limit });
+}
+
+/** Groups the authenticated user belongs to (for the chat widget's Groups tab). */
+export async function getMyGroups(page = 1): Promise<PaginatedResponse<Group>> {
+  return api.get<PaginatedResponse<Group>>('/groups/mine', { page, limit: 20 });
+}
+
+/** How many of a group's members are currently online. Only members may call it. */
+export async function getGroupPresence(groupId: string): Promise<GroupPresence> {
+  return api.get<GroupPresence>(`/groups/${groupId}/presence`);
 }
 
 // ─── Notifications (not yet wired) ───────────────────────────────────────────

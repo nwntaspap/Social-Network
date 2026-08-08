@@ -68,6 +68,8 @@ func newInvitationTestHandler(
 		nil,
 		pending,
 		nil,
+		nil,
+		nil,
 	)
 }
 

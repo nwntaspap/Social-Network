@@ -713,3 +713,109 @@
 .chat-window--embedded .chat-window-header {
   border-radius: 0;
 }
+
+/* Chat | Groups tabs */
+.chat-tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.chat-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.chat-tab:hover {
+  color: #333;
+}
+
+.chat-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+/* Group chat room embedded in the widget modal */
+.group-chat-panel--embedded {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  flex: 1;
+}
+
+.group-chat-panel--embedded .group-chat-panel-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.group-chat-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-chat-panel-header-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-chat-panel-header-title h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.group-chat-panel--embedded .group-chat-panel-header-title h3 {
+  color: white;
+}
+
+.group-chat-presence {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #2ecc71;
+}
+
+.group-chat-panel--embedded .group-chat-presence {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.group-chat-panel-back,
+.group-chat-panel-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.group-chat-panel--embedded .group-chat-panel-back,
+.group-chat-panel--embedded .group-chat-panel-close {
+  color: white;
+}
+
+.group-chat-panel-back:hover {
+  transform: scale(1.2);
+}
+
+.group-chat-panel-close:hover {
+  transform: rotate(90deg);
+}
