@@ -190,11 +190,11 @@ function RegisterForm() {
 
           {/* OAuth providers */}
           <div className="btn-box">
-            <a className="signup-provider-btn google" href="/api/v1/auth/google/login">
+            <a className="signup-provider-btn google" href="/api/v1/auth/oauth/google/init">
               <Image src="/images/icons/google-logo.png" alt="Google Logo" width={20} height={20} />
               <p>Sign up with Google</p>
             </a>
-            <a className="signup-provider-btn github" href="/api/v1/auth/github/login">
+            <a className="signup-provider-btn github" href="/api/v1/auth/oauth/github/init">
               <Image
                 src="/images/icons/github-white-logo.png"
                 alt="Github Logo"

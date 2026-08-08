@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 )
 
 // Provider represents an OAuth provider name.
@@ -63,6 +64,7 @@ type SessionCreator interface {
 type Session struct {
 	AccessToken  string
 	RefreshToken string
+	ExpiresAt    time.Time
 }
 
 // CookieSetter writes session cookies to the HTTP response.

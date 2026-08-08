@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"strings"
 
+	"social-network/internal/oauth"
 	"social-network/internal/oauth/commands"
 )
+
+const routesPrefix = "/api/v1/auth/oauth/"
 
 // UserExtractor extracts the authenticated user ID from the request.
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -23,30 +26,32 @@ type CallbackExecutor interface {
 
 // Handler holds the OAuth HTTP transport.
 type Handler struct {
-	initiate    *commands.InitiateHandler
-	callback    *commands.CallbackHandler
-	extractUser UserExtractor
-	frontendURL string
+	initiate     *commands.InitiateHandler
+	callbacks    map[string]*commands.CallbackHandler
+	extractUser  UserExtractor
+	frontendURL  string
+	cookieSetter oauth.CookieSetter
 }
 
 // NewHandler creates a new OAuth HTTP handler.
-func NewHandler(initiate *commands.InitiateHandler, callback *commands.CallbackHandler, extractUser UserExtractor, frontendURL string) *Handler {
+// callbacks maps a provider name (e.g. "github", "google") to its callback handler.
+func NewHandler(initiate *commands.InitiateHandler, callbacks map[string]*commands.CallbackHandler, cookieSetter oauth.CookieSetter, extractUser UserExtractor, frontendURL string) *Handler {
 	return &Handler{
-		initiate:    initiate,
-		callback:    callback,
-		extractUser: extractUser,
-		frontendURL: frontendURL,
+		initiate:     initiate,
+		callbacks:    callbacks,
+		cookieSetter: cookieSetter,
+		extractUser:  extractUser,
+		frontendURL:  frontendURL,
 	}
 }
 
 // RegisterRoutes registers OAuth routes on the provided mux.
-// NOTE: Not wired into bootstrap until S5-BE-83.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/auth/oauth/", h.route)
+	mux.HandleFunc(routesPrefix, h.route)
 }
 
 func (h *Handler) route(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/auth/oauth/")
+	path := strings.TrimPrefix(r.URL.Path, routesPrefix)
 	parts := strings.Split(path, "/")
 
 	if len(parts) < 2 {
@@ -112,9 +117,15 @@ func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, pro
 	http.Redirect(w, r, result.RedirectURL, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, _ string) {
+func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provider string) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	callback, ok := h.callbacks[provider]
+	if !ok {
+		http.NotFound(w, r)
 		return
 	}
 
@@ -126,7 +137,7 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 
-	result, err := h.callback.Execute(r.Context(), commands.CallbackCommand{
+	result, err := callback.Execute(r.Context(), commands.CallbackCommand{
 		Code:        code,
 		State:       state,
 		FrontendURL: h.frontendURL,
@@ -136,11 +147,8 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, _ strin
 		return
 	}
 
-	if result.Session != nil {
-		// Session cookie setting will be handled by the cookie adapter in bootstrap
-		// For now, redirect to frontend with success params
-		http.Redirect(w, r, result.FrontendURL, http.StatusTemporaryRedirect)
-		return
+	if result.Session != nil && h.cookieSetter != nil {
+		h.cookieSetter.SetCookies(w, result.Session)
 	}
 
 	http.Redirect(w, r, result.FrontendURL, http.StatusTemporaryRedirect)

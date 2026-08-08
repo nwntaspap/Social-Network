@@ -434,15 +434,15 @@ internal/
     store/
       sqlite.go                          # All notification SQL
 
-  oauth/                                 # Entities: OAuthState
-    oauth.go                             # Entity: OAuthState, Provider enum, Repository iface
+  oauth/                                 # Entities: Provider, User, Session
+    oauth.go                             # Entity: Provider enum, User, Session, Repository iface, CookieSetter, StateVerifier/Generator
     commands/
       initiate.go                        # Generate state + redirect URL
       callback.go                        # Exchange code, upsert user, create session
     transport/
-      http.go                            # OAuth HTTP handlers
+      http.go                            # OAuth HTTP handlers (init/link/callback under /api/v1/auth/oauth/)
     store/
-      sqlite.go                          # OAuth SQL
+      sqlite.go                          # OAuth SQL (oauth_providers table)
 
   # ─── Cross-cutting Core ───
   core/
@@ -524,7 +524,7 @@ Migration files follow the numbered up/down format per spec requirements. The cu
 
 Create numbered migration scripts:
 
-- `000001_initial_schema.up.sql` — Current tables (users, topics, comments, categories, votes, sessions, chats, notifications, oauth_states)
+- `000001_initial_schema.up.sql` — Current tables (users, topics, comments, categories, votes, sessions, chats, notifications, oauth_providers)
 - `000001_initial_schema.down.sql` — Drop all
 - `000002_user_profile_fields.up.sql` — Add `date_of_birth`, `about_me`, `is_private` to users; drop `age`
 - `000002_user_profile_fields.down.sql` — Reverse

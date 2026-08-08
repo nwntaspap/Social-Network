@@ -75,7 +75,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 	services := app.NewServices(repos.UserRepo, repos.CategoryRepo, repos.TopicRepo, repos.CommentRepo, repos.VoteRepo, repos.OauthRepo, repos.ActivityRepo, repos.ChatRepo, repos.NotificationRepo, notifier, hub, fileStorage)
 	logger := logger.New(os.Stdout, logger.LevelInfo)
 
-	oauthHandler, legacyOAuth := initOAuth(db, coreSession, cfg.OAuth, cfg.OAuth.FrontendCallbackURL)
+	oauthHandler, legacyOAuth := initOAuth(db, coreSession, sessionCookies, cfg.OAuth, cfg.OAuth.FrontendCallbackURL)
 
 	return &App{
 		Services:       services,

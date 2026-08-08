@@ -19,7 +19,7 @@ import (
 
 const stateManagerDefaultLimit = 10
 
-func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthConfig, frontendURL string) (*oauthtransport.Handler, *pkgoauth.OAuth) {
+func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string) (*oauthtransport.Handler, *pkgoauth.OAuth) {
 	store := oauthstore.NewSQLiteStore(db)
 	sm := pkgoauth.NewStateManager(stateManagerDefaultLimit * time.Minute)
 
@@ -51,13 +51,22 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthC
 		registry,
 	)
 
-	githubCallback := oauthcommands.NewCallbackHandler(
-		store,
-		&stateVerifierAdapter{inner: sm},
-		&callbackProviderAdapter{raw: githubRaw, name: "github"},
-		sc,
-		"github",
-	)
+	callbacks := map[string]*oauthcommands.CallbackHandler{
+		"github": oauthcommands.NewCallbackHandler(
+			store,
+			&stateVerifierAdapter{inner: sm},
+			&callbackProviderAdapter{raw: githubRaw, name: "github"},
+			sc,
+			"github",
+		),
+		"google": oauthcommands.NewCallbackHandler(
+			store,
+			&stateVerifierAdapter{inner: sm},
+			&callbackProviderAdapter{raw: googleRaw, name: "google"},
+			sc,
+			"google",
+		),
+	}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -75,7 +84,8 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthC
 
 	return oauthtransport.NewHandler(
 		initiateHandler,
-		githubCallback,
+		callbacks,
+		&cookieSetterAdapter{cookies: cookies},
 		extractUser,
 		frontendURL,
 	), legacyOAuth
@@ -179,5 +189,14 @@ func (a *sessionCreatorAdapter) CreateSession(ctx context.Context, userID string
 	return &oauth.Session{
 		AccessToken:  sess.AccessToken,
 		RefreshToken: sess.RefreshToken,
+		ExpiresAt:    sess.Expiry,
 	}, nil
+}
+
+type cookieSetterAdapter struct {
+	cookies *middleware.SessionCookies
+}
+
+func (a *cookieSetterAdapter) SetCookies(w http.ResponseWriter, session *oauth.Session) {
+	a.cookies.SetAccessCookie(w, session.AccessToken, session.ExpiresAt)
 }

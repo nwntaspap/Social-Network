@@ -21,7 +21,7 @@ The system uses SQLite (with Write-Ahead Logging `WAL` and busy timeout configur
 
 ```sql
 -- 000001_initial_schema.up.sql
--- Baseline tables: users (with old fields), sessions, topics (old fields), comments, votes, chats, messages, notifications, oauth_states, schema_migrations.
+-- Baseline tables: users (with old fields), sessions, topics (old fields), comments, votes, chats, messages, notifications, oauth_providers, schema_migrations.
 -- Note: schema_migrations is used by custom migration system.
 
 -- Altered in 000002_user_profile_fields.up.sql: added date_of_birth, about_me, is_private; dropped age.
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS event_rsvps (
     FOREIGN KEY(option_id) REFERENCES event_options(id) ON DELETE CASCADE
 );
 
--- 000001_initial_schema.up.sql (infrastructure: chats, messages, notifications, oauth_states)
+-- 000001_initial_schema.up.sql (infrastructure: chats, messages, notifications, oauth_providers)
 CREATE TABLE IF NOT EXISTS chats (
     id TEXT PRIMARY KEY,
     user_one_id TEXT NOT NULL,
@@ -253,10 +253,14 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS oauth_states (
-    state TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS oauth_providers (
+    user_id TEXT NOT NULL,
     provider TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL
+    provider_user_id TEXT NOT NULL,
+    email TEXT,
+    username TEXT,
+    avatar_url TEXT,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -270,7 +274,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 | Migration | File                    | Description                                                                                                                 |
 | --------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 000001    | `initial_schema`        | Baseline: users, sessions, topics, comments, votes, chats, messages, notifications, oauth_states, schema_migrations         |
+| 000001    | `initial_schema`        | Baseline: users, sessions, topics, comments, votes, chats, messages, notifications, oauth_providers, schema_migrations      |
 | 000002    | `user_profile_fields`   | Add date_of_birth, about_me, is_private; drop age                                                                           |
 | 000003    | `topic_privacy`         | Add visibility, image_url to topics; create topic_allowed_users                                                             |
 | 000004    | `follow_system`         | Create follows, follow_requests                                                                                             |
