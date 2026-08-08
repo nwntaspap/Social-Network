@@ -32,6 +32,8 @@ const mockChatSocket = vi.hoisted(() => ({
   send: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
+  isConnected: vi.fn(() => true),
+  onConnection: vi.fn(() => () => {}),
 }));
 
 vi.mock('@/lib/ws', () => ({
@@ -191,5 +193,63 @@ describe('ChatWidget', () => {
 
     expect(await screen.findByText('Go Meetup')).toBeTruthy();
     expect(screen.getByText('3 members')).toBeTruthy();
+  });
+
+  it('accumulates group unread badges and clears them when the group opens', async () => {
+    // The message is persisted server-side, so the groups refresh reports it.
+    mockGetMyGroups.mockResolvedValue({ data: [{ ...group, unreadCount: 1 }], totalCount: 1 });
+    const { container } = render(<ChatWidget />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
+
+    wsHandlers['group_chat.message']({
+      id: 'm1',
+      group_id: 'g1',
+      sender_id: 'u2',
+      content: 'hello team',
+      created_at: '2024-01-01T00:00:01Z',
+    });
+
+    const widgetButton = container.querySelector('.chat-widget-button');
+    await waitFor(() => {
+      expect(widgetButton).toHaveAttribute('data-unread', '1');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
+    expect(await screen.findByText('1')).toBeTruthy();
+
+    fireEvent.click(await screen.findByText('Go Meetup'));
+
+    await waitFor(() => {
+      expect(widgetButton).not.toHaveAttribute('data-unread');
+    });
+  });
+
+  it('does not count group messages sent by the current user', async () => {
+    const { container } = render(<ChatWidget />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
+
+    wsHandlers['group_chat.message']({
+      id: 'm1',
+      group_id: 'g1',
+      sender_id: 'u1',
+      content: 'my own message',
+      created_at: '2024-01-01T00:00:01Z',
+    });
+
+    const widgetButton = container.querySelector('.chat-widget-button');
+    await waitFor(() => {
+      expect(widgetButton).not.toHaveAttribute('data-unread');
+    });
+  });
+
+  it('seeds group unread badges from the server snapshot', async () => {
+    mockGetMyGroups.mockResolvedValue({ data: [{ ...group, unreadCount: 4 }], totalCount: 1 });
+    const { container } = render(<ChatWidget />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }));
+
+    const widgetButton = container.querySelector('.chat-widget-button');
+    await waitFor(() => {
+      expect(widgetButton).toHaveAttribute('data-unread', '4');
+    });
   });
 });

@@ -16,15 +16,16 @@
 import { useEffect, useState } from 'react';
 import { getGroupPresence } from './api';
 import { chatSocket } from './ws';
-import type { GroupPresence, IsOnlineStatusPayload } from './types';
+import type { GroupPresence, GroupPresenceMember, IsOnlineStatusPayload } from './types';
 
 export interface GroupPresenceState {
   total: number;
   online: number;
   loading: boolean;
+  members?: GroupPresenceMember[];
 }
 
-const EMPTY: GroupPresenceState = { total: 0, online: 0, loading: true };
+const EMPTY: GroupPresenceState = { total: 0, online: 0, loading: true, members: [] };
 
 export function useGroupPresence(groupId: string): GroupPresenceState {
   const [state, setState] = useState<GroupPresenceState>(EMPTY);
@@ -37,23 +38,32 @@ export function useGroupPresence(groupId: string): GroupPresenceState {
 
     const recompute = () => {
       if (ignore) return;
-      const online = memberIds.reduce(
-        (count, id) => count + (onlineByMember.get(id) === true ? 1 : 0),
-        0
-      );
-      setState({ total: memberIds.length, online, loading: false });
+      const members = memberIds.map((id) => ({ id, isOnline: onlineByMember.get(id) === true }));
+      const online = members.reduce((count, m) => count + (m.isOnline ? 1 : 0), 0);
+      setState({ total: memberIds.length, online, loading: false, members });
     };
 
-    getGroupPresence(groupId)
-      .then((presence: GroupPresence) => {
-        if (ignore) return;
-        memberIds = presence.members.map((m) => m.id);
-        presence.members.forEach((m) => onlineByMember.set(m.id, m.isOnline));
-        recompute();
-      })
-      .catch(() => {
-        if (!ignore) setState({ total: 0, online: 0, loading: false });
-      });
+    const load = () => {
+      getGroupPresence(groupId)
+        .then((presence: GroupPresence) => {
+          if (ignore) return;
+          memberIds = presence.members.map((m) => m.id);
+          presence.members.forEach((m) => onlineByMember.set(m.id, m.isOnline));
+          recompute();
+        })
+        .catch(() => {
+          if (!ignore) setState({ total: 0, online: 0, loading: false, members: [] });
+        });
+    };
+
+    // Fetch the snapshot once connected. If a reconnect happens later, missed
+    // broadcasts are recovered by refetching the snapshot on the next open.
+    if (chatSocket.isConnected()) {
+      load();
+    }
+    const unsubscribeConnection = chatSocket.onConnection(() => {
+      if (chatSocket.isConnected()) load();
+    });
 
     const unsubscribe = chatSocket.on('isOnlineStatus.update', (payload) => {
       const p = payload as IsOnlineStatusPayload;
@@ -66,6 +76,7 @@ export function useGroupPresence(groupId: string): GroupPresenceState {
 
     return () => {
       ignore = true;
+      unsubscribeConnection();
       unsubscribe();
     };
   }, [groupId]);

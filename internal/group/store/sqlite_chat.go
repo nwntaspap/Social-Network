@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"social-network/internal/group"
 )
@@ -73,4 +74,62 @@ func (s *SQLiteStore) ListGroupMemberIDs(ctx context.Context, groupID string) ([
 		return nil, err
 	}
 	return ids, nil
+}
+
+// MarkGroupRead upserts the user's read marker for a group chat room. Messages
+// older than the marker are considered read.
+func (s *SQLiteStore) MarkGroupRead(ctx context.Context, groupID, userID string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO group_chat_reads (group_id, user_id, last_read_at)
+		 VALUES (?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT(group_id, user_id) DO UPDATE SET last_read_at = CURRENT_TIMESTAMP`,
+		groupID, userID)
+	if err != nil {
+		return fmt.Errorf("mark group chat read: %w", err)
+	}
+	return nil
+}
+
+// CountGroupUnread returns, per group ID, how many messages are unread for the
+// user: messages sent by other members after the user's last read marker
+// (or all of them if no marker exists yet).
+func (s *SQLiteStore) CountGroupUnread(ctx context.Context, groupIDs []string, userID string) (map[string]int, error) {
+	result := make(map[string]int, len(groupIDs))
+	if len(groupIDs) == 0 {
+		return result, nil
+	}
+
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(groupIDs)), ",")
+	args := make([]any, 0, len(groupIDs)+2)
+	args = append(args, userID) // r.user_id = ?
+	for _, id := range groupIDs {
+		args = append(args, id)
+	}
+	args = append(args, userID) // m.sender_id != ?
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT m.group_id, COUNT(*)
+		 FROM group_chat_messages m
+		 LEFT JOIN group_chat_reads r ON r.group_id = m.group_id AND r.user_id = ?
+		 WHERE m.group_id IN (`+placeholders+`)
+		   AND m.sender_id != ?
+		   AND (r.last_read_at IS NULL OR datetime(m.created_at) > datetime(r.last_read_at))
+		 GROUP BY m.group_id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("count group unread: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var groupID string
+		var count int
+		if err := rows.Scan(&groupID, &count); err != nil {
+			return nil, fmt.Errorf("scan group unread: %w", err)
+		}
+		result[groupID] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

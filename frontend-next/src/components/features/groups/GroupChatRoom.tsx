@@ -62,12 +62,15 @@ export default function GroupChatRoom({
   const [members, setMembers] = useState<Map<string, GroupMember>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showPresence, setShowPresence] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Load history + members over HTTP on mount / group change.
+  // Load history + members over HTTP on mount / group change. Members are
+  // fetched with a generous page size so the online-users popover can resolve
+  // every member's name and avatar.
   useEffect(() => {
     let ignore = false;
-    Promise.all([getGroupChatHistory(groupId), getGroupMembers(groupId)])
+    Promise.all([getGroupChatHistory(groupId), getGroupMembers(groupId, 1, 200)])
       .then(([history, memberPage]) => {
         if (ignore) return;
         setMessages(
@@ -91,6 +94,23 @@ export default function GroupChatRoom({
     };
   }, [groupId]);
 
+  // Mark the group read when the room opens so the unread badge clears.
+  useEffect(() => {
+    chatSocket.send('group_chat.mark_read', { group_id: groupId });
+  }, [groupId]);
+
+  // Close the online-users popover when clicking anywhere outside it.
+  useEffect(() => {
+    if (!showPresence) return;
+    function onDocClick(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest('.group-chat-presence-wrap')) {
+        setShowPresence(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showPresence]);
+
   // Subscribe to incoming group messages (the socket owner is upstream).
   useEffect(() => {
     const unsubscribe = chatSocket.on('group_chat.message', (payload) => {
@@ -98,6 +118,7 @@ export default function GroupChatRoom({
       if (msg.group_id !== groupId) return;
       const display = toDisplayMessage(msg);
       setMessages((prev) => (prev.some((m) => m.id === display.id) ? prev : [...prev, display]));
+      chatSocket.send('group_chat.mark_read', { group_id: groupId });
     });
     return unsubscribe;
   }, [groupId]);
@@ -112,6 +133,7 @@ export default function GroupChatRoom({
   }
 
   const onlineCount = presence ? `${presence.online} online` : null;
+  const onlineMembers = presence?.members?.filter((m) => m.isOnline) ?? [];
 
   return (
     <div className={`group-chat-panel${embedded ? ' group-chat-panel--embedded' : ''}`}>
@@ -129,7 +151,50 @@ export default function GroupChatRoom({
         <div className="group-chat-panel-header-title">
           <h3>{groupTitle ?? 'Group Chat'}</h3>
           {presence && !presence.loading && (
-            <span className="group-chat-presence">{onlineCount}</span>
+            <div className="group-chat-presence-wrap">
+              <button
+                type="button"
+                className="group-chat-presence"
+                aria-expanded={showPresence}
+                aria-label={`${presence.online} members online`}
+                onClick={() => setShowPresence((v) => !v)}
+              >
+                <span className="group-chat-presence-dot" />
+                {onlineCount}
+              </button>
+              {showPresence && (
+                <div className="group-chat-presence-popover" role="menu">
+                  <div className="group-chat-presence-popover-title">Online now</div>
+                  {onlineMembers.length === 0 ? (
+                    <div className="group-chat-presence-popover-empty">
+                      No one is online right now
+                    </div>
+                  ) : (
+                    onlineMembers.map((m) => {
+                      const gm = members.get(m.id);
+                      const name = gm ? getDisplayName(gm.user) : 'Member';
+                      const avatar = gm?.user.avatarUrl || '/images/user-avatar.png';
+                      return (
+                        <div key={m.id} className="group-chat-presence-popover-item">
+                          <Image
+                            src={avatar}
+                            alt={name}
+                            width={28}
+                            height={28}
+                            className="group-chat-presence-popover-avatar"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/images/user-avatar.png';
+                            }}
+                          />
+                          <span className="group-chat-presence-popover-name">{name}</span>
+                          <span className="group-chat-presence-popover-dot" />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
         {onClose && (

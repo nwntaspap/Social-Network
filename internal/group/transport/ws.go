@@ -20,6 +20,12 @@ type GroupWSHandler struct {
 	send       SendGroupMessageExecutor
 	getHistory GetGroupChatResolver
 	memberIDs  GroupMemberIDsResolver
+	markRead   MarkGroupReadExecutor
+}
+
+// MarkGroupReadExecutor marks a group's chat as read by the user.
+type MarkGroupReadExecutor interface {
+	Execute(ctx context.Context, cmd commands.MarkGroupReadCommand) error
 }
 
 func NewGroupWSHandler(
@@ -27,15 +33,17 @@ func NewGroupWSHandler(
 	send SendGroupMessageExecutor,
 	getHistory GetGroupChatResolver,
 	memberIDs GroupMemberIDsResolver,
+	markRead MarkGroupReadExecutor,
 ) *GroupWSHandler {
-	return &GroupWSHandler{hub: hub, send: send, getHistory: getHistory, memberIDs: memberIDs}
+	return &GroupWSHandler{hub: hub, send: send, getHistory: getHistory, memberIDs: memberIDs, markRead: markRead}
 }
 
 // Handlers returns the per-type handlers to register on the realtime router.
 func (h *GroupWSHandler) Handlers() map[string]realtime.WSHandler {
 	return map[string]realtime.WSHandler{
-		realtime.TypeGroupChatSend:    realtime.HandlerFunc(h.handleSend),
-		realtime.TypeGroupChatHistory: realtime.HandlerFunc(h.handleHistory),
+		realtime.TypeGroupChatSend:     realtime.HandlerFunc(h.handleSend),
+		realtime.TypeGroupChatHistory:  realtime.HandlerFunc(h.handleHistory),
+		realtime.TypeGroupChatMarkRead: realtime.HandlerFunc(h.handleMarkRead),
 	}
 }
 
@@ -98,6 +106,20 @@ func (h *GroupWSHandler) handleHistory(client *realtime.Client, env realtime.Env
 		Payload:   out,
 	})
 	client.Send(reply)
+}
+
+func (h *GroupWSHandler) handleMarkRead(client *realtime.Client, env realtime.Envelope) {
+	var payload realtime.GroupChatMarkReadPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		sendGroupRealtimeError(client, env.RequestID, "invalid group_chat.mark_read payload")
+		return
+	}
+	if err := h.markRead.Execute(context.Background(), commands.MarkGroupReadCommand{
+		GroupID: payload.GroupID,
+		UserID:  client.UserID,
+	}); err != nil {
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
+	}
 }
 
 func sendGroupRealtimeError(client *realtime.Client, requestID, message string) {

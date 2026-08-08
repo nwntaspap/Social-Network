@@ -46,6 +46,7 @@ func initRealtime(db database.DB, hub *realtime.Hub) *Realtime {
 		groupcommands.NewSendGroupMessageHandler(groupStore),
 		groupqueries.NewGetGroupChatResolver(groupStore),
 		groupqueries.NewListGroupMemberIDsResolver(groupStore),
+		groupcommands.NewMarkGroupReadHandler(groupStore),
 	)
 
 	handlers := chatWS.Handlers()

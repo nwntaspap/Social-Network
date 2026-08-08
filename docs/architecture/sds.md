@@ -281,8 +281,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 | 000009    | `seed_data`             | Optional: demo users, posts, groups, follows                                                                                |
 | 000010    | `migrate_group_topics`  | Backfill group_posts from group topics (topics with `group_id`)                                                             |
 | 000011    | `group_post_votes`      | Create group_post_votes (user_id, post_id, reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id))                         |
+| 000012    | `chat_pair_unique`      | Deduplicate 1:1 chats per (user_one_id, user_two_id) pair; add UNIQUE index idx_chats_pair                                  |
+| 000013    | `group_chat_reads`      | Create group_chat_reads (group_id, user_id, last_read_at) per-user read markers for group chat unread                       |
 
-**Gap note:** All numbered migrations (000001–000011) exist in `db/migrations/` as paired up/down scripts. See `target-architecture-with-phases.md` for the full migration plan.
+**Gap note:** All numbered migrations (000001–000013) exist in `db/migrations/` as paired up/down scripts. See `target-architecture-with-phases.md` for the full migration plan.
 
 **Note on SDS SQL comments above:** The inline migration-number comments in the SQL schema (e.g. `-- 000005_groups.up.sql`) are approximate references. The canonical numbering is this table.
 

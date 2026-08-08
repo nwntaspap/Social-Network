@@ -779,14 +779,122 @@
   color: white;
 }
 
+.group-chat-presence-wrap {
+  position: relative;
+  display: inline-block;
+  margin-top: 4px;
+}
+
 .group-chat-presence {
-  font-size: 0.75rem;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  background: rgba(46, 204, 113, 0.1);
   color: #2ecc71;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.group-chat-presence:hover {
+  background: rgba(46, 204, 113, 0.18);
+}
+
+.group-chat-presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.25);
+  flex-shrink: 0;
 }
 
 .group-chat-panel--embedded .group-chat-presence {
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+
+.group-chat-panel--embedded .group-chat-presence:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.group-chat-panel--embedded .group-chat-presence-dot {
+  background: #7bed9f;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.group-chat-presence-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  min-width: 210px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 8px;
+}
+
+.group-chat-presence-popover-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a8a9a;
+  padding: 2px 6px 6px;
+}
+
+.group-chat-presence-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.group-chat-presence-popover-item:hover {
+  background: #f5f6fa;
+}
+
+.group-chat-presence-popover-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.group-chat-presence-popover-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #2d3436;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-chat-presence-popover-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2ecc71;
+  flex-shrink: 0;
+}
+
+.group-chat-presence-popover-empty {
+  padding: 8px 6px;
+  font-size: 0.8rem;
+  color: #8a8a9a;
+}
+
+.chat-user-item.has-unread {
+  background: rgba(255, 71, 87, 0.06);
 }
 
 .group-chat-panel-back,

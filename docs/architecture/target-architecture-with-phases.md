@@ -539,6 +539,8 @@ Create numbered migration scripts:
 - `000009_seed_data.down.sql` — Remove seed data
 - `000010_migrate_group_topics.up.sql` — Backfill group_posts from group topics (topics with `group_id`) + matching down script
 - `000011_group_post_votes.up.sql` — Create `group_post_votes` (reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id)) + matching down script
+- `000012_chat_pair_unique.up.sql` — Deduplicate 1:1 chats per pair + add `UNIQUE` index `idx_chats_pair` + matching down script
+- `000013_group_chat_reads.up.sql` — Create `group_chat_reads` (per-user read markers for group chat unread) + matching down script
 
 **Verify**: Run migrations on fresh DB. `go vet ./...`.
 

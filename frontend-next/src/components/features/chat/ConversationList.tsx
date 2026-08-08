@@ -29,7 +29,17 @@ export default function ConversationList({
   activeChatId,
   onSelect,
 }: ConversationListProps) {
-  const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
+  // Seed status from the server snapshot on mount. The widget remounts this
+  // list (via key) after every fresh conversation fetch, so a snapshot taken
+  // after a reconnect or widget reopen is never shadowed by stale WS state.
+  const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>(() => {
+    const seed: Record<string, boolean> = {};
+    for (const chat of conversations) {
+      const other = otherParticipant(chat, currentUserId);
+      seed[other.id] = other.isOnline;
+    }
+    return seed;
+  });
 
   useEffect(() => {
     return chatSocket.on('isOnlineStatus.update', (payload) => {

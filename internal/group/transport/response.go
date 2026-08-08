@@ -29,6 +29,7 @@ type GroupResponse struct {
 	Creator          *UserResult `json:"creator"`
 	MembersCount     int         `json:"membersCount"`
 	MembershipStatus string      `json:"membershipStatus"`
+	UnreadCount      int         `json:"unreadCount"`
 	CreatedAt        string      `json:"createdAt"`
 	UpdatedAt        string      `json:"updatedAt"`
 }
@@ -115,6 +116,7 @@ func toGroupResponse(g *group.Group, creator *UserResult, membersCount int, memb
 		Creator:          creator,
 		MembersCount:     membersCount,
 		MembershipStatus: membershipStatus,
+		UnreadCount:      g.UnreadCount,
 		CreatedAt:        formatTime(g.CreatedAt),
 		UpdatedAt:        formatTime(g.UpdatedAt),
 	}

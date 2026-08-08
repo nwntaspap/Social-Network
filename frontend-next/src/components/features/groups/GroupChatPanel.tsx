@@ -10,6 +10,7 @@
 
 import { useEffect } from 'react';
 import { chatSocket } from '@/lib/ws';
+import { useGroupPresence } from '@/lib/useGroupPresence';
 import GroupChatRoom from './GroupChatRoom';
 
 interface GroupChatPanelProps {
@@ -17,10 +18,12 @@ interface GroupChatPanelProps {
 }
 
 export default function GroupChatPanel({ groupId }: GroupChatPanelProps) {
+  const presence = useGroupPresence(groupId);
+
   useEffect(() => {
     chatSocket.connect();
     return () => chatSocket.disconnect();
   }, []);
 
-  return <GroupChatRoom groupId={groupId} />;
+  return <GroupChatRoom groupId={groupId} presence={presence} />;
 }

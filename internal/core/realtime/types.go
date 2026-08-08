@@ -7,15 +7,16 @@ import (
 
 // Inbound message types (client -> server).
 const (
-	TypeChatSend         = "chat.send"
-	TypeChatHistory      = "chat.history"
-	TypeMarkRead         = "chat.mark_read"
-	TypePing             = "ping"
-	TypeTyping           = "chat.typing"
-	TypeChatOpen         = "chat.open"
-	TypeChatClose        = "chat.close"
-	TypeGroupChatSend    = "group_chat.send"
-	TypeGroupChatHistory = "group_chat.history"
+	TypeChatSend          = "chat.send"
+	TypeChatHistory       = "chat.history"
+	TypeMarkRead          = "chat.mark_read"
+	TypePing              = "ping"
+	TypeTyping            = "chat.typing"
+	TypeChatOpen          = "chat.open"
+	TypeChatClose         = "chat.close"
+	TypeGroupChatSend     = "group_chat.send"
+	TypeGroupChatHistory  = "group_chat.history"
+	TypeGroupChatMarkRead = "group_chat.mark_read"
 )
 
 // Outbound message types (server -> client).
@@ -76,6 +77,10 @@ type GroupChatSendPayload struct {
 type GroupChatHistoryPayload struct {
 	GroupID string `json:"group_id"`
 	Limit   int    `json:"limit,omitempty"`
+}
+
+type GroupChatMarkReadPayload struct {
+	GroupID string `json:"group_id"`
 }
 
 // Payloads for outbound messages.

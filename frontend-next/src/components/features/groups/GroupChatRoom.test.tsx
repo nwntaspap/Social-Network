@@ -141,6 +141,88 @@ describe('GroupChatRoom', () => {
     });
   });
 
+  it('sends group_chat.mark_read when the room opens', async () => {
+    render(<GroupChatRoom groupId="g1" />);
+
+    await waitFor(() => {
+      expect(mockChatSocket.send).toHaveBeenCalledWith('group_chat.mark_read', { group_id: 'g1' });
+    });
+  });
+
+  it('re-marks the group read when a new message arrives', async () => {
+    render(<GroupChatRoom groupId="g1" />);
+    await waitFor(() => {
+      expect(screen.getByText('No messages yet. Start the conversation!')).toBeTruthy();
+    });
+
+    mockChatSocket.send.mockClear();
+
+    wsHandlers['group_chat.message']({
+      id: 'm2',
+      group_id: 'g1',
+      sender_id: 'u2',
+      content: 'Live message',
+      created_at: '2024-01-01T00:00:01Z',
+    });
+
+    await waitFor(() => {
+      expect(mockChatSocket.send).toHaveBeenCalledWith('group_chat.mark_read', { group_id: 'g1' });
+    });
+  });
+
+  it('opens a popover listing the online members', async () => {
+    render(
+      <GroupChatRoom
+        groupId="g1"
+        presence={{
+          total: 3,
+          online: 2,
+          loading: false,
+          members: [
+            { id: 'u2', isOnline: true },
+            { id: 'u3', isOnline: true },
+          ],
+        }}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByText('2 online')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '2 members online' }));
+
+    expect(await screen.findByText('Online now')).toBeTruthy();
+    // u2's name resolves from the members list fetched over HTTP.
+    expect(await screen.findByText('Bob Jones')).toBeTruthy();
+    // u3 has no member record and falls back to a generic label.
+    expect(screen.getByText('Member')).toBeTruthy();
+  });
+
+  it('closes the online-members popover on outside click', async () => {
+    render(
+      <GroupChatRoom
+        groupId="g1"
+        presence={{
+          total: 1,
+          online: 1,
+          loading: false,
+          members: [{ id: 'u2', isOnline: true }],
+        }}
+      />
+    );
+    await waitFor(() => {
+      expect(screen.getByText('1 online')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '1 members online' }));
+    expect(await screen.findByText('Online now')).toBeTruthy();
+
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => {
+      expect(screen.queryByText('Online now')).toBeNull();
+    });
+  });
+
   it('calls onBack and onClose handlers', async () => {
     const onBack = vi.fn();
     const onClose = vi.fn();

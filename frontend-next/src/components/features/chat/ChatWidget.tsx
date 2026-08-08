@@ -14,7 +14,7 @@
  * the `chat:open` CustomEvent (see lib/chatWidget.ts).
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getChats, getMyGroups, startChat } from '@/lib/api';
 import { chatSocket } from '@/lib/ws';
 import { useGroupPresence } from '@/lib/useGroupPresence';
@@ -24,7 +24,7 @@ import ConversationList from './ConversationList';
 import GroupChatList from './GroupChatList';
 import ChatWindow from './ChatWindow';
 import GroupChatRoom from '@/components/features/groups/GroupChatRoom';
-import type { Chat, Group } from '@/lib/types';
+import type { Chat, Group, GroupChatMessageWire } from '@/lib/types';
 
 type WidgetTab = 'chats' | 'groups';
 
@@ -54,26 +54,48 @@ export default function ChatWidget() {
   const [tab, setTab] = useState<WidgetTab>('chats');
   const [conversations, setConversations] = useState<Chat[]>([]);
   const [myGroups, setMyGroups] = useState<Group[]>([]);
+  const [groupUnread, setGroupUnread] = useState<Record<string, number>>({});
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [activeGroup, setActiveGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [startingChat, setStartingChat] = useState(false);
+  // Bumped on every fresh conversation fetch so the list re-seeds its online
+  // status from the (server-authoritative) snapshot instead of stale WS state.
+  const [convVersion, setConvVersion] = useState(0);
+  // Last live increment time per group, so a server snapshot taken BEFORE a
+  // live message is never allowed to overwrite the fresher live count.
+  const liveSeenRef = useRef<Record<string, number>>({});
 
   const loadChats = useCallback(async () => {
     try {
       const chats = await getChats();
       setConversations(chats);
       setError('');
+      setConvVersion((v) => v + 1);
+      return chats;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chats.');
+      return [];
     }
   }, []);
 
   const loadMyGroups = useCallback(async () => {
     try {
+      const requestedAt = Date.now();
       const response = await getMyGroups();
       setMyGroups(response.data);
+      setGroupUnread((prev) => {
+        const next: Record<string, number> = {};
+        for (const g of response.data) {
+          // A live increment newer than this fetch beats the stale snapshot.
+          next[g.id] =
+            (liveSeenRef.current[g.id] ?? 0) >= requestedAt
+              ? (prev[g.id] ?? 0)
+              : (g.unreadCount ?? 0);
+        }
+        return next;
+      });
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load groups.');
@@ -81,6 +103,8 @@ export default function ChatWidget() {
   }, []);
 
   // Own the socket + load the conversation list while the user is signed in.
+  // On socket reconnect, refetch chats and groups so status/unread missed
+  // during the outage are recovered (broadcasts are not replayed).
   useEffect(() => {
     if (!user) return;
     let ignore = false;
@@ -95,37 +119,47 @@ export default function ChatWidget() {
       })
       .finally(() => {
         if (!ignore) setLoading(false);
+        if (!ignore) void loadMyGroups();
       });
+    const unsubscribeConnection = chatSocket.onConnection(() => {
+      if (chatSocket.isConnected()) {
+        void loadChats();
+        void loadMyGroups();
+      }
+    });
     return () => {
       ignore = true;
+      unsubscribeConnection();
       chatSocket.disconnect();
     };
-  }, [user]);
+  }, [user, loadChats, loadMyGroups]);
 
-  const startChatWithUser = useCallback(async (userId: string) => {
-    setError('');
-    setStartingChat(true);
-    try {
-      await startChat(userId);
-      const chats = await getChats();
-      setConversations(chats);
-      // /chat/start returns the raw chat row without participants, so the active
-      // conversation must come from the (refreshed) conversation list.
-      const active = chats.find((c) => c.participants.some((p) => p.id === userId));
-      if (active) {
-        setActiveChat(active);
-        setConversations((prev) =>
-          prev.map((c) => (c.id === active.id ? { ...c, unreadCount: 0 } : c))
-        );
+  const startChatWithUser = useCallback(
+    async (userId: string) => {
+      setError('');
+      setStartingChat(true);
+      try {
+        await startChat(userId);
+        const chats = await loadChats();
+        // /chat/start returns the raw chat row without participants, so the active
+        // conversation must come from the (refreshed) conversation list.
+        const active = chats.find((c) => c.participants.some((p) => p.id === userId));
+        if (active) {
+          setActiveChat(active);
+          setConversations((prev) =>
+            prev.map((c) => (c.id === active.id ? { ...c, unreadCount: 0 } : c))
+          );
+        }
+        setOpen(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to start chat.');
+        setOpen(true);
+      } finally {
+        setStartingChat(false);
       }
-      setOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start chat.');
-      setOpen(true);
-    } finally {
-      setStartingChat(false);
-    }
-  }, []);
+    },
+    [loadChats]
+  );
 
   // Allow other components to open a chat with a specific user.
   useEffect(() => {
@@ -154,9 +188,26 @@ export default function ChatWidget() {
     });
   }, [activeChat]);
 
+  // Track unread group messages. The server broadcasts group_chat.message to
+  // every member (including the sender), so own messages are skipped, and a
+  // message for the open room is not counted.
+  useEffect(() => {
+    if (!user) return;
+    return chatSocket.on('group_chat.message', (payload) => {
+      const msg = payload as GroupChatMessageWire;
+      if (!msg || typeof msg.group_id !== 'string') return;
+      if (msg.sender_id === user.id) return;
+      if (msg.group_id === activeGroup?.id) return;
+      liveSeenRef.current = { ...liveSeenRef.current, [msg.group_id]: Date.now() };
+      setGroupUnread((prev) => ({ ...prev, [msg.group_id]: (prev[msg.group_id] ?? 0) + 1 }));
+    });
+  }, [activeGroup, user]);
+
   if (!user) return null;
 
-  const unreadTotal = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const unreadTotal =
+    conversations.reduce((sum, c) => sum + c.unreadCount, 0) +
+    Object.values(groupUnread).reduce((sum, n) => sum + n, 0);
   const inConversation = activeChat !== null || activeGroup !== null;
 
   function selectConversation(chat: Chat) {
@@ -166,6 +217,7 @@ export default function ChatWidget() {
 
   function selectGroup(group: Group) {
     setActiveGroup(group);
+    setGroupUnread((prev) => ({ ...prev, [group.id]: 0 }));
   }
 
   function switchTab(next: WidgetTab) {
@@ -179,9 +231,10 @@ export default function ChatWidget() {
 
   function openModal() {
     setOpen(true);
-    if (conversations.length === 0) {
-      void loadChats();
-    }
+    // Always refresh so unread counts and online status missed while the
+    // widget was closed (or lost to a socket reconnect) are recovered.
+    void loadChats();
+    void loadMyGroups();
   }
 
   function closeModal() {
@@ -271,9 +324,10 @@ export default function ChatWidget() {
                 onClose={closeModal}
               />
             ) : tab === 'groups' ? (
-              <GroupChatList groups={myGroups} onSelect={selectGroup} />
+              <GroupChatList groups={myGroups} unreadByGroup={groupUnread} onSelect={selectGroup} />
             ) : (
               <ConversationList
+                key={convVersion}
                 conversations={conversations}
                 currentUserId={user.id}
                 activeChatId={activeChat?.id ?? null}

@@ -58,7 +58,16 @@ export default function ChatWindow({
   const [error, setError] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [otherOnline, setOtherOnline] = useState(otherUser.isOnline);
+  const [prevOnlineProp, setPrevOnlineProp] = useState(otherUser.isOnline);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Keep the header in sync when the other user's status is refreshed (e.g. a
+  // fresh conversation snapshot after a reconnect or widget reopen). Adjusted
+  // during render, per React's "adjusting state during render" guidance.
+  if (prevOnlineProp !== otherUser.isOnline) {
+    setPrevOnlineProp(otherUser.isOnline);
+    setOtherOnline(otherUser.isOnline);
+  }
 
   // Follow live isOnlineStatus.update broadcasts for the other user.
   useEffect(() => {

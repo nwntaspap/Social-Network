@@ -30,6 +30,12 @@ CREATE TABLE group_chat_messages (
     sender_id TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE group_chat_reads (
+    group_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    last_read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id)
 );`
 
 func setupGroupChatStore(t *testing.T) *SQLiteStore {

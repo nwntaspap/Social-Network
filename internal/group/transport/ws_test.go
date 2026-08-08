@@ -48,8 +48,20 @@ func (m *mockGroupMemberIDs) Resolve(_ context.Context, _ queries.ListGroupMembe
 	return m.ids, nil
 }
 
+type mockGroupMarkRead struct {
+	err     error
+	got     commands.MarkGroupReadCommand
+	invoked bool
+}
+
+func (m *mockGroupMarkRead) Execute(_ context.Context, cmd commands.MarkGroupReadCommand) error {
+	m.invoked = true
+	m.got = cmd
+	return m.err
+}
+
 func newTestGroupWSHandler(hub *realtime.Hub, send *mockGroupSend, history *mockGroupChatResolver, memberIDs *mockGroupMemberIDs) *GroupWSHandler {
-	return NewGroupWSHandler(hub, send, history, memberIDs)
+	return NewGroupWSHandler(hub, send, history, memberIDs, &mockGroupMarkRead{})
 }
 
 func TestGroupWS_SendBroadcastsToMembers(t *testing.T) {
@@ -130,6 +142,51 @@ func TestGroupWS_HistoryReturnsMessages(t *testing.T) {
 	}
 }
 
+func TestGroupWS_MarkReadForMember(t *testing.T) {
+	hub := realtime.NewHub()
+	markRead := &mockGroupMarkRead{}
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead)
+	client := realtime.NewClient("u1", hub, nil)
+
+	payload, _ := json.Marshal(realtime.GroupChatMarkReadPayload{GroupID: "g1"})
+	h.handleMarkRead(client, realtime.Envelope{Type: realtime.TypeGroupChatMarkRead, Payload: payload})
+
+	if !markRead.invoked {
+		t.Fatal("MarkGroupRead executor not invoked")
+	}
+	if markRead.got.GroupID != "g1" || markRead.got.UserID != "u1" {
+		t.Fatalf("MarkGroupRead called with %+v, want (g1, u1)", markRead.got)
+	}
+}
+
+func TestGroupWS_MarkReadPropagatesError(t *testing.T) {
+	hub := realtime.NewHub()
+	markRead := &mockGroupMarkRead{err: group.ErrNotMember}
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead)
+	client := realtime.NewClient("u9", hub, nil)
+
+	payload, _ := json.Marshal(realtime.GroupChatMarkReadPayload{GroupID: "g1"})
+	h.handleMarkRead(client, realtime.Envelope{Type: realtime.TypeGroupChatMarkRead, RequestID: "r1", Payload: payload})
+
+	env := readGroupEnvelope(t, client)
+	if env.Type != realtime.TypeError || env.RequestID != "r1" {
+		t.Fatalf("got %s/%s, want error r1", env.Type, env.RequestID)
+	}
+}
+
+func TestGroupWS_MarkReadRejectsBadPayload(t *testing.T) {
+	hub := realtime.NewHub()
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, &mockGroupMarkRead{})
+	client := realtime.NewClient("u1", hub, nil)
+
+	h.handleMarkRead(client, realtime.Envelope{Type: realtime.TypeGroupChatMarkRead, Payload: []byte("{")})
+
+	env := readGroupEnvelope(t, client)
+	if env.Type != realtime.TypeError {
+		t.Fatalf("got %s, want error", env.Type)
+	}
+}
+
 func readGroupEnvelope(t *testing.T, client *realtime.Client) realtime.Envelope {
 	t.Helper()
 	select {
@@ -159,4 +216,5 @@ var (
 	_ SendGroupMessageExecutor = (*mockGroupSend)(nil)
 	_ GetGroupChatResolver     = (*mockGroupChatResolver)(nil)
 	_ GroupMemberIDsResolver   = (*mockGroupMemberIDs)(nil)
+	_ MarkGroupReadExecutor    = (*mockGroupMarkRead)(nil)
 )

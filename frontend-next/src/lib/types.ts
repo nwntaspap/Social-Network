@@ -85,6 +85,7 @@ export interface Group {
   creator: User;
   membersCount: number;
   membershipStatus?: MembershipStatus;
+  unreadCount?: number;
   createdAt: string;
   updatedAt?: string;
 }

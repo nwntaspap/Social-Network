@@ -38,6 +38,7 @@ type Group struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	MembershipStatus string
+	UnreadCount      int
 }
 
 type Member struct {
