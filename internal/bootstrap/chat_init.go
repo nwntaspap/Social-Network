@@ -10,15 +10,15 @@ import (
 	chatstore "social-network/internal/chat/store"
 	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/core/middleware"
+	"social-network/internal/core/realtime"
 	domainuser "social-network/internal/domain/user"
 	followstore "social-network/internal/follow/store"
-	"social-network/internal/infra/ws"
 	"social-network/internal/platform/database"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chattransport.Handler {
+func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)

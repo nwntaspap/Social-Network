@@ -46,12 +46,20 @@ func (m *mockWSMarkRead) MarkAsRead(_ context.Context, _, _ string, _ int) error
 	return m.err
 }
 
+type mockWSTypingGate struct {
+	err error
+}
+
+func (m *mockWSTypingGate) Validate(_ context.Context, _, _ string) error {
+	return m.err
+}
+
 func newTestWSHandler(t *testing.T, hub *realtime.Hub, c *chat.Chat) (*WSHandler, *mockWSSend, *mockWSMarkRead) {
 	t.Helper()
 	send := &mockWSSend{}
 	markRead := &mockWSMarkRead{}
 	history := &mockChatHistory{messages: []*chat.Message{{ID: 1, ChatID: "c1", SenderID: "u2", Content: "hi"}}}
-	return NewWSHandler(hub, send, history, markRead, &mockWSGetChat{chat: c}), send, markRead
+	return NewWSHandler(hub, send, history, markRead, &mockWSGetChat{chat: c}, &mockWSTypingGate{}), send, markRead
 }
 
 func readEnvelope(t *testing.T, client *realtime.Client) realtime.Envelope {
@@ -244,9 +252,54 @@ func TestWS_OpenRejectsNonParticipant(t *testing.T) {
 	}
 }
 
+func TestWS_TypingSuppressedWhenNotConnected(t *testing.T) {
+	hub := realtime.NewHub()
+	h, _, _ := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2"})
+	h.typingGate = &mockWSTypingGate{err: commands.ErrNotConnected}
+
+	typer := realtime.NewClient("u1", hub, nil)
+	observer := realtime.NewClient("u2", hub, nil)
+	// Both have the chat open; observer would otherwise receive the indicator.
+	hub.OpenChat(typer, "c1")
+	hub.OpenChat(observer, "c1")
+
+	payload, _ := json.Marshal(realtime.ChatTypingPayload{ChatID: "c1"})
+	h.handleTyping(typer, realtime.Envelope{Type: realtime.TypeTyping, Payload: payload})
+
+	// The typer gets an error reply; the observer must receive nothing.
+	reply := readEnvelope(t, typer)
+	if reply.Type != realtime.TypeError {
+		t.Fatalf("reply type = %s, want error", reply.Type)
+	}
+	select {
+	case msg := <-observer.SendChannel():
+		t.Fatalf("observer received typing indicator: %s", msg)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestWS_TypingDeliversWhenConnected(t *testing.T) {
+	hub := realtime.NewHub()
+	h, _, _ := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2"})
+	h.typingGate = &mockWSTypingGate{}
+
+	typer := realtime.NewClient("u1", hub, nil)
+	observer := realtime.NewClient("u2", hub, nil)
+	hub.OpenChat(typer, "c1")
+	hub.OpenChat(observer, "c1")
+
+	payload, _ := json.Marshal(realtime.ChatTypingPayload{ChatID: "c1"})
+	h.handleTyping(typer, realtime.Envelope{Type: realtime.TypeTyping, Payload: payload})
+
+	reply := readEnvelope(t, observer)
+	if reply.Type != realtime.TypeIsTyping {
+		t.Fatalf("reply type = %s, want chat.is_typing", reply.Type)
+	}
+}
+
 func TestWS_HistoryError(t *testing.T) {
 	hub := realtime.NewHub()
-	h := NewWSHandler(hub, &mockWSSend{}, &mockChatHistory{err: chat.ErrNotParticipant}, &mockWSMarkRead{}, &mockWSGetChat{})
+	h := NewWSHandler(hub, &mockWSSend{}, &mockChatHistory{err: chat.ErrNotParticipant}, &mockWSMarkRead{}, &mockWSGetChat{}, &mockWSTypingGate{})
 	client := realtime.NewClient("u1", hub, nil)
 
 	payload, _ := json.Marshal(realtime.HistoryPayload{ChatID: "c1"})
@@ -262,5 +315,6 @@ var (
 	_ WSSendExecutor = (*mockWSSend)(nil)
 	_ WSChatGetter   = (*mockWSGetChat)(nil)
 	_ WSMarkAsRead   = (*mockWSMarkRead)(nil)
+	_ WSTypingGate   = (*mockWSTypingGate)(nil)
 	_                = queries.GetChatHistoryQuery{}
 )

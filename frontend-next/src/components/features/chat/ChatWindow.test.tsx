@@ -120,4 +120,21 @@ describe('ChatWindow', () => {
     });
     expect(container.querySelectorAll('.chat-message').length).toBe(1);
   });
+
+  it('updates the header online status from isOnlineStatus.update broadcasts', async () => {
+    const offlineUser = { ...otherUser, isOnline: false };
+    render(<ChatWindow chatId="c1" currentUserId="u1" otherUser={offlineUser} embedded />);
+
+    await waitFor(() => {
+      expect(wsHandlers.has('isOnlineStatus.update')).toBe(true);
+    });
+
+    expect(screen.getByText('Offline')).toBeTruthy();
+
+    wsHandlers.get('isOnlineStatus.update')!({ user_id: 'u2', isOnline: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Online')).toBeTruthy();
+    });
+  });
 });

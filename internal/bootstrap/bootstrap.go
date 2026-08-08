@@ -9,6 +9,7 @@ import (
 	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/config"
 	coremiddleware "social-network/internal/core/middleware"
+	"social-network/internal/core/realtime"
 	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/domain/session"
 	eventtransport "social-network/internal/event/transport"
@@ -55,6 +56,7 @@ type App struct {
 func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 	notifier := notifications.NewNotifier()
 	hub := ws.NewHub()
+	rtHub := realtime.NewHub()
 	sessionManager := sessionstore.NewSessionManager(db, cfg.SessionManager)
 	coreSession := &coreSessionAdapter{inner: sessionManager}
 	cookieManager := authcookies.NewManager(cfg.SessionManager)
@@ -79,7 +81,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 		Services:       services,
 		User:           initUser(db, coreSession, sessionCookies),
 		Follow:         initFollow(db),
-		Chat:           initChat(db, hub, repos.UserRepo),
+		Chat:           initChat(db, rtHub, repos.UserRepo),
 		Comment:        initComment(db),
 		Topic:          initTopic(db),
 		Group:          initGroup(db),
@@ -88,7 +90,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 		LegacyOAuth:    legacyOAuth,
 		Notifier:       notifier,
 		Hub:            hub,
-		Realtime:       initRealtime(db),
+		Realtime:       initRealtime(db, rtHub),
 		Middlware:      mw,
 		SessionManager: sessionManager,
 		CookieManager:  cookieManager,

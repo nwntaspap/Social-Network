@@ -25,6 +25,13 @@ type WSChatGetter interface {
 	GetChat(ctx context.Context, chatID string) (*chat.Chat, error)
 }
 
+// WSTypingGate validates whether a user may announce typing in a chat.
+// It matches the send gate so the typing indicator only appears when a
+// message could actually be delivered.
+type WSTypingGate interface {
+	Validate(ctx context.Context, senderID, receiverID string) error
+}
+
 // WSHandler provides WebSocket handlers for private chat.
 type WSHandler struct {
 	hub        *realtime.Hub
@@ -32,6 +39,7 @@ type WSHandler struct {
 	getHistory ChatHistoryResolver
 	markAsRead WSMarkAsRead
 	getChat    WSChatGetter
+	typingGate WSTypingGate
 }
 
 func NewWSHandler(
@@ -40,8 +48,16 @@ func NewWSHandler(
 	getHistory ChatHistoryResolver,
 	markAsRead WSMarkAsRead,
 	getChat WSChatGetter,
+	typingGate WSTypingGate,
 ) *WSHandler {
-	return &WSHandler{hub: hub, send: send, getHistory: getHistory, markAsRead: markAsRead, getChat: getChat}
+	return &WSHandler{
+		hub:        hub,
+		send:       send,
+		getHistory: getHistory,
+		markAsRead: markAsRead,
+		getChat:    getChat,
+		typingGate: typingGate,
+	}
 }
 
 // Handlers returns the per-type handlers to register on the realtime router.
@@ -164,6 +180,27 @@ func (h *WSHandler) handleTyping(client *realtime.Client, env realtime.Envelope)
 	var payload realtime.ChatTypingPayload
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
 		sendRealtimeError(client, env.RequestID, "invalid typing payload")
+		return
+	}
+
+	c, err := h.getChat.GetChat(context.Background(), payload.ChatID)
+	if err != nil {
+		sendRealtimeError(client, env.RequestID, err.Error())
+		return
+	}
+	if c.UserOneID != client.UserID && c.UserTwoID != client.UserID {
+		sendRealtimeError(client, env.RequestID, "not a participant of this chat")
+		return
+	}
+	otherID := c.UserTwoID
+	if c.UserOneID != client.UserID {
+		otherID = c.UserOneID
+	}
+
+	// Only announce typing when a message could actually be delivered.
+	// When the users are no longer connected, the indicator must not appear.
+	if err := h.typingGate.Validate(context.Background(), client.UserID, otherID); err != nil {
+		sendRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
 

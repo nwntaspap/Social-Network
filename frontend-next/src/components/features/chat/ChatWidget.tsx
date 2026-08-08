@@ -181,6 +181,7 @@ export default function ChatWidget() {
               </div>
             ) : activeChat && otherUser ? (
               <ChatWindow
+                key={activeChat.id}
                 chatId={activeChat.id}
                 currentUserId={user.id}
                 otherUser={otherUser}

@@ -17,7 +17,7 @@ import { getChatMessages } from '@/lib/api';
 import { chatSocket } from '@/lib/ws';
 import { formatMessageTime } from '@/lib/helpers';
 import MessageInput from './MessageInput';
-import type { ChatUser, PrivateWsMessage } from '@/lib/types';
+import type { ChatUser, IsOnlineStatusPayload, PrivateWsMessage } from '@/lib/types';
 
 interface ChatWindowProps {
   chatId: string;
@@ -57,7 +57,16 @@ export default function ChatWindow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(otherUser.isOnline);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Follow live isOnlineStatus.update broadcasts for the other user.
+  useEffect(() => {
+    return chatSocket.on('isOnlineStatus.update', (payload) => {
+      const p = payload as IsOnlineStatusPayload;
+      if (p.user_id === otherUser.id) setOtherOnline(p.isOnline);
+    });
+  }, [otherUser.id]);
 
   // Load history over HTTP on mount / chat change.
   useEffect(() => {
@@ -161,8 +170,8 @@ export default function ChatWindow({
           </span>
           <div className="chat-window-header-title">
             <h3>{otherUser.username}</h3>
-            <span className={`chat-user-status ${otherUser.isOnline ? 'online' : 'offline'}`}>
-              {otherUser.isOnline ? 'Online' : 'Offline'}
+            <span className={`chat-user-status ${otherOnline ? 'online' : 'offline'}`}>
+              {otherOnline ? 'Online' : 'Offline'}
             </span>
           </div>
         </div>

@@ -24,9 +24,7 @@ type Realtime struct {
 	Router realtime.WSRouter
 }
 
-func initRealtime(db database.DB) *Realtime {
-	hub := realtime.NewHub()
-
+func initRealtime(db database.DB, hub *realtime.Hub) *Realtime {
 	chatStore := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
@@ -40,7 +38,7 @@ func initRealtime(db database.DB) *Realtime {
 	send := chatcommands.NewSendPrivateMessageHandler(chatStore, gate)
 	getHistory := queries.NewGetChatHistoryResolver(chatStore, followAdapter)
 
-	chatWS := chattransport.NewWSHandler(hub, send, getHistory, chatStore, chatStore)
+	chatWS := chattransport.NewWSHandler(hub, send, getHistory, chatStore, chatStore, gate)
 
 	groupStore := groupstore.NewSQLiteStore(db)
 	groupWS := grouptransport.NewGroupWSHandler(
