@@ -94,6 +94,11 @@ export default function ChatWindow({
       if (msg.chat_id !== chatId) return;
       const display = toDisplayMessage(msg);
       setMessages((prev) => (prev.some((m) => m.id === display.id) ? prev : [...prev, display]));
+      setIsTyping(false);
+      if (isTypingTimer) {
+        clearTimeout(isTypingTimer);
+        isTypingTimer = null;
+      }
       chatSocket.send('chat.mark_read', { chat_id: chatId, up_to_message_id: msg.id });
     });
 

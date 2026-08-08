@@ -227,6 +227,11 @@ CREATE TABLE IF NOT EXISTS chats (
     FOREIGN KEY(user_two_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 000012_chat_pair_unique.up.sql: user_one_id < user_two_id (normalized), so the
+-- pair is unique; the unique index makes GetOrCreateChat's INSERT OR IGNORE reuse
+-- an existing 1:1 chat instead of creating duplicates.
+CREATE UNIQUE INDEX idx_chats_pair ON chats (user_one_id, user_two_id);
+
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     chat_id TEXT NOT NULL,

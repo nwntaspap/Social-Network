@@ -291,7 +291,8 @@ func (s *SQLiteStore) SendMessage(ctx context.Context, chatID, senderID, content
 	return m, nil
 }
 
-// GetMessagesForChat returns messages for a chat up to limit.
+// GetMessagesForChat returns the most recent messages in a chat, oldest first.
+// created_at only has second granularity, so id breaks ties in insertion order.
 func (s *SQLiteStore) GetMessagesForChat(ctx context.Context, chatID string, limit int) ([]*chat.Message, error) {
 	if chatID == "" {
 		return nil, errors.New("chatID cannot be empty")
@@ -301,7 +302,7 @@ func (s *SQLiteStore) GetMessagesForChat(ctx context.Context, chatID string, lim
 		SELECT id, chat_id, sender_id, content, created_at, client_message_id
 		FROM messages
 		WHERE chat_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT ?
 	`, chatID, limit)
 	if err != nil {
@@ -309,10 +310,15 @@ func (s *SQLiteStore) GetMessagesForChat(ctx context.Context, chatID string, lim
 	}
 	defer rows.Close()
 
-	return scanMessages(rows)
+	messages, err := scanMessages(rows)
+	if err != nil {
+		return nil, err
+	}
+	return reverseMessages(messages), nil
 }
 
-// GetMessagesForChatBefore returns messages before a given ID for pagination.
+// GetMessagesForChatBefore returns messages before a given ID for pagination,
+// oldest first. The window is the most recent messages older than beforeID.
 func (s *SQLiteStore) GetMessagesForChatBefore(ctx context.Context, chatID string, beforeID int, limit int) ([]*chat.Message, error) {
 	if chatID == "" {
 		return nil, errors.New("chatID cannot be empty")
@@ -322,7 +328,7 @@ func (s *SQLiteStore) GetMessagesForChatBefore(ctx context.Context, chatID strin
 		SELECT id, chat_id, sender_id, content, created_at, client_message_id
 		FROM messages
 		WHERE chat_id = ? AND id < ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT ?
 	`, chatID, beforeID, limit)
 	if err != nil {
@@ -330,7 +336,18 @@ func (s *SQLiteStore) GetMessagesForChatBefore(ctx context.Context, chatID strin
 	}
 	defer rows.Close()
 
-	return scanMessages(rows)
+	messages, err := scanMessages(rows)
+	if err != nil {
+		return nil, err
+	}
+	return reverseMessages(messages), nil
+}
+
+func reverseMessages(messages []*chat.Message) []*chat.Message {
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	return messages
 }
 
 func scanMessages(rows *sql.Rows) ([]*chat.Message, error) {
