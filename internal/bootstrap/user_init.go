@@ -18,7 +18,7 @@ import (
 	usertransport "social-network/internal/user/transport"
 )
 
-func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies) *usertransport.Handler {
+func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool) *usertransport.Handler {
 	userStore := userstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	topicStore := topicstore.NewSQLiteStore(db)
@@ -38,7 +38,7 @@ func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewar
 		usercommands.NewTogglePrivacyHandler(userStore),
 		userqueries.NewGetProfileResolver(userStore, fc, followStore),
 		userqueries.NewGetActivityResolver(userStore, topicStore, commentStore, topicStore, followStore),
-		userqueries.NewListUsersResolver(userStore),
+		userqueries.NewListUsersResolver(userStore, isOnline),
 		cookies,
 	)
 }

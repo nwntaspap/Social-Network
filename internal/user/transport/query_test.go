@@ -155,7 +155,7 @@ func TestListUsers_Success(t *testing.T) {
 		h.listUsers = &stubListUsers{
 			result: &queries.ListUsersResult{
 				Users: []user.User{
-					{ID: "u1", Nickname: "alice"},
+					{ID: "u1", Nickname: "alice", IsOnline: true},
 					{ID: "u2", Nickname: "bob"},
 				},
 			},
@@ -170,6 +170,33 @@ func TestListUsers_Success(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	payload, ok := body["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data envelope = %T, want map", body["data"])
+	}
+	data, ok := payload["data"].([]any)
+	if !ok || len(data) != 2 {
+		t.Fatalf("users = %v, want 2 users", payload["data"])
+	}
+	first, ok := data[0].(map[string]any)
+	if !ok {
+		t.Fatalf("user[0] = %T, want map", data[0])
+	}
+	if first["isOnline"] != true {
+		t.Errorf("isOnline for alice = %v, want true", first["isOnline"])
+	}
+	second, ok := data[1].(map[string]any)
+	if !ok {
+		t.Fatalf("user[1] = %T, want map", data[1])
+	}
+	if second["isOnline"] != false {
+		t.Errorf("isOnline for bob = %v, want false", second["isOnline"])
 	}
 }
 

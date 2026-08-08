@@ -79,7 +79,7 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 
 	return &App{
 		Services:       services,
-		User:           initUser(db, coreSession, sessionCookies),
+		User:           initUser(db, coreSession, sessionCookies, rtHub.IsOnline),
 		Follow:         initFollow(db),
 		Chat:           initChat(db, rtHub, repos.UserRepo),
 		Comment:        initComment(db),

@@ -25,11 +25,12 @@ type SearchRepository interface {
 }
 
 type ListUsersResolver struct {
-	repo SearchRepository
+	repo     SearchRepository
+	isOnline func(string) bool
 }
 
-func NewListUsersResolver(repo SearchRepository) *ListUsersResolver {
-	return &ListUsersResolver{repo: repo}
+func NewListUsersResolver(repo SearchRepository, isOnline func(string) bool) *ListUsersResolver {
+	return &ListUsersResolver{repo: repo, isOnline: isOnline}
 }
 
 func (r *ListUsersResolver) Resolve(ctx context.Context, q ListUsersQuery) (*ListUsersResult, error) {
@@ -59,6 +60,7 @@ func (r *ListUsersResolver) Resolve(ctx context.Context, q ListUsersQuery) (*Lis
 			AvatarPath:  u.AvatarPath,
 			DateOfBirth: u.DateOfBirth,
 			IsPrivate:   u.IsPrivate,
+			IsOnline:    r.isOnline != nil && r.isOnline(u.ID),
 			CreatedAt:   u.CreatedAt,
 		})
 	}

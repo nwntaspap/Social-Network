@@ -19,6 +19,7 @@ type User struct {
 	AboutMe      string
 	AvatarPath   string
 	IsPrivate    bool
+	IsOnline     bool
 	CreatedAt    time.Time
 }
 

@@ -11,6 +11,7 @@ export interface User {
   nickname?: string;
   aboutMe?: string;
   isPublic: boolean;
+  isOnline?: boolean;
   createdAt: string;
   updatedAt?: string;
 }

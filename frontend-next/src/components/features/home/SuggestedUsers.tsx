@@ -6,7 +6,10 @@ import Link from 'next/link';
 import { searchUsers, sendFollowRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { getDisplayName, getFileUrl, truncateText } from '@/lib/helpers';
-import type { User } from '@/lib/types';
+import { chatSocket } from '@/lib/ws';
+import type { IsOnlineStatusPayload, User } from '@/lib/types';
+
+const MAX_SUGGESTIONS = 6;
 
 export default function SuggestedUsers() {
   const { user } = useAuth();
@@ -14,17 +17,43 @@ export default function SuggestedUsers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const response = await searchUsers('', 1);
-        setUsers(response.data.filter((u) => u.id !== user?.id).slice(0, 6));
-      } catch (err) {
-        console.error('Failed to load suggested users:', err);
-      } finally {
-        setLoading(false);
-      }
+    chatSocket.connect();
+
+    const load = () => {
+      searchUsers('', 1)
+        .then((response) => {
+          setUsers(response.data.filter((u) => u.id !== user?.id).slice(0, MAX_SUGGESTIONS));
+        })
+        .catch((err) => {
+          console.error('Failed to load suggested users:', err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    // Fetch the snapshot once connected. If a reconnect happens later, missed
+    // isOnlineStatus.update broadcasts are recovered by refetching the snapshot.
+    if (chatSocket.isConnected()) {
+      load();
     }
-    load();
+    const unsubscribeConnection = chatSocket.onConnection(() => {
+      if (chatSocket.isConnected()) load();
+    });
+
+    const unsubscribe = chatSocket.on('isOnlineStatus.update', (payload) => {
+      const p = payload as IsOnlineStatusPayload;
+      if (!p || typeof p.user_id !== 'string') return;
+      setUsers((prev) =>
+        prev.map((u) => (u.id === p.user_id ? { ...u, isOnline: p.isOnline } : u))
+      );
+    });
+
+    return () => {
+      unsubscribeConnection();
+      unsubscribe();
+      chatSocket.disconnect();
+    };
   }, [user?.id]);
 
   if (loading) {
@@ -39,7 +68,7 @@ export default function SuggestedUsers() {
   return (
     <section className="suggested-section">
       <h2 className="section-title">Suggested Users</h2>
-      <div className="suggested-users-grid">
+      <div className="suggested-users-list">
         {users.length > 0 ? (
           users.map((u) => <SuggestedUserCard key={u.id} user={u} />)
         ) : (
@@ -53,6 +82,7 @@ export default function SuggestedUsers() {
 function SuggestedUserCard({ user }: { user: User }) {
   const [status, setStatus] = useState<'none' | 'pending' | 'following'>('none');
   const [busy, setBusy] = useState(false);
+  const online = user.isOnline === true;
 
   async function handleFollow() {
     setBusy(true);
@@ -82,6 +112,10 @@ function SuggestedUserCard({ user }: { user: User }) {
           {user.aboutMe && <p className="suggested-user-bio">{truncateText(user.aboutMe, 60)}</p>}
         </div>
       </Link>
+      <div className="suggested-user-status">
+        <span className={`suggested-user-status-dot ${online ? 'online' : 'offline'}`} />
+        <span className="suggested-user-status-label">{online ? 'Online' : 'Offline'}</span>
+      </div>
       <button className="follow-btn" onClick={handleFollow} disabled={busy || status !== 'none'}>
         {status === 'following' ? 'Following' : status === 'pending' ? 'Requested' : 'Follow'}
       </button>

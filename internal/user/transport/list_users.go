@@ -44,7 +44,9 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users := make([]map[string]any, 0, len(result.Users))
 	for i := range result.Users {
-		users = append(users, userResponse(&result.Users[i]))
+		u := userResponse(&result.Users[i])
+		u["isOnline"] = result.Users[i].IsOnline
+		users = append(users, u)
 	}
 
 	totalPages := result.Total / limit

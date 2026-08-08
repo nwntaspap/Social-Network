@@ -55,7 +55,7 @@ func TestListUsersResolver_Success(t *testing.T) {
 		{ID: "u2", Nickname: "bob", Email: "c@d.com", PasswordHash: "secret", CreatedAt: now},
 	}
 	repo := &mockListUsersRepo{users: users, count: 2}
-	r := NewListUsersResolver(repo)
+	r := NewListUsersResolver(repo, nil)
 
 	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
 	if err != nil {
@@ -79,7 +79,7 @@ func TestListUsersResolver_Success(t *testing.T) {
 
 func TestListUsersResolver_PaginatesOffset(t *testing.T) {
 	repo := &mockListUsersRepo{count: 25}
-	r := NewListUsersResolver(repo)
+	r := NewListUsersResolver(repo, nil)
 
 	_, err := r.Resolve(context.Background(), ListUsersQuery{Page: 3, Limit: 10})
 	if err != nil {
@@ -101,7 +101,7 @@ func TestListUsersResolver_PreservesUserFields(t *testing.T) {
 		DateOfBirth: dob, AvatarPath: "/img.png", CreatedAt: dob,
 	}}
 	repo := &mockListUsersRepo{users: users, count: 1}
-	r := NewListUsersResolver(repo)
+	r := NewListUsersResolver(repo, nil)
 
 	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
 	if err != nil {
@@ -119,9 +119,52 @@ func TestListUsersResolver_PreservesUserFields(t *testing.T) {
 	}
 }
 
+func TestListUsersResolver_IsOnlineFlags(t *testing.T) {
+	users := []user.User{
+		{ID: "u1", Nickname: "alice"},
+		{ID: "u2", Nickname: "bob"},
+		{ID: "u3", Nickname: "carol"},
+	}
+	repo := &mockListUsersRepo{users: users, count: 3}
+	online := map[string]bool{"u1": true, "u3": true}
+	r := NewListUsersResolver(repo, func(id string) bool { return online[id] })
+
+	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	flags := map[string]bool{}
+	for _, u := range result.Users {
+		flags[u.ID] = u.IsOnline
+	}
+	if !flags["u1"] {
+		t.Error("u1 should be marked online")
+	}
+	if flags["u2"] {
+		t.Error("u2 should not be marked online")
+	}
+	if !flags["u3"] {
+		t.Error("u3 should be marked online")
+	}
+}
+
+func TestListUsersResolver_IsOnlineNilChecker(t *testing.T) {
+	repo := &mockListUsersRepo{users: []user.User{{ID: "u1", Nickname: "alice"}}, count: 1}
+	r := NewListUsersResolver(repo, nil)
+
+	result, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if result.Users[0].IsOnline {
+		t.Error("IsOnline should default to false without a checker")
+	}
+}
+
 func TestListUsersResolver_Empty(t *testing.T) {
 	repo := &mockListUsersRepo{users: []user.User{}}
-	r := NewListUsersResolver(repo)
+	r := NewListUsersResolver(repo, nil)
 
 	result, err := r.Resolve(context.Background(), ListUsersQuery{})
 	if err != nil {
@@ -134,7 +177,7 @@ func TestListUsersResolver_Empty(t *testing.T) {
 
 func TestListUsersResolver_Error(t *testing.T) {
 	repo := &mockListUsersRepo{err: errors.New("db down")}
-	r := NewListUsersResolver(repo)
+	r := NewListUsersResolver(repo, nil)
 
 	_, err := r.Resolve(context.Background(), ListUsersQuery{})
 	if err == nil {
@@ -143,7 +186,7 @@ func TestListUsersResolver_Error(t *testing.T) {
 }
 
 func TestNewListUsersResolver(t *testing.T) {
-	r := NewListUsersResolver(&mockListUsersRepo{})
+	r := NewListUsersResolver(&mockListUsersRepo{}, nil)
 	if r == nil {
 		t.Fatal("NewListUsersResolver() returned nil")
 	}
