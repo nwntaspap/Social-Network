@@ -515,8 +515,12 @@ export async function getChats(): Promise<Chat[]> {
   return api.get<Chat[]>('/chat/users');
 }
 
-export async function startChat(userId: string): Promise<Chat> {
-  return api.post<Chat>('/chat/start', { userId });
+/**
+ * /chat/start returns the raw chat row ({id, user_one_id, ...}), which has no
+ * participants. Callers must resolve the full conversation via getChats().
+ */
+export async function startChat(userId: string): Promise<{ id: string }> {
+  return api.post<{ id: string }>('/chat/start', { userId });
 }
 
 export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
