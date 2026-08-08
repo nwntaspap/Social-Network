@@ -31,12 +31,14 @@ func initRealtime(db database.DB) *Realtime {
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
 
+	followAdapter := &chat.FollowAdapter{AreConnectedFn: followStore.AreConnected}
+
 	gate := chatcommands.NewMessageGate(
-		&chat.FollowAdapter{AreConnectedFn: followStore.AreConnected},
+		followAdapter,
 		&chat.PrivacyAdapter{IsPrivateFn: userStore.IsPrivate},
 	)
 	send := chatcommands.NewSendPrivateMessageHandler(chatStore, gate)
-	getHistory := queries.NewGetChatHistoryResolver(chatStore)
+	getHistory := queries.NewGetChatHistoryResolver(chatStore, followAdapter)
 
 	chatWS := chattransport.NewWSHandler(hub, send, getHistory, chatStore, chatStore)
 

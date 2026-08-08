@@ -74,4 +74,22 @@ describe('ChatWidget', () => {
       expect(screen.getByText('bob')).toBeTruthy();
     });
   });
+
+  it('clears the unread badge when a chat with unread messages is opened', async () => {
+    const unreadConversation = { ...conversation, unreadCount: 3 };
+    mockGetChats.mockResolvedValueOnce([]).mockResolvedValueOnce([unreadConversation]);
+
+    const { container } = render(<ChatWidget />);
+
+    window.dispatchEvent(new CustomEvent('chat:open', { detail: { userId: 'u2' } }));
+
+    await waitFor(() => {
+      expect(screen.getByText('bob')).toBeTruthy();
+    });
+    // Opening the chat marks it read, so the floating button must no longer
+    // advertise unread messages.
+    const widgetButton = container.querySelector('.chat-widget-button');
+    expect(widgetButton).toBeTruthy();
+    expect(widgetButton).not.toHaveAttribute('data-unread');
+  });
 });

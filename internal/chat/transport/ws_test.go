@@ -196,6 +196,54 @@ func TestWS_MarkRead(t *testing.T) {
 	}
 }
 
+func TestWS_OpenMarksRead(t *testing.T) {
+	hub := realtime.NewHub()
+	last := 5
+	h, _, markRead := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2", LastMessageID: &last})
+	client := realtime.NewClient("u1", hub, nil)
+
+	payload, _ := json.Marshal(realtime.ChatOpenClosePayload{ChatID: "c1"})
+	h.handleOpen(client, realtime.Envelope{Type: realtime.TypeChatOpen, Payload: payload})
+
+	if markRead.calls != 1 {
+		t.Fatalf("markRead.calls = %d, want 1", markRead.calls)
+	}
+	if len(hub.GetObserversForChat("c1", "u2")) == 0 {
+		t.Fatal("expected client to observe the opened chat")
+	}
+}
+
+func TestWS_OpenWithoutLastMessageSkipsMarkRead(t *testing.T) {
+	hub := realtime.NewHub()
+	h, _, markRead := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2"})
+	client := realtime.NewClient("u1", hub, nil)
+
+	payload, _ := json.Marshal(realtime.ChatOpenClosePayload{ChatID: "c1"})
+	h.handleOpen(client, realtime.Envelope{Type: realtime.TypeChatOpen, Payload: payload})
+
+	if markRead.calls != 0 {
+		t.Fatalf("markRead.calls = %d, want 0", markRead.calls)
+	}
+}
+
+func TestWS_OpenRejectsNonParticipant(t *testing.T) {
+	hub := realtime.NewHub()
+	last := 3
+	h, _, markRead := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2", LastMessageID: &last})
+	client := realtime.NewClient("u9", hub, nil)
+
+	payload, _ := json.Marshal(realtime.ChatOpenClosePayload{ChatID: "c1"})
+	h.handleOpen(client, realtime.Envelope{Type: realtime.TypeChatOpen, Payload: payload})
+
+	reply := readEnvelope(t, client)
+	if reply.Type != realtime.TypeError {
+		t.Fatalf("reply type = %s, want error", reply.Type)
+	}
+	if markRead.calls != 0 {
+		t.Fatalf("markRead.calls = %d, want 0", markRead.calls)
+	}
+}
+
 func TestWS_HistoryError(t *testing.T) {
 	hub := realtime.NewHub()
 	h := NewWSHandler(hub, &mockWSSend{}, &mockChatHistory{err: chat.ErrNotParticipant}, &mockWSMarkRead{}, &mockWSGetChat{})

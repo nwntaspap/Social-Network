@@ -44,7 +44,9 @@ func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chat
 		},
 	}
 
-	getHistory := queries.NewGetChatHistoryResolver(store)
+	followAdapter := &chat.FollowAdapter{AreConnectedFn: followStore.AreConnected}
+
+	getHistory := queries.NewGetChatHistoryResolver(store, followAdapter)
 	getUsers := queries.NewGetChatUsersResolver(store, ua, ba)
 
 	userLookup := &chatUserLookupAdapter{repo: userStore}
@@ -58,7 +60,7 @@ func initChat(db database.DB, hub *ws.Hub, userRepo domainuser.Repository) *chat
 	}
 
 	gate := chatcommands.NewMessageGate(
-		&chat.FollowAdapter{AreConnectedFn: followStore.AreConnected},
+		followAdapter,
 		&chat.PrivacyAdapter{IsPrivateFn: userStore.IsPrivate},
 	)
 	startChat := chatcommands.NewOpenPrivateChatHandler(store, gate)

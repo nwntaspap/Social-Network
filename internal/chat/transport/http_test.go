@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -388,6 +389,35 @@ func TestGetChatHistory_RejectsNonParticipant(t *testing.T) {
 
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetChatHistory_RejectsDisconnected(t *testing.T) {
+	h := NewHandler(
+		func(_ *http.Request) (string, bool) { return "u1", true },
+		&mockChatUserLookup{},
+		&mockChatHistory{err: chat.ErrNotConnected},
+		&mockChatUsers{},
+	)
+	srv := httptest.NewServer(http.HandlerFunc(h.GetChatHistory))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/api/chat/history?chatId=c1", nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "You are not connected to this user") {
+		t.Fatalf("expected connection error message, got %s", body)
 	}
 }
 

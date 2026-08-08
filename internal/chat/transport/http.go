@@ -70,6 +70,8 @@ func (h *Handler) GetChatHistory(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, chat.ErrNotParticipant):
 			helpers.RespondWithError(w, http.StatusForbidden, "You are not a participant of this chat")
+		case errors.Is(err, chat.ErrNotConnected):
+			helpers.RespondWithError(w, http.StatusForbidden, "You are not connected to this user")
 		case errors.Is(err, chat.ErrChatNotFound):
 			helpers.RespondWithError(w, http.StatusNotFound, "Chat not found")
 		default:

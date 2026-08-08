@@ -13,6 +13,10 @@ var (
 
 	// ErrChatNotFound is returned when a chat does not exist.
 	ErrChatNotFound = errors.New("chat not found")
+
+	// ErrNotConnected is returned when the two users in a chat no longer
+	// follow each other and therefore cannot exchange messages.
+	ErrNotConnected = errors.New("users are not connected: at least one must follow the other")
 )
 
 type Chat struct {

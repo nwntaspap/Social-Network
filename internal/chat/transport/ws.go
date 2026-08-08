@@ -134,10 +134,25 @@ func (h *WSHandler) handleOpen(client *realtime.Client, env realtime.Envelope) {
 		sendRealtimeError(client, env.RequestID, "invalid open payload")
 		return
 	}
-	if !h.isParticipant(payload.ChatID, client.UserID) {
+
+	c, err := h.getChat.GetChat(context.Background(), payload.ChatID)
+	if err != nil {
+		sendRealtimeError(client, env.RequestID, err.Error())
+		return
+	}
+	if c.UserOneID != client.UserID && c.UserTwoID != client.UserID {
 		sendRealtimeError(client, env.RequestID, "not a participant of this chat")
 		return
 	}
+
+	// Opening a chat marks everything received so far as read.
+	if c.LastMessageID != nil {
+		if err := h.markAsRead.MarkAsRead(context.Background(), payload.ChatID, client.UserID, *c.LastMessageID); err != nil {
+			sendRealtimeError(client, env.RequestID, err.Error())
+			return
+		}
+	}
+
 	h.hub.OpenChat(client, payload.ChatID)
 }
 
@@ -169,14 +184,6 @@ func (h *WSHandler) handleMarkRead(client *realtime.Client, env realtime.Envelop
 	if err := h.markAsRead.MarkAsRead(context.Background(), payload.ChatID, client.UserID, payload.UpToMessageID); err != nil {
 		sendRealtimeError(client, env.RequestID, err.Error())
 	}
-}
-
-func (h *WSHandler) isParticipant(chatID, userID string) bool {
-	c, err := h.getChat.GetChat(context.Background(), chatID)
-	if err != nil {
-		return false
-	}
-	return c.UserOneID == userID || c.UserTwoID == userID
 }
 
 func toRealtimeMessage(m *chat.Message) *realtime.Message {

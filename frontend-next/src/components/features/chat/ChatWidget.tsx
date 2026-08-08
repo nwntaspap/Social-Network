@@ -72,7 +72,12 @@ export default function ChatWidget() {
       // /chat/start returns the raw chat row without participants, so the active
       // conversation must come from the (refreshed) conversation list.
       const active = chats.find((c) => c.participants.some((p) => p.id === userId));
-      if (active) setActiveChat(active);
+      if (active) {
+        setActiveChat(active);
+        setConversations((prev) =>
+          prev.map((c) => (c.id === active.id ? { ...c, unreadCount: 0 } : c))
+        );
+      }
       setOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start chat.');
