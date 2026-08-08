@@ -54,14 +54,23 @@ export function useApiMutation<TData, TVariables>({
 
   return useMutation<TData, Error, TVariables>({
     ...mutationOptions,
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       if (invalidateKeys) {
         const keys =
           typeof invalidateKeys === 'function' ? invalidateKeys(variables, data) : invalidateKeys;
 
-        keys.forEach((key) => {
-          queryClient.invalidateQueries({ queryKey: key });
-        });
+        // invalidateQueries returns a Promise that resolves once the
+        // resulting refetch(es) settle. Awaiting Promise.all here (instead
+        // of firing-and-forgetting each call in a forEach) means:
+        //   1. All invalidated keys refetch concurrently, not sequentially.
+        //   2. mutateAsync() callers (e.g. CreatePostForm awaiting the
+        //      mutation before router.push) can be sure fresh data is
+        //      already in cache by the time onSuccess-driven navigation
+        //      happens — no flash of stale content on the page you land on.
+        //   3. isPending on the mutation stays true until invalidation is
+        //      fully done, so a submit button's disabled state covers the
+        //      whole operation, not just the initial request.
+        await Promise.all(keys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
       }
       onSuccess?.(data, variables);
     },

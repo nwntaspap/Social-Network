@@ -31,7 +31,7 @@ import type { PaginatedResponse } from '@/lib/types';
 
 interface UsePaginatedQueryOptions<T> {
   queryKey: readonly unknown[];
-  fetchPage: (page: number) => Promise<PaginatedResponse<T>>;
+  fetchPage: (page: number, signal?: AbortSignal) => Promise<PaginatedResponse<T>>;
   /** Set false to skip fetching (e.g. waiting on a groupId param) */
   enabled?: boolean;
 }
@@ -43,7 +43,7 @@ export function usePaginatedQuery<T>({
 }: UsePaginatedQueryOptions<T>) {
   const query = useInfiniteQuery({
     queryKey,
-    queryFn: ({ pageParam }) => fetchPage(pageParam),
+    queryFn: ({ pageParam, signal }) => fetchPage(pageParam, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,

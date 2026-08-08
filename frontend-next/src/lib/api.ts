@@ -12,11 +12,11 @@ import type {
   LoginResponse,
   Post,
   Comment,
+  FollowRequest,
   Group,
   GroupMember,
   GroupJoinRequest,
   Event,
-  GroupEventsResponse,
   Chat,
   ChatMessage,
   Notification,
@@ -131,9 +131,20 @@ type QueryParams = Record<
 >;
 
 export const api = {
-  get<T = unknown, P extends QueryParams = QueryParams>(path: string, params?: P): Promise<T> {
+  /**
+   * `signal` is optional and threaded all the way to fetch(). TanStack
+   * Query passes a signal into every queryFn automatically — GET functions
+   * in this file accept and forward it so in-flight requests get cancelled
+   * when a component unmounts or a query is refetched/superseded (e.g. fast
+   * typing in a search box).
+   */
+  get<T = unknown, P extends QueryParams = QueryParams>(
+    path: string,
+    params?: P,
+    signal?: AbortSignal
+  ): Promise<T> {
     if (!params) {
-      return apiFetch<T>(path, { method: 'GET' });
+      return apiFetch<T>(path, { method: 'GET', signal });
     }
 
     const qs = new URLSearchParams();
@@ -151,7 +162,7 @@ export const api = {
     const query = qs.toString();
     const fullPath = query ? `${path}?${query}` : path;
 
-    return apiFetch<T>(fullPath, { method: 'GET' });
+    return apiFetch<T>(fullPath, { method: 'GET', signal });
   },
 
   post<T = unknown>(path: string, body?: unknown): Promise<T> {
@@ -177,6 +188,7 @@ export const api = {
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
+// (mutations — no signal needed, useMutation doesn't provide one)
 
 export async function loginEmail(email: string, password: string): Promise<LoginResponse> {
   return api.post<LoginResponse>('/login/email', { identifier: email, password });
@@ -194,14 +206,14 @@ export async function logout(): Promise<void> {
   return api.post<void>('/logout');
 }
 
-export async function getCurrentUser(): Promise<User> {
-  return api.get<User>('/me');
+export async function getCurrentUser(signal?: AbortSignal): Promise<User> {
+  return api.get<User>('/me', undefined, signal);
 }
 
 // ─── Users / Profiles ─────────────────────────────────────────────────────────
 
-export async function getUserProfile(userId: string): Promise<Profile> {
-  return api.get<Profile>(`/user/profile`, { user_id: userId });
+export async function getUserProfile(userId: string, signal?: AbortSignal): Promise<Profile> {
+  return api.get<Profile>(`/user/profile`, { user_id: userId }, signal);
 }
 
 export async function updateProfile(body: Partial<User>): Promise<User> {
@@ -212,8 +224,12 @@ export async function toggleProfilePrivacy(): Promise<void> {
   return api.post<void>('/user/privacy');
 }
 
-export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {
-  return api.get<PaginatedResponse<User>>('/users', { query, page, pageSize: 10 });
+export async function searchUsers(
+  query: string,
+  page = 1,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>('/users', { query, page, pageSize: 10 }, signal);
 }
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
@@ -236,20 +252,27 @@ export async function unfollowUser(userId: string): Promise<void> {
   return api.post<void>('/follow/unfollow', { targetId: userId });
 }
 
-export async function getFollowers(userId: string): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/followers', { userId });
+export async function getFollowers(userId: string, signal?: AbortSignal): Promise<User[]> {
+  return api.get<User[]>('/follow/followers', { userId }, signal);
 }
 
-export async function getFollowing(userId: string): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/following', { userId });
+export async function getFollowing(userId: string, signal?: AbortSignal): Promise<User[]> {
+  return api.get<User[]>('/follow/following', { userId }, signal);
 }
 
-export async function getPendingFollowRequests(): Promise<unknown[]> {
-  return api.get<unknown[]>('/follow/requests');
+export async function getPendingFollowRequests(signal?: AbortSignal): Promise<FollowRequest[]> {
+  return api.get<FollowRequest[]>('/follow/requests', undefined, signal);
 }
 
 // ─── Posts (Topics) ───────────────────────────────────────────────────────────
 
+/**
+ * Uses FormData (image upload) — deliberately bypasses apiFetch's JSON
+ * body handling and calls fetch() directly. This is fine as-is; apiFetch
+ * always JSON.stringifies options.body and sets Content-Type: application/json,
+ * neither of which is correct for multipart/form-data (the browser needs
+ * to set that header itself, with the multipart boundary).
+ */
 export async function createPost(formData: FormData): Promise<Post> {
   const url = API_BASE + '/topics/create';
   const response = await fetch(url, {
@@ -268,49 +291,54 @@ export async function createPost(formData: FormData): Promise<Post> {
   return body.data;
 }
 
-export async function getFeed(page = 1, size = 10): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>('/topics/feed', { page, limit: size });
+export async function getFeed(
+  page = 1,
+  size = 10,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<Post>> {
+  return api.get<PaginatedResponse<Post>>('/topics/feed', { page, limit: size }, signal);
 }
 
 export async function getUserPosts(
   userId: string,
   page = 1,
-  size = 10
+  size = 10,
+  signal?: AbortSignal
 ): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>('/topics/user', { userId, page, limit: size });
+  return api.get<PaginatedResponse<Post>>('/topics/user', { userId, page, limit: size }, signal);
 }
 
-export async function getPost(postId: number): Promise<Post> {
-  return api.get<Post>('/topics/get', { id: postId });
+export async function getPost(postId: string, signal?: AbortSignal): Promise<Post> {
+  return api.get<Post>('/topics/get', { id: postId }, signal);
 }
 
-export async function deletePost(postId: number): Promise<void> {
+export async function deletePost(postId: string): Promise<void> {
   return api.delete<void>(`/topics/delete?id=${postId}`);
 }
 
-export async function likePost(postId: number): Promise<void> {
+export async function likePost(postId: string): Promise<void> {
   return api.post<void>(`/topics/vote?id=${postId}`);
 }
 
-export async function unlikePost(postId: number): Promise<void> {
+export async function unlikePost(postId: string): Promise<void> {
   return api.delete<void>(`/topics/vote?id=${postId}`);
 }
 
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
-export async function createComment(topicId: number, content: string): Promise<Comment> {
+export async function createComment(topicId: string, content: string): Promise<Comment> {
   return api.post<Comment>('/comments/create', { topicId, content });
 }
 
-export async function getComments(topicId: number): Promise<Comment[]> {
-  return api.get<Comment[]>('/comments/topic/votes', { topicId });
+export async function getComments(topicId: string, signal?: AbortSignal): Promise<Comment[]> {
+  return api.get<Comment[]>('/comments/topic/votes', { topicId }, signal);
 }
 
-export async function voteComment(commentId: number, reactionType: 1 | -1): Promise<void> {
+export async function voteComment(commentId: string, reactionType: 1 | -1): Promise<void> {
   return api.post<void>(`/comments/vote?id=${commentId}`, { reactionType });
 }
 
-export async function deleteComment(commentId: number): Promise<void> {
+export async function deleteComment(commentId: string): Promise<void> {
   return api.delete<void>(`/comments/delete?id=${commentId}`);
 }
 
@@ -320,8 +348,8 @@ export async function createGroup(title: string, description: string): Promise<G
   return api.post<Group>('/groups', { title, description });
 }
 
-export async function getGroup(groupId: string): Promise<Group> {
-  return api.get<Group>(`/groups/${groupId}`);
+export async function getGroup(groupId: string, signal?: AbortSignal): Promise<Group> {
+  return api.get<Group>(`/groups/${groupId}`, undefined, signal);
 }
 
 export async function updateGroup(groupId: string, data: Partial<Group>): Promise<Group> {
@@ -332,8 +360,12 @@ export async function deleteGroup(groupId: string): Promise<void> {
   return api.delete<void>(`/groups/${groupId}`);
 }
 
-export async function browseGroups(query?: string, page = 1): Promise<PaginatedResponse<Group>> {
-  return api.get<PaginatedResponse<Group>>('/groups', { query, page, limit: 20 });
+export async function browseGroups(
+  query?: string,
+  page = 1,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<Group>> {
+  return api.get<PaginatedResponse<Group>>('/groups', { query, page, limit: 20 }, signal);
 }
 
 export async function inviteToGroup(groupId: string, userId: string): Promise<void> {
@@ -358,24 +390,34 @@ export async function leaveGroup(groupId: string): Promise<void> {
 export async function getGroupPosts(
   groupId: string,
   page = 1,
-  size = 10
+  size = 10,
+  signal?: AbortSignal
 ): Promise<PaginatedResponse<Post>> {
-  return api.get<PaginatedResponse<Post>>(`/groups/${groupId}/posts`, { page, limit: size });
+  return api.get<PaginatedResponse<Post>>(
+    `/groups/${groupId}/posts`,
+    { page, limit: size },
+    signal
+  );
 }
 
 export async function getGroupMembers(
   groupId: string,
   page = 1,
-  size = 20
+  size = 20,
+  signal?: AbortSignal
 ): Promise<PaginatedResponse<GroupMember>> {
-  return api.get<PaginatedResponse<GroupMember>>(`/groups/${groupId}/members`, {
-    page,
-    limit: size,
-  });
+  return api.get<PaginatedResponse<GroupMember>>(
+    `/groups/${groupId}/members`,
+    { page, limit: size },
+    signal
+  );
 }
 
-export async function getPendingJoinRequests(groupId: string): Promise<GroupJoinRequest[]> {
-  return api.get<GroupJoinRequest[]>(`/groups/${groupId}/requests/pending`);
+export async function getPendingJoinRequests(
+  groupId: string,
+  signal?: AbortSignal
+): Promise<GroupJoinRequest[]> {
+  return api.get<GroupJoinRequest[]>(`/groups/${groupId}/requests/pending`, undefined, signal);
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -389,9 +431,15 @@ export async function createEvent(
 
 export async function getGroupEvents(
   groupId: string,
-  cursor?: string
-): Promise<GroupEventsResponse> {
-  return api.get<GroupEventsResponse>(`/groups/${groupId}/events`, { cursor, size: 10 });
+  page = 1,
+  size = 10,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<Event>> {
+  return api.get<PaginatedResponse<Event>>(
+    `/groups/${groupId}/events`,
+    { page, limit: size },
+    signal
+  );
 }
 
 export async function respondToEvent(eventId: string, response: string): Promise<void> {
@@ -400,22 +448,28 @@ export async function respondToEvent(eventId: string, response: string): Promise
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
-export async function getChats(): Promise<Chat[]> {
-  return api.get<Chat[]>('/chat/users');
+export async function getChats(signal?: AbortSignal): Promise<Chat[]> {
+  return api.get<Chat[]>('/chat/users', undefined, signal);
 }
 
-export async function getChatMessages(chatId: string): Promise<ChatMessage[]> {
-  return api.get<ChatMessage[]>('/chat/history', { chatId });
+export async function getChatMessages(
+  chatId: string,
+  signal?: AbortSignal
+): Promise<ChatMessage[]> {
+  return api.get<ChatMessage[]>('/chat/history', { chatId }, signal);
 }
 
-// ─── Notifications (not yet wired) ───────────────────────────────────────────
+// ─── Notifications ────────────────────────────────────────────────────────────
 
-export async function getNotifications(page = 1): Promise<PaginatedResponse<Notification>> {
-  return api.get<PaginatedResponse<Notification>>('/notifications', { page });
+export async function getNotifications(
+  page = 1,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<Notification>> {
+  return api.get<PaginatedResponse<Notification>>('/notifications', { page }, signal);
 }
 
-export async function getUnreadNotificationCount(): Promise<{ count: number }> {
-  return api.get<{ count: number }>('/notifications/unread-count');
+export async function getUnreadNotificationCount(signal?: AbortSignal): Promise<{ count: number }> {
+  return api.get<{ count: number }>('/notifications/unread-count', undefined, signal);
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {

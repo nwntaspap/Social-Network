@@ -127,11 +127,6 @@ export interface Event {
   createdAt: string;
 }
 
-export interface GroupEventsResponse {
-  events: Event[];
-  nextCursor?: string;
-}
-
 export interface EventResponse {
   id: string;
   eventId: string;

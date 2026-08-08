@@ -27,8 +27,8 @@ export const queryKeys = {
   pendingFollowRequests: () => ['pendingFollowRequests'] as const,
 
   // ─── Posts / Comments ───────────────────────────────────────────────────
-  post: (postId: number) => ['post', postId] as const,
-  comments: (topicId: number) => ['comments', topicId] as const,
+  post: (postId: string) => ['post', postId] as const,
+  comments: (topicId: string) => ['comments', topicId] as const,
 
   // ─── Groups ─────────────────────────────────────────────────────────────
   groups: (query?: string) => ['groups', query ?? ''] as const,
