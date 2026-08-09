@@ -169,14 +169,14 @@ func LoadConfig() (*ServerConfig, error) {
 			GitHub: GitHubOAuthConfig{
 				ClientID:            helpers.GetEnv("GITHUB_CLIENT_ID", envMap, ""),
 				ClientSecret:        helpers.GetEnv("GITHUB_CLIENT_SECRET", envMap, ""),
-				RedirectURL:         helpers.GetEnv("GITHUB_REDIRECT_URL", envMap, "http://localhost:8080/api/v1/auth/oauth/github/callback"),
+				RedirectURL:         helpers.GetEnv("GITHUB_REDIRECT_URL", envMap, "http://localhost:3001/api/v1/auth/oauth/github/callback"),
 				Scopes:              helpers.ParseList(helpers.GetEnv("GITHUB_SCOPES", envMap, "user:email")),
 				FrontendCallbackURL: helpers.GetEnv("FRONTEND_GITHUB_CALLBACK_URL", envMap, "http://localhost:3001/auth/callback"),
 			},
 			Google: GoogleOAuthConfig{
 				ClientID:            helpers.GetEnv("GOOGLE_CLIENT_ID", envMap, ""),
 				ClientSecret:        helpers.GetEnv("GOOGLE_CLIENT_SECRET", envMap, ""),
-				RedirectURL:         helpers.GetEnv("GOOGLE_REDIRECT_URL", envMap, "http://localhost:8080/api/v1/auth/oauth/google/callback"),
+				RedirectURL:         helpers.GetEnv("GOOGLE_REDIRECT_URL", envMap, "http://localhost:3001/api/v1/auth/oauth/google/callback"),
 				Scopes:              helpers.ParseList(helpers.GetEnv("GOOGLE_SCOPES", envMap, "")),
 				FrontendCallbackURL: helpers.GetEnv("FRONTEND_GOOGLE_CALLBACK_URL", envMap, "http://localhost:3001/auth/callback"),
 				TokenURL:            helpers.GetEnv("GOOGLE_TOKEN_URL", envMap, ""),

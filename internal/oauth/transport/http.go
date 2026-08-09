@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -151,5 +152,30 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provide
 		h.cookieSetter.SetCookies(w, result.Session)
 	}
 
-	http.Redirect(w, r, result.FrontendURL, http.StatusTemporaryRedirect)
+	if result.FrontendURL == "" {
+		http.Error(w, "missing redirect target", http.StatusInternalServerError)
+		return
+	}
+
+	redirectWithHtml(w, result.FrontendURL)
+}
+
+// redirectWithHtml sends a 200 HTML page that navigates to target.
+// The OAuth callback must not answer with a 3xx redirect: the Next.js rewrite
+// proxy that sits in front of the backend on the frontend origin (localhost:3001)
+// drops Set-Cookie headers on 3xx responses, so a redirect would lose the session
+// cookie. Returning 200 lets the Set-Cookie header ride on a normal response (which
+// the proxy forwards), and the script below bounces the browser to the frontend.
+func redirectWithHtml(w http.ResponseWriter, target string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Redirecting...</title>
+<script>window.location.replace(%q);</script>
+</head>
+<body>Redirecting...</body>
+</html>`, target)
 }

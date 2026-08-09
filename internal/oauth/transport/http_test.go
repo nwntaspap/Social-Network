@@ -188,12 +188,12 @@ func TestCallback_HappyPathNewUser_SetsCookieAndRedirects(t *testing.T) {
 
 	rec := doGet(handler, "/api/v1/auth/oauth/github/callback?code=abc&state=xyz")
 
-	if rec.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("status = %d, want 307", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (JS redirect page)", rec.Code)
 	}
-	if got := rec.Header().Get("Location"); !strings.Contains(got, "http://localhost:3001/auth/callback") ||
-		!strings.Contains(got, "flow=login&success=ok&provider=github") {
-		t.Errorf("Location = %q, want success redirect for github", got)
+	if body := rec.Body.String(); !strings.Contains(body, "http://localhost:3001/auth/callback") ||
+		!strings.Contains(body, "flow=login&success=ok&provider=github") {
+		t.Errorf("body = %q, want success redirect for github", body)
 	}
 	if !cookieSetter.called {
 		t.Fatal("cookie setter not called on successful login")
@@ -215,11 +215,11 @@ func TestCallback_ExistingUser_DoesNotCreateNew(t *testing.T) {
 
 	rec := doGet(handler, "/api/v1/auth/oauth/github/callback?code=abc&state=xyz")
 
-	if rec.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("status = %d, want 307", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (JS redirect page)", rec.Code)
 	}
-	if got := rec.Header().Get("Location"); !strings.Contains(got, "success=ok") {
-		t.Errorf("Location = %q, want success", got)
+	if body := rec.Body.String(); !strings.Contains(body, "success=ok") {
+		t.Errorf("body = %q, want success", body)
 	}
 }
 
@@ -237,11 +237,11 @@ func TestCallback_GoogleDispatchesToGoogleHandler(t *testing.T) {
 
 	rec := doGet(handler, "/api/v1/auth/oauth/google/callback?code=abc&state=xyz")
 
-	if rec.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("status = %d, want 307", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (JS redirect page)", rec.Code)
 	}
-	if got := rec.Header().Get("Location"); !strings.Contains(got, "provider=google") {
-		t.Errorf("Location = %q, want provider=google", got)
+	if body := rec.Body.String(); !strings.Contains(body, "provider=google") {
+		t.Errorf("body = %q, want provider=google", body)
 	}
 	if googleRepo.createCalls != 1 {
 		t.Fatalf("google repo CreateOAuthUser calls = %d, want 1", googleRepo.createCalls)
@@ -302,11 +302,11 @@ func TestCallback_EmailAlreadyExists_RedirectsWithError(t *testing.T) {
 
 	rec := doGet(handler, "/api/v1/auth/oauth/github/callback?code=abc&state=xyz")
 
-	if rec.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("status = %d, want 307", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (JS redirect page)", rec.Code)
 	}
-	if got := rec.Header().Get("Location"); !strings.Contains(got, "error=email_exists") {
-		t.Errorf("Location = %q, want error=email_exists", got)
+	if body := rec.Body.String(); !strings.Contains(body, "error=email_exists") {
+		t.Errorf("body = %q, want error=email_exists", body)
 	}
 }
 
