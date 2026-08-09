@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"social-network/internal/oauth"
+	"social-network/internal/pkg/uuid"
 )
 
 var ErrCodeMissing = errors.New("oauth: code missing in callback")
@@ -120,6 +121,9 @@ func (h *CallbackHandler) handleLogin(ctx context.Context, _ StateData, provider
 	}
 
 	// 3. Create new user
+	if providerUser.UserID == "" {
+		providerUser.UserID = uuid.NewProvider().NewUUID()
+	}
 	newUserID, err := h.repo.CreateOAuthUser(ctx, providerUser)
 	if err != nil {
 		return &CallbackResult{
