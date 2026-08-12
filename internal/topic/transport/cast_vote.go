@@ -12,12 +12,14 @@ import (
 func (h *Handler) CastVote(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	topicID, err := helpers.GetQueryInt(r, "id")
 	if err != nil {
+		h.logger.PrintError(errors.New("invalid topic ID"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid topic ID")
 		return
 	}
@@ -28,6 +30,7 @@ func (h *Handler) CastVote(w http.ResponseWriter, r *http.Request) {
 			ReactionType int `json:"reactionType"`
 		}
 		if _, err := helpers.ParseBodyRequest(r, &req); err != nil {
+			h.logger.PrintError(errors.New("invalid request payload"), nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 			return
 		}
@@ -38,6 +41,7 @@ func (h *Handler) CastVote(w http.ResponseWriter, r *http.Request) {
 			TopicID:      topicID,
 			ReactionType: req.ReactionType,
 		}); err != nil {
+			h.logger.PrintError(err, nil)
 			switch {
 			case errors.Is(err, topic.ErrInvalidVoteValue):
 				helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
@@ -56,6 +60,7 @@ func (h *Handler) CastVote(w http.ResponseWriter, r *http.Request) {
 			TopicID: topicID,
 		}); err != nil {
 			if !errors.Is(err, topic.ErrTopicNotFound) {
+				h.logger.PrintError(err, nil)
 				helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
@@ -63,6 +68,7 @@ func (h *Handler) CastVote(w http.ResponseWriter, r *http.Request) {
 		helpers.RespondWithJSON(w, http.StatusOK, nil, map[string]string{"message": "Vote removed"})
 
 	default:
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 	}
 }

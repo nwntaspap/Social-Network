@@ -2,10 +2,12 @@ package transport
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"testing"
 	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
 	"social-network/internal/user/queries"
@@ -149,6 +151,9 @@ func withDefaults(h *Handler) {
 	if h.sessionCookies == nil {
 		h.sessionCookies = &stubCookieWriter{}
 	}
+	if h.logger == nil {
+		h.logger = logger.New(io.Discard, logger.LevelOff)
+	}
 }
 
 func TestNewHandler(t *testing.T) {
@@ -158,6 +163,7 @@ func TestNewHandler(t *testing.T) {
 		&stubUpdateProfile{}, &stubTogglePrivacy{},
 		&stubGetProfile{}, &stubGetActivity{}, &stubListUsers{},
 		&stubCookieWriter{},
+		logger.New(io.Discard, logger.LevelOff),
 	)
 	if h == nil {
 		t.Fatal("NewHandler() returned nil")

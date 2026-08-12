@@ -2,12 +2,14 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"social-network/internal/oauth"
 	"social-network/internal/oauth/commands"
+	"social-network/internal/platform/logger"
 )
 
 const routesPrefix = "/api/v1/auth/oauth/"
@@ -32,17 +34,19 @@ type Handler struct {
 	extractUser  UserExtractor
 	frontendURL  string
 	cookieSetter oauth.CookieSetter
+	logger       logger.Logger
 }
 
 // NewHandler creates a new OAuth HTTP handler.
 // callbacks maps a provider name (e.g. "github", "google") to its callback handler.
-func NewHandler(initiate *commands.InitiateHandler, callbacks map[string]*commands.CallbackHandler, cookieSetter oauth.CookieSetter, extractUser UserExtractor, frontendURL string) *Handler {
+func NewHandler(initiate *commands.InitiateHandler, callbacks map[string]*commands.CallbackHandler, cookieSetter oauth.CookieSetter, extractUser UserExtractor, frontendURL string, logger logger.Logger) *Handler {
 	return &Handler{
 		initiate:     initiate,
 		callbacks:    callbacks,
 		cookieSetter: cookieSetter,
 		extractUser:  extractUser,
 		frontendURL:  frontendURL,
+		logger:       logger,
 	}
 }
 
@@ -77,6 +81,7 @@ func (h *Handler) route(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provider, flow string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -86,6 +91,7 @@ func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provide
 		Flow:     flow,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -95,12 +101,14 @@ func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provide
 
 func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, provider string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -111,6 +119,7 @@ func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, pro
 		UserID:   userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -120,12 +129,14 @@ func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, pro
 
 func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provider string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	callback, ok := h.callbacks[provider]
 	if !ok {
+		h.logger.PrintError(errors.New("unknown oauth provider: "+provider), nil)
 		http.NotFound(w, r)
 		return
 	}
@@ -134,6 +145,7 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provide
 	state := r.URL.Query().Get("state")
 
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
+		h.logger.PrintError(errors.New("oauth error: "+errParam), nil)
 		http.Error(w, "OAuth error: "+errParam, http.StatusInternalServerError)
 		return
 	}
@@ -144,6 +156,7 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provide
 		FrontendURL: h.frontendURL,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -153,6 +166,7 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provide
 	}
 
 	if result.FrontendURL == "" {
+		h.logger.PrintError(errors.New("missing redirect target"), nil)
 		http.Error(w, "missing redirect target", http.StatusInternalServerError)
 		return
 	}

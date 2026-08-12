@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockPendingInvitations struct {
@@ -70,6 +72,7 @@ func newInvitationTestHandler(
 		nil,
 		nil,
 		nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 }
 

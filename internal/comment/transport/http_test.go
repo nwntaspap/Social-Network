@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"social-network/internal/comment"
 	"social-network/internal/comment/commands"
 	"social-network/internal/comment/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockCreateComment struct {
@@ -272,7 +274,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 		}
 	}
 
-	return NewHandler(extractor, lookup, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes)
+	return NewHandler(extractor, lookup, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes,
+		logger.New(io.Discard, logger.LevelOff))
 }
 
 func TestCreateComment_Success(t *testing.T) {

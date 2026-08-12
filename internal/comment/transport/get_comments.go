@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
 	"social-network/internal/comment/queries"
@@ -9,12 +10,14 @@ import (
 
 func (h *Handler) GetCommentsByTopic(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	topicID, err := helpers.GetQueryInt(r, "topicId")
 	if err != nil {
+		h.logger.PrintError(errors.New("invalid topic ID"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid topic ID")
 		return
 	}
@@ -23,6 +26,7 @@ func (h *Handler) GetCommentsByTopic(w http.ResponseWriter, r *http.Request) {
 		TopicID: topicID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

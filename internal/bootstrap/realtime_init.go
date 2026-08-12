@@ -15,6 +15,7 @@ import (
 	groupstore "social-network/internal/group/store"
 	grouptransport "social-network/internal/group/transport"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/logger"
 	userstore "social-network/internal/user/store"
 )
 
@@ -24,7 +25,7 @@ type Realtime struct {
 	Router realtime.WSRouter
 }
 
-func initRealtime(db database.DB, hub *realtime.Hub) *Realtime {
+func initRealtime(db database.DB, hub *realtime.Hub, logger logger.Logger) *Realtime {
 	chatStore := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
@@ -47,6 +48,7 @@ func initRealtime(db database.DB, hub *realtime.Hub) *Realtime {
 		groupqueries.NewGetGroupChatResolver(groupStore),
 		groupqueries.NewListGroupMemberIDsResolver(groupStore),
 		groupcommands.NewMarkGroupReadHandler(groupStore),
+		logger,
 	)
 
 	handlers := chatWS.Handlers()

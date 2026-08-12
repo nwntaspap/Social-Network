@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
 	"social-network/internal/pkg/helpers"
@@ -9,12 +10,14 @@ import (
 
 func (h *Handler) GetGroupTopics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	groupID, err := helpers.GetQueryString(r, "groupId")
 	if err != nil {
+		h.logger.PrintError(errors.New("invalid group ID"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid group ID")
 		return
 	}
@@ -27,6 +30,7 @@ func (h *Handler) GetGroupTopics(w http.ResponseWriter, r *http.Request) {
 		Size:    pagination.Limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	coremiddleware "social-network/internal/core/middleware"
 	"social-network/internal/oauth"
 	"social-network/internal/oauth/commands"
+	"social-network/internal/platform/logger"
 )
 
 const testFrontendURL = "http://localhost:3001/auth/callback"
@@ -157,7 +159,7 @@ func newCallbackHandler(repo *stubRepo, verifier *stubStateVerifier, provider *s
 
 func newHandler(callbacks map[string]*commands.CallbackHandler, cookieSetter oauth.CookieSetter) *Handler {
 	initiate := commands.NewInitiateHandler(&stubStateGenerator{state: "test-state"}, &stubProviderRegistry{})
-	return NewHandler(initiate, callbacks, cookieSetter, func(_ *http.Request) (string, bool) { return "user-1", true }, testFrontendURL)
+	return NewHandler(initiate, callbacks, cookieSetter, func(_ *http.Request) (string, bool) { return "user-1", true }, testFrontendURL, logger.New(io.Discard, logger.LevelOff))
 }
 
 func doGet(handler *Handler, path string) *httptest.ResponseRecorder {
@@ -329,7 +331,7 @@ func TestInitiate_GithubRedirectsToAuthorize(t *testing.T) {
 		"github": &registryProviderClient{name: "github", authURL: "https://github.com/login/oauth/authorize"},
 	}}
 	initiate := commands.NewInitiateHandler(&stubStateGenerator{state: "test-state"}, providers)
-	handler := NewHandler(initiate, nil, nil, func(_ *http.Request) (string, bool) { return "", true }, testFrontendURL)
+	handler := NewHandler(initiate, nil, nil, func(_ *http.Request) (string, bool) { return "", true }, testFrontendURL, logger.New(io.Discard, logger.LevelOff))
 
 	rec := doGet(handler, "/api/v1/auth/oauth/github/init")
 
@@ -347,7 +349,7 @@ func TestInitiate_GithubRedirectsToAuthorize(t *testing.T) {
 
 func TestInitiate_UnknownProvider(t *testing.T) {
 	initiate := commands.NewInitiateHandler(&stubStateGenerator{state: "test-state"}, &stubProviderRegistry{})
-	handler := NewHandler(initiate, nil, nil, func(_ *http.Request) (string, bool) { return "", true }, testFrontendURL)
+	handler := NewHandler(initiate, nil, nil, func(_ *http.Request) (string, bool) { return "", true }, testFrontendURL, logger.New(io.Discard, logger.LevelOff))
 
 	rec := doGet(handler, "/api/v1/auth/oauth/unknown/init")
 

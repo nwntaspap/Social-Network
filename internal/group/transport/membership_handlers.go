@@ -17,22 +17,26 @@ type inviteBody struct {
 func (h *Handler) InviteMember(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
 	var body inviteBody
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 	if body.UserID == "" {
+		h.logger.PrintError(errors.New("userId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "userId is required")
 		return
 	}
@@ -43,6 +47,7 @@ func (h *Handler) InviteMember(w http.ResponseWriter, r *http.Request) {
 		InviteeID: body.UserID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -55,12 +60,14 @@ func (h *Handler) InviteMember(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -69,6 +76,7 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 		Action string `json:"action"`
 	}
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -80,6 +88,7 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 		Accept:    accept,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -94,18 +103,21 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetPendingInvitations(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	res, err := h.getPendingInvitations.Resolve(r.Context(), queries.GetPendingInvitationsQuery{UserID: userID})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -129,12 +141,14 @@ func (h *Handler) GetPendingInvitations(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) RequestJoin(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -144,6 +158,7 @@ func (h *Handler) RequestJoin(w http.ResponseWriter, r *http.Request) {
 		RequesterID: userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -164,18 +179,21 @@ type respondJoinBody struct {
 func (h *Handler) RespondJoin(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	requestID := r.PathValue("requestId")
 	if requestID == "" {
+		h.logger.PrintError(errors.New("requestId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "requestId is required")
 		return
 	}
 
 	var body respondJoinBody
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -187,6 +205,7 @@ func (h *Handler) RespondJoin(w http.ResponseWriter, r *http.Request) {
 		Accept:    accept,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		if errors.Is(err, group.ErrNotCreator) {
 			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
 			return
@@ -201,12 +220,14 @@ func (h *Handler) RespondJoin(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPendingJoinRequests(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -216,6 +237,7 @@ func (h *Handler) GetPendingJoinRequests(w http.ResponseWriter, r *http.Request)
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		if errors.Is(err, group.ErrNotAdmin) {
 			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
 			return
@@ -240,6 +262,7 @@ func (h *Handler) GetPendingJoinRequests(w http.ResponseWriter, r *http.Request)
 func (h *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -249,6 +272,7 @@ func (h *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 		GroupID: groupID, Page: pagination.Page, Size: pagination.Limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

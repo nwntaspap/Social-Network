@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"social-network/internal/group"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockListGroups struct {
@@ -89,6 +91,7 @@ func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, mem
 		nil,
 		nil,
 		nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 }
 

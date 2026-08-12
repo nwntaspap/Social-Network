@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockGroupSend struct {
@@ -61,7 +63,7 @@ func (m *mockGroupMarkRead) Execute(_ context.Context, cmd commands.MarkGroupRea
 }
 
 func newTestGroupWSHandler(hub *realtime.Hub, send *mockGroupSend, history *mockGroupChatResolver, memberIDs *mockGroupMemberIDs) *GroupWSHandler {
-	return NewGroupWSHandler(hub, send, history, memberIDs, &mockGroupMarkRead{})
+	return NewGroupWSHandler(hub, send, history, memberIDs, &mockGroupMarkRead{}, logger.New(io.Discard, logger.LevelOff))
 }
 
 func TestGroupWS_SendBroadcastsToMembers(t *testing.T) {
@@ -145,7 +147,7 @@ func TestGroupWS_HistoryReturnsMessages(t *testing.T) {
 func TestGroupWS_MarkReadForMember(t *testing.T) {
 	hub := realtime.NewHub()
 	markRead := &mockGroupMarkRead{}
-	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead)
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead, logger.New(io.Discard, logger.LevelOff))
 	client := realtime.NewClient("u1", hub, nil)
 
 	payload, _ := json.Marshal(realtime.GroupChatMarkReadPayload{GroupID: "g1"})
@@ -162,7 +164,7 @@ func TestGroupWS_MarkReadForMember(t *testing.T) {
 func TestGroupWS_MarkReadPropagatesError(t *testing.T) {
 	hub := realtime.NewHub()
 	markRead := &mockGroupMarkRead{err: group.ErrNotMember}
-	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead)
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, markRead, logger.New(io.Discard, logger.LevelOff))
 	client := realtime.NewClient("u9", hub, nil)
 
 	payload, _ := json.Marshal(realtime.GroupChatMarkReadPayload{GroupID: "g1"})
@@ -176,7 +178,7 @@ func TestGroupWS_MarkReadPropagatesError(t *testing.T) {
 
 func TestGroupWS_MarkReadRejectsBadPayload(t *testing.T) {
 	hub := realtime.NewHub()
-	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, &mockGroupMarkRead{})
+	h := NewGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{}, &mockGroupMarkRead{}, logger.New(io.Discard, logger.LevelOff))
 	client := realtime.NewClient("u1", hub, nil)
 
 	h.handleMarkRead(client, realtime.Envelope{Type: realtime.TypeGroupChatMarkRead, Payload: []byte("{")})

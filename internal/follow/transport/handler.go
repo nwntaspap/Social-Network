@@ -7,6 +7,7 @@ import (
 	"social-network/internal/follow"
 	"social-network/internal/follow/commands"
 	"social-network/internal/follow/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -73,6 +74,7 @@ type Handler struct {
 	areConnected   ConnectedResolver
 	extractUser    UserExtractor
 	userLookup     UserLookup
+	logger         logger.Logger
 }
 
 func NewHandler(
@@ -86,6 +88,7 @@ func NewHandler(
 	getFollowing FollowingResolver,
 	getPendingReqs PendingRequestsResolver,
 	areConnected ConnectedResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		extractUser:    extractUser,
@@ -98,6 +101,7 @@ func NewHandler(
 		getFollowing:   getFollowing,
 		getPendingReqs: getPendingReqs,
 		areConnected:   areConnected,
+		logger:         logger,
 	}
 }
 

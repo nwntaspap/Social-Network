@@ -8,6 +8,7 @@ import (
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	topiccommands "social-network/internal/topic/commands"
 	topicqueries "social-network/internal/topic/queries"
 	topicstore "social-network/internal/topic/store"
@@ -16,7 +17,7 @@ import (
 	userstore "social-network/internal/user/store"
 )
 
-func initTopic(db database.DB, bus eventbus.EventBus) *topictransport.Handler {
+func initTopic(db database.DB, bus eventbus.EventBus, logger logger.Logger) *topictransport.Handler {
 	store := topicstore.NewSQLiteStore(db)
 	img := localstorage.NewLocalStorage()
 	users := userstore.NewSQLiteStore(db)
@@ -45,6 +46,7 @@ func initTopic(db database.DB, bus eventbus.EventBus) *topictransport.Handler {
 		topicqueries.NewGetTopicsByUserResolver(store),
 		topicqueries.NewGetTopicsByGroupResolver(store),
 		topicqueries.NewGetVoteCountsResolver(store),
+		logger,
 	)
 }
 

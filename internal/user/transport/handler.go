@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
 	"social-network/internal/user/queries"
@@ -62,6 +63,7 @@ type Handler struct {
 	getActivity    ActivityResolver
 	listUsers      ListUsersResolver
 	sessionCookies SessionCookieWriter
+	logger         logger.Logger
 }
 
 func NewHandler(
@@ -75,6 +77,7 @@ func NewHandler(
 	getActivity ActivityResolver,
 	listUsers ListUsersResolver,
 	sessionCookies SessionCookieWriter,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		auth:           auth,
@@ -87,5 +90,6 @@ func NewHandler(
 		getActivity:    getActivity,
 		listUsers:      listUsers,
 		sessionCookies: sessionCookies,
+		logger:         logger,
 	}
 }

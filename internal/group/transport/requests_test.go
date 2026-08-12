@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"social-network/internal/group"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockPendingJoinRequests struct {
@@ -34,6 +36,7 @@ func newRequestsTestHandler(extractUser UserExtractor, pending GetPendingJoinReq
 		pending,
 		nil,
 		nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 }
 

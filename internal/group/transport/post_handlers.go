@@ -16,12 +16,14 @@ import (
 
 func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -40,6 +42,7 @@ func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 		Size:    pagination.Limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusForbidden, err.Error())
 		return
 	}
@@ -56,18 +59,21 @@ func (h *Handler) GetGroupFeed(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetGroupChat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
@@ -85,6 +91,7 @@ func (h *Handler) GetGroupChat(w http.ResponseWriter, r *http.Request) {
 		Limit:   limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		if errors.Is(err, group.ErrNotMember) {
 			helpers.RespondWithError(w, http.StatusForbidden, "You are not a member of this group")
 			return
@@ -99,17 +106,20 @@ func (h *Handler) GetGroupChat(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -127,6 +137,7 @@ func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			h.logger.PrintError(readErr, nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
@@ -146,6 +157,7 @@ func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 		ImageFileName: imageFileName,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -157,17 +169,20 @@ func (h *Handler) CreateGroupPost(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	postID := r.PathValue("postId")
 	if postID == "" {
+		h.logger.PrintError(errors.New("postId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "postId is required")
 		return
 	}
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -184,6 +199,7 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			h.logger.PrintError(readErr, nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
@@ -202,6 +218,7 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 		ImageFileName: imageFileName,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -211,7 +228,7 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) GetGroupPostComments(w http.ResponseWriter, r *http.Request) {
-	postID, ok := requirePathParam(w, r, "postId", "postId")
+	postID, ok := h.requirePathParam(w, r, "postId", "postId")
 	if !ok {
 		return
 	}
@@ -221,6 +238,7 @@ func (h *Handler) GetGroupPostComments(w http.ResponseWriter, r *http.Request) {
 		PostID: postID, Page: pagination.Page, Size: pagination.Limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

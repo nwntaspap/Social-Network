@@ -15,17 +15,20 @@ type registerRequest struct {
 	FirstName   string `json:"firstName"`
 	LastName    string `json:"lastName"`
 	Nickname    string `json:"nickname"`
+	Gender      string `json:"gender"`
 	DateOfBirth string `json:"dateOfBirth"`
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "invalid request method")
 		return
 	}
 
 	var req registerRequest
 	if _, err := helpers.ParseBodyRequest(r, &req); err != nil {
+		h.logger.PrintError(errors.New("invalid request body"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -48,6 +51,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		DateOfBirth: dob,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		switch {
 		case errors.Is(err, commands.ErrEmailTaken):
 			helpers.RespondWithError(w, http.StatusConflict, err.Error())

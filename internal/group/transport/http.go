@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"social-network/internal/group/commands"
@@ -34,9 +35,10 @@ func paginatedPayload(data any, total, page, limit int) map[string]any {
 	}
 }
 
-func requirePathParam(w http.ResponseWriter, r *http.Request, name, label string) (string, bool) {
+func (h *Handler) requirePathParam(w http.ResponseWriter, r *http.Request, name, label string) (string, bool) {
 	val := r.PathValue(name)
 	if val == "" {
+		h.logger.PrintError(errors.New(label+" is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, label+" is required")
 		return "", false
 	}
@@ -51,12 +53,14 @@ type createGroupBody struct {
 func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	var body createGroupBody
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -67,6 +71,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		Description: body.Description,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -78,6 +83,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
@@ -96,6 +102,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		UserID: userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -118,12 +125,14 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -138,6 +147,7 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -150,12 +160,14 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -165,6 +177,7 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"`
 	}
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -176,6 +189,7 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		Description: body.Description,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -191,16 +205,21 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	helpers.RespondWithJSON(w, http.StatusOK, nil, toGroupResponse(g, creator, membersCount, "member"))
 }
 
-func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.extractUser(r)
+func (h *Handler) requireGroupContext(w http.ResponseWriter, r *http.Request) (userID, groupID string, ok bool) {
+	userID, ok = h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
-		return
+		return "", "", false
 	}
 
-	groupID := r.PathValue("groupId")
-	if groupID == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
+	groupID, ok = h.requirePathParam(w, r, "groupId", "groupId")
+	return userID, groupID, ok
+}
+
+func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+	userID, groupID, ok := h.requireGroupContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -209,6 +228,7 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -217,15 +237,8 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.extractUser(r)
+	userID, groupID, ok := h.requireGroupContext(w, r)
 	if !ok {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	groupID := r.PathValue("groupId")
-	if groupID == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
@@ -234,6 +247,7 @@ func (h *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}

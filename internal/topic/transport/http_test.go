@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/topic"
 	"social-network/internal/topic/commands"
 	"social-network/internal/topic/queries"
@@ -228,7 +230,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 		lookup = &mockUserLookup{}
 	}
 
-	return NewHandler(extractor, lookup, create, update, del, cast, delVote, getFeed, getTopic, getByUser, getByGroup, getVotes)
+	return NewHandler(extractor, lookup, create, update, del, cast, delVote, getFeed, getTopic, getByUser, getByGroup, getVotes,
+		logger.New(io.Discard, logger.LevelOff))
 }
 
 func doMultipartReq(t *testing.T, srv *httptest.Server, method, path string, fields map[string]string) *http.Response {

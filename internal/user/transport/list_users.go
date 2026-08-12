@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -15,6 +16,7 @@ const (
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "invalid request method")
 		return
 	}
@@ -38,6 +40,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		Limit: limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "failed to list users")
 		return
 	}

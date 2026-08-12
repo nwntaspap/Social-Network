@@ -7,6 +7,7 @@ import (
 	"social-network/internal/core/realtime"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 // GroupMemberIDsResolver lists the members of a group.
@@ -21,6 +22,7 @@ type GroupWSHandler struct {
 	getHistory GetGroupChatResolver
 	memberIDs  GroupMemberIDsResolver
 	markRead   MarkGroupReadExecutor
+	logger     logger.Logger
 }
 
 // MarkGroupReadExecutor marks a group's chat as read by the user.
@@ -34,8 +36,9 @@ func NewGroupWSHandler(
 	getHistory GetGroupChatResolver,
 	memberIDs GroupMemberIDsResolver,
 	markRead MarkGroupReadExecutor,
+	logger logger.Logger,
 ) *GroupWSHandler {
-	return &GroupWSHandler{hub: hub, send: send, getHistory: getHistory, memberIDs: memberIDs, markRead: markRead}
+	return &GroupWSHandler{hub: hub, send: send, getHistory: getHistory, memberIDs: memberIDs, markRead: markRead, logger: logger}
 }
 
 // Handlers returns the per-type handlers to register on the realtime router.
@@ -50,6 +53,7 @@ func (h *GroupWSHandler) Handlers() map[string]realtime.WSHandler {
 func (h *GroupWSHandler) handleSend(client *realtime.Client, env realtime.Envelope) {
 	var payload realtime.GroupChatSendPayload
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, "invalid group chat send payload")
 		return
 	}
@@ -60,12 +64,14 @@ func (h *GroupWSHandler) handleSend(client *realtime.Client, env realtime.Envelo
 		Content:  payload.Content,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
 
 	memberIDs, err := h.memberIDs.Resolve(context.Background(), queries.ListGroupMemberIDsQuery{GroupID: payload.GroupID})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
@@ -85,6 +91,7 @@ func (h *GroupWSHandler) handleSend(client *realtime.Client, env realtime.Envelo
 func (h *GroupWSHandler) handleHistory(client *realtime.Client, env realtime.Envelope) {
 	var payload realtime.GroupChatHistoryPayload
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, "invalid group chat history payload")
 		return
 	}
@@ -95,6 +102,7 @@ func (h *GroupWSHandler) handleHistory(client *realtime.Client, env realtime.Env
 		Limit:   payload.Limit,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
@@ -111,6 +119,7 @@ func (h *GroupWSHandler) handleHistory(client *realtime.Client, env realtime.Env
 func (h *GroupWSHandler) handleMarkRead(client *realtime.Client, env realtime.Envelope) {
 	var payload realtime.GroupChatMarkReadPayload
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, "invalid group_chat.mark_read payload")
 		return
 	}
@@ -118,6 +127,7 @@ func (h *GroupWSHandler) handleMarkRead(client *realtime.Client, env realtime.En
 		GroupID: payload.GroupID,
 		UserID:  client.UserID,
 	}); err != nil {
+		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, err.Error())
 	}
 }

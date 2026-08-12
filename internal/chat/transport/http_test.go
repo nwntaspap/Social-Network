@@ -15,6 +15,7 @@ import (
 	"social-network/internal/chat"
 	"social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockChatUsers struct {
@@ -69,6 +70,7 @@ func TestGetConversations_MatchesFrontendChat(t *testing.T) {
 	}
 
 	h := NewHandler(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "me", true },
 		&mockChatUserLookup{},
 		nil,
@@ -149,6 +151,7 @@ func TestGetConversations_MatchesFrontendChat(t *testing.T) {
 
 func TestGetConversations_MethodNotAllowed(t *testing.T) {
 	h := NewHandler(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "me", true },
 		&mockChatUserLookup{},
 		nil,
@@ -178,6 +181,7 @@ func TestGetChatHistory_MatchesFrontendChatMessage(t *testing.T) {
 	msg := &chat.Message{ID: 7, ChatID: "c1", SenderID: "u1", Content: "hello", CreatedAt: now}
 
 	h := NewHandler(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "u1", true },
 		&mockChatUserLookup{result: &UserResult{ID: "u1", Username: "alice", FirstName: "Alice"}},
 		&mockChatHistory{messages: []*chat.Message{msg}},
@@ -259,6 +263,7 @@ func (m *mockStartChat) Execute(_ context.Context, _ commands.OpenPrivateChatCom
 
 func TestStartChat_ReturnsChat(t *testing.T) {
 	h := NewHandlerWithStart(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "me", true },
 		&mockChatUserLookup{},
 		nil,
@@ -307,6 +312,7 @@ func TestStartChat_GateRejection(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			h := NewHandlerWithStart(
+				logger.New(io.Discard, logger.LevelOff),
 				func(_ *http.Request) (string, bool) { return "me", true },
 				&mockChatUserLookup{},
 				nil,
@@ -343,6 +349,7 @@ func TestStartChat_BadPayload(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			h := NewHandlerWithStart(
+				logger.New(io.Discard, logger.LevelOff),
 				func(_ *http.Request) (string, bool) { return "me", true },
 				&mockChatUserLookup{},
 				nil,
@@ -369,6 +376,7 @@ func TestStartChat_BadPayload(t *testing.T) {
 
 func TestGetChatHistory_RejectsNonParticipant(t *testing.T) {
 	h := NewHandler(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "intruder", true },
 		&mockChatUserLookup{},
 		&mockChatHistory{err: chat.ErrNotParticipant},
@@ -394,6 +402,7 @@ func TestGetChatHistory_RejectsNonParticipant(t *testing.T) {
 
 func TestGetChatHistory_RejectsDisconnected(t *testing.T) {
 	h := NewHandler(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "u1", true },
 		&mockChatUserLookup{},
 		&mockChatHistory{err: chat.ErrNotConnected},
@@ -423,6 +432,7 @@ func TestGetChatHistory_RejectsDisconnected(t *testing.T) {
 
 func TestStartChat_Unauthenticated(t *testing.T) {
 	h := NewHandlerWithStart(
+		logger.New(io.Discard, logger.LevelOff),
 		func(_ *http.Request) (string, bool) { return "", false },
 		&mockChatUserLookup{},
 		nil,

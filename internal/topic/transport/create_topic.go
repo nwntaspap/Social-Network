@@ -15,17 +15,20 @@ import (
 
 func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -37,10 +40,12 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	groupID := r.FormValue("groupId")
 
 	if title == "" {
+		h.logger.PrintError(errors.New("title is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Title is required")
 		return
 	}
 	if content == "" {
+		h.logger.PrintError(errors.New("content is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Content is required")
 		return
 	}
@@ -64,6 +69,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			h.logger.PrintError(readErr, nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
@@ -77,6 +83,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 	var allowedUserIDs []string
 	if allowedStr := r.FormValue("allowedUserIds"); allowedStr != "" {
 		if unmarshalErr := json.Unmarshal([]byte(allowedStr), &allowedUserIDs); unmarshalErr != nil {
+			h.logger.PrintError(errors.New("invalid allowedUserIds"), nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid allowedUserIds")
 			return
 		}
@@ -97,6 +104,7 @@ func (h *Handler) CreateTopic(w http.ResponseWriter, r *http.Request) {
 
 	top, err := h.createTopic.Execute(r.Context(), cmd)
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

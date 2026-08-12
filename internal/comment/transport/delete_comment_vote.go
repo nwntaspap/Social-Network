@@ -8,20 +8,8 @@ import (
 )
 
 func (h *Handler) DeleteCommentVote(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
-		return
-	}
-
-	userID, ok := h.extractUser(r)
+	userID, commentID, ok := h.requireCommentDeleteContext(w, r)
 	if !ok {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	commentID, err := helpers.GetQueryInt(r, "id")
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid comment ID")
 		return
 	}
 
@@ -29,6 +17,7 @@ func (h *Handler) DeleteCommentVote(w http.ResponseWriter, r *http.Request) {
 		UserID:    userID,
 		CommentID: commentID,
 	}); err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

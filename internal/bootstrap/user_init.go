@@ -12,6 +12,7 @@ import (
 	"social-network/internal/pkg/uuid"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	topicstore "social-network/internal/topic/store"
 	usercommands "social-network/internal/user/commands"
 	userqueries "social-network/internal/user/queries"
@@ -19,7 +20,7 @@ import (
 	usertransport "social-network/internal/user/transport"
 )
 
-func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool, bus eventbus.EventBus) *usertransport.Handler {
+func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool, bus eventbus.EventBus, logger logger.Logger) *usertransport.Handler {
 	userStore := userstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	topicStore := topicstore.NewSQLiteStore(db)
@@ -41,6 +42,7 @@ func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewar
 		userqueries.NewGetActivityResolver(userStore, topicStore, commentStore, topicStore, followStore),
 		userqueries.NewListUsersResolver(userStore, isOnline),
 		cookies,
+		logger,
 	)
 }
 

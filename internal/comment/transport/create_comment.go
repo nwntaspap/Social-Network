@@ -14,17 +14,20 @@ import (
 
 func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	if err := r.ParseMultipartForm(20 << 20); err != nil { // #nosec G120 -- bounded by 20MB limit
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -32,6 +35,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 
 	topicID, err := strconv.Atoi(r.FormValue("topicId"))
 	if err != nil {
+		h.logger.PrintError(errors.New("invalid topic ID"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid topic ID")
 		return
 	}
@@ -46,6 +50,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			h.logger.PrintError(readErr, nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
@@ -64,6 +69,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		ImageFileName: imageFileName,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

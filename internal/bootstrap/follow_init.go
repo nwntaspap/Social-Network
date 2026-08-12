@@ -12,11 +12,12 @@ import (
 	followtransport "social-network/internal/follow/transport"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initFollow(db database.DB, bus eventbus.EventBus) *followtransport.Handler {
+func initFollow(db database.DB, bus eventbus.EventBus, logger logger.Logger) *followtransport.Handler {
 	store := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
 	privacy := &followPrivacyAdapter{repo: userStore}
@@ -41,6 +42,7 @@ func initFollow(db database.DB, bus eventbus.EventBus) *followtransport.Handler 
 		followqueries.NewGetFollowingResolver(store),
 		followqueries.NewGetPendingRequestsResolver(store),
 		followqueries.NewAreConnectedResolver(store),
+		logger,
 	)
 }
 

@@ -7,6 +7,7 @@ import (
 	"social-network/internal/event"
 	"social-network/internal/event/commands"
 	"social-network/internal/event/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -43,6 +44,7 @@ type Handler struct {
 	listEventRSVPs  ListEventRSVPsResolver
 	userLookup      UserLookup
 	extractUser     UserExtractor
+	logger          logger.Logger
 }
 
 func NewHandler(
@@ -53,6 +55,7 @@ func NewHandler(
 	rsvp RSVPExecutor,
 	listGroupEvents ListGroupEventsResolver,
 	listEventRSVPs ListEventRSVPsResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		createEvent:     createEvent,
@@ -62,5 +65,6 @@ func NewHandler(
 		listEventRSVPs:  listEventRSVPs,
 		userLookup:      userLookup,
 		extractUser:     extractUser,
+		logger:          logger,
 	}
 }

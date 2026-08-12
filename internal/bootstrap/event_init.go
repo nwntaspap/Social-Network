@@ -11,11 +11,12 @@ import (
 	eventtransport "social-network/internal/event/transport"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initEvent(db database.DB, bus eventbus.EventBus) *eventtransport.Handler {
+func initEvent(db database.DB, bus eventbus.EventBus, logger logger.Logger) *eventtransport.Handler {
 	store := eventstore.NewSQLiteStore(db)
 	groupMember := &groupMemberChecker{db: db}
 	users := userstore.NewSQLiteStore(db)
@@ -38,6 +39,7 @@ func initEvent(db database.DB, bus eventbus.EventBus) *eventtransport.Handler {
 		eventcommands.NewRSVPHandler(store, bus),
 		eventqueries.NewListGroupEventsResolver(store),
 		eventqueries.NewListEventRSVPsResolver(store),
+		logger,
 	)
 }
 

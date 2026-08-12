@@ -11,12 +11,14 @@ import (
 
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "invalid request method")
 		return
 	}
 
 	targetID, err := helpers.GetQueryString(r, "user_id")
 	if err != nil || targetID == "" {
+		h.logger.PrintError(errors.New("user_id query parameter is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "user_id query parameter is required")
 		return
 	}
@@ -31,6 +33,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		RequesterID: requesterID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		if errors.Is(err, user.ErrUserNotFound) {
 			helpers.RespondWithError(w, http.StatusNotFound, "user not found")
 			return

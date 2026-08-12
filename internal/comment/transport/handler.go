@@ -9,6 +9,7 @@ import (
 	"social-network/internal/comment"
 	"social-network/internal/comment/commands"
 	"social-network/internal/comment/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -133,6 +134,7 @@ type Handler struct {
 	getCommentVotes   GetVoteCountsResolver
 	userLookup        UserLookup
 	extractUser       UserExtractor
+	logger            logger.Logger
 }
 
 func NewHandler(
@@ -148,6 +150,7 @@ func NewHandler(
 	getByTopic GetCommentsByTopicResolver,
 	getByTopicWV GetCommentsByTopicWithVotesResolver,
 	getCommentVotes GetVoteCountsResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		createComment:     createComment,
@@ -162,5 +165,6 @@ func NewHandler(
 		getCommentVotes:   getCommentVotes,
 		extractUser:       extractUser,
 		userLookup:        userLookup,
+		logger:            logger,
 	}
 }

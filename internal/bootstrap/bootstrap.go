@@ -16,7 +16,6 @@ import (
 	followtransport "social-network/internal/follow/transport"
 	grouptransport "social-network/internal/group/transport"
 	"social-network/internal/infra/http/authcookies"
-	"social-network/internal/infra/logger"
 	"social-network/internal/infra/middleware"
 	"social-network/internal/infra/realtime/notifications"
 	"social-network/internal/infra/storage/sessionstore"
@@ -26,6 +25,7 @@ import (
 	pkgoauth "social-network/internal/pkg/oAuth"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	topictransport "social-network/internal/topic/transport"
 	usertransport "social-network/internal/user/transport"
 
@@ -78,20 +78,20 @@ func Bootstrap(db database.DB, cfg *config.ServerConfig) *App {
 		logger.PrintError(err, nil)
 	}
 
-	oauthHandler, legacyOAuth := initOAuth(db, coreSession, sessionCookies, cfg.OAuth, cfg.OAuth.FrontendCallbackURL)
+	oauthHandler, legacyOAuth := initOAuth(db, coreSession, sessionCookies, cfg.OAuth, cfg.OAuth.FrontendCallbackURL, logger)
 
 	return &App{
-		User:           initUser(db, coreSession, sessionCookies, rtHub.IsOnline, eventbus),
-		Follow:         initFollow(db, eventbus),
-		Chat:           initChat(db, rtHub, repos.UserRepo),
-		Comment:        initComment(db, eventbus),
-		Topic:          initTopic(db, eventbus),
-		Group:          initGroup(db, eventbus, rtHub.IsOnline),
-		Event:          initEvent(db, eventbus),
+		User:           initUser(db, coreSession, sessionCookies, rtHub.IsOnline, eventbus, logger),
+		Follow:         initFollow(db, eventbus, logger),
+		Chat:           initChat(db, rtHub, repos.UserRepo, logger),
+		Comment:        initComment(db, eventbus, logger),
+		Topic:          initTopic(db, eventbus, logger),
+		Group:          initGroup(db, eventbus, rtHub.IsOnline, logger),
+		Event:          initEvent(db, eventbus, logger),
 		OAuth:          oauthHandler,
 		LegacyOAuth:    legacyOAuth,
 		Hub:            hub,
-		Realtime:       initRealtime(db, rtHub),
+		Realtime:       initRealtime(db, rtHub, logger),
 		Middlware:      mw,
 		SessionManager: sessionManager,
 		CookieManager:  cookieManager,

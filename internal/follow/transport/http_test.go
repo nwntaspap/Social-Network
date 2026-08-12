@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"social-network/internal/follow"
 	"social-network/internal/follow/commands"
+	"social-network/internal/platform/logger"
 )
 
 type testMocks struct {
@@ -44,7 +46,8 @@ func defaultMocks() *testMocks {
 
 func (m *testMocks) handler() *Handler {
 	return NewHandler(m.extractor, m.lookup, m.follow, m.unfollow, m.accept, m.decline,
-		m.followers, m.following, m.requests, m.connected)
+		m.followers, m.following, m.requests, m.connected,
+		logger.New(io.Discard, logger.LevelOff))
 }
 
 func (m *testMocks) unauthorized() *testMocks {

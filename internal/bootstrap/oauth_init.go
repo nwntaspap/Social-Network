@@ -15,11 +15,12 @@ import (
 	"social-network/internal/pkg/oAuth/githubclient"
 	"social-network/internal/pkg/oAuth/googleclient"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/logger"
 )
 
 const stateManagerDefaultLimit = 10
 
-func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string) (*oauthtransport.Handler, *pkgoauth.OAuth) {
+func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string, logger logger.Logger) (*oauthtransport.Handler, *pkgoauth.OAuth) {
 	store := oauthstore.NewSQLiteStore(db)
 	sm := pkgoauth.NewStateManager(stateManagerDefaultLimit * time.Minute)
 
@@ -88,6 +89,7 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewa
 		&cookieSetterAdapter{cookies: cookies},
 		extractUser,
 		frontendURL,
+		logger,
 	), legacyOAuth
 }
 

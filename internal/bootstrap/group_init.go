@@ -13,11 +13,12 @@ import (
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool) *grouptransport.Handler {
+func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool, logger logger.Logger) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
 	img := localstorage.NewLocalStorage()
 	users := userstore.NewSQLiteStore(db)
@@ -56,6 +57,7 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 		groupqueries.NewGetPendingJoinRequestsResolver(store),
 		groupqueries.NewListMyGroupsResolver(store),
 		groupqueries.NewGetGroupPresenceResolver(store, isOnline),
+		logger,
 	)
 }
 

@@ -7,6 +7,7 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -127,6 +128,7 @@ type Handler struct {
 	getGroupPresence       GetGroupPresenceResolver
 	userLookup             UserLookup
 	extractUser            UserExtractor
+	logger                 logger.Logger
 }
 
 func NewHandler(
@@ -153,6 +155,7 @@ func NewHandler(
 	getPendingJoinRequests GetPendingJoinRequestsResolver,
 	listMyGroups ListMyGroupsResolver,
 	getGroupPresence GetGroupPresenceResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		createGroup:            createGroup,
@@ -178,5 +181,6 @@ func NewHandler(
 		getGroupPresence:       getGroupPresence,
 		userLookup:             userLookup,
 		extractUser:            extractUser,
+		logger:                 logger,
 	}
 }

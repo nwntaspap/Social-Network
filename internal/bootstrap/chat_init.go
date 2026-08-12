@@ -14,11 +14,12 @@ import (
 	domainuser "social-network/internal/domain/user"
 	followstore "social-network/internal/follow/store"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository) *chattransport.Handler {
+func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository, logger logger.Logger) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
@@ -65,7 +66,7 @@ func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository)
 	)
 	startChat := chatcommands.NewOpenPrivateChatHandler(store, gate)
 
-	return chattransport.NewHandlerWithStart(extractUser, userLookup, getHistory, getUsers, startChat)
+	return chattransport.NewHandlerWithStart(logger, extractUser, userLookup, getHistory, getUsers, startChat)
 }
 
 type chatUserLookupAdapter struct {

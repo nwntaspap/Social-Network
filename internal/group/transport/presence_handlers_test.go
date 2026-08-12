@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"social-network/internal/group"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockListMyGroups struct {
@@ -51,6 +53,7 @@ func presenceTestHandler(listMyGroups ListMyGroupsResolver, presence GetGroupPre
 		nil,
 		listMyGroups,
 		presence,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 }
 

@@ -7,6 +7,7 @@ import (
 	"social-network/internal/chat"
 	"social-network/internal/chat/commands"
 	"social-network/internal/chat/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -43,6 +44,7 @@ type StartChatExecutor interface {
 }
 
 type Handler struct {
+	logger      logger.Logger
 	getHistory  ChatHistoryResolver
 	getUsers    ChatUsersResolver
 	startChat   StartChatExecutor
@@ -51,12 +53,14 @@ type Handler struct {
 }
 
 func NewHandler(
+	logger logger.Logger,
 	extract UserExtractor,
 	userLookup UserLookup,
 	getHistory ChatHistoryResolver,
 	getUsers ChatUsersResolver,
 ) *Handler {
 	return &Handler{
+		logger:      logger,
 		getHistory:  getHistory,
 		getUsers:    getUsers,
 		extractUser: extract,
@@ -65,13 +69,14 @@ func NewHandler(
 }
 
 func NewHandlerWithStart(
+	logger logger.Logger,
 	extract UserExtractor,
 	userLookup UserLookup,
 	getHistory ChatHistoryResolver,
 	getUsers ChatUsersResolver,
 	startChat StartChatExecutor,
 ) *Handler {
-	h := NewHandler(extract, userLookup, getHistory, getUsers)
+	h := NewHandler(logger, extract, userLookup, getHistory, getUsers)
 	h.startChat = startChat
 	return h
 }

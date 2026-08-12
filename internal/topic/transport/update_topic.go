@@ -2,6 +2,7 @@ package transport
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,23 +14,27 @@ import (
 
 func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	topicID, err := helpers.GetQueryInt(r, "id")
 	if err != nil {
+		h.logger.PrintError(errors.New("invalid topic ID"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid topic ID")
 		return
 	}
 
 	if parseErr := r.ParseMultipartForm(20 << 20); parseErr != nil { // #nosec G120 -- bounded by 20MB limit
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -58,6 +63,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 		buf := make([]byte, 20<<20)
 		n, readErr := file.Read(buf)
 		if readErr != nil {
+			h.logger.PrintError(readErr, nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Failed to read image")
 			return
 		}
@@ -71,6 +77,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 	var allowedUserIDs []string
 	if allowedStr := r.FormValue("allowedUserIds"); allowedStr != "" {
 		if unmarshalErr := json.Unmarshal([]byte(allowedStr), &allowedUserIDs); unmarshalErr != nil {
+			h.logger.PrintError(errors.New("invalid allowedUserIds"), nil)
 			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid allowedUserIds")
 			return
 		}
@@ -89,6 +96,7 @@ func (h *Handler) UpdateTopic(w http.ResponseWriter, r *http.Request) {
 
 	top, err := h.updateTopic.Execute(r.Context(), cmd)
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

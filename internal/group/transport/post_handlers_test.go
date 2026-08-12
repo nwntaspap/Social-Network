@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 
 	"social-network/internal/group"
 	"social-network/internal/group/commands"
+	"social-network/internal/platform/logger"
 )
 
 type mockCreateGroupPost struct {
@@ -55,6 +57,7 @@ func TestVoteGroupPost_CapturesReaction(t *testing.T) {
 				nil, nil, nil, nil, nil, nil, nil,
 				mock,
 				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+				logger.New(io.Discard, logger.LevelOff),
 			)
 			srv := httptest.NewServer(groupRoutesMux(h))
 			defer srv.Close()
@@ -87,6 +90,7 @@ func TestVoteGroupPost_UnauthorizedWithoutUser(t *testing.T) {
 		func(_ *http.Request) (string, bool) { return "", false },
 		&mockGroupUserLookup{},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))
 
@@ -119,6 +123,7 @@ func TestCreateGroupPost_CapturesCommandFromMultipart(t *testing.T) {
 		nil, nil, nil, nil, nil,
 		mock,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))
 	defer srv.Close()
@@ -169,6 +174,7 @@ func TestCreateGroupPost_UnauthorizedWithoutUser(t *testing.T) {
 		func(_ *http.Request) (string, bool) { return "", false },
 		&mockGroupUserLookup{},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))
 	defer srv.Close()

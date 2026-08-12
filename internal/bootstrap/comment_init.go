@@ -12,12 +12,13 @@ import (
 	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	topicstore "social-network/internal/topic/store"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initComment(db database.DB, bus eventbus.EventBus) *commenttransport.Handler {
+func initComment(db database.DB, bus eventbus.EventBus, logger logger.Logger) *commenttransport.Handler {
 	store := commentstore.NewSQLiteStore(db)
 	img := localstorage.NewLocalStorage()
 	users := userstore.NewSQLiteStore(db)
@@ -46,6 +47,7 @@ func initComment(db database.DB, bus eventbus.EventBus) *commenttransport.Handle
 		commentqueries.NewGetCommentsByTopicResolver(store),
 		commentqueries.NewGetCommentsByTopicWithVotesResolver(store),
 		commentqueries.NewGetVoteCountsResolver(store),
+		logger,
 	)
 }
 

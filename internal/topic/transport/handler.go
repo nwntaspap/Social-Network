@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/topic"
 	"social-network/internal/topic/commands"
 	"social-network/internal/topic/queries"
@@ -164,6 +165,7 @@ type Handler struct {
 	getVotes    GetVoteCountsResolver
 	userLookup  UserLookup
 	extractUser UserExtractor
+	logger      logger.Logger
 }
 
 func NewHandler(
@@ -179,6 +181,7 @@ func NewHandler(
 	getByUser GetTopicsByUserResolver,
 	getByGroup GetTopicsByGroupResolver,
 	getVotes GetVoteCountsResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		createTopic: createTopic,
@@ -193,5 +196,6 @@ func NewHandler(
 		getVotes:    getVotes,
 		userLookup:  userLookup,
 		extractUser: extractUser,
+		logger:      logger,
 	}
 }
