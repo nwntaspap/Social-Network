@@ -29,13 +29,12 @@ func initFollow(db database.DB, bus eventbus.EventBus) *followtransport.Handler 
 		}
 		return uid, true
 	}
-	userLookup := &followUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 
 	return followtransport.NewHandler(
 		extractUser,
 		userLookup,
 		followcommands.NewFollowUserHandler(store, privacy, bus, userStore),
-		followcommands.NewUnfollowUserHandler(store, bus, userStore),
+		followcommands.NewUnfollowUserHandler(store, bus),
 		followcommands.NewAcceptRequestHandler(store, bus, userStore),
 		followcommands.NewDeclineRequestHandler(store, bus, userStore),
 		followqueries.NewGetFollowersResolver(store),

@@ -139,7 +139,7 @@ func (s *respondInviteStub) ListGroupMemberIDs(_ context.Context, _ string) ([]s
 
 func TestRespondInviteHandler_Validation(t *testing.T) {
 	ctx := context.Background()
-	handler := NewRespondInviteHandler(&respondInviteStub{})
+	handler := NewRespondInviteHandler(&respondInviteStub{}, &mockBus{})
 
 	t.Run("returns error when group ID is empty", func(t *testing.T) {
 		_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "", InviteeID: "user-1"})
@@ -158,7 +158,7 @@ func TestRespondInviteHandler_Validation(t *testing.T) {
 
 func TestRespondInviteHandler_InvitationNotFound(t *testing.T) {
 	ctx := context.Background()
-	handler := NewRespondInviteHandler(&respondInviteStub{getInvErr: group.ErrInvitationNotFound})
+	handler := NewRespondInviteHandler(&respondInviteStub{getInvErr: group.ErrInvitationNotFound}, &mockBus{})
 	_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
 	if !errors.Is(err, group.ErrInvitationNotFound) {
 		t.Errorf("expected ErrInvitationNotFound, got %v", err)
@@ -169,7 +169,7 @@ func TestRespondInviteHandler_CreatorAcceptAddsMember(t *testing.T) {
 	ctx := context.Background()
 	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
 	stub := &respondInviteStub{invitation: existing, inviterRole: group.RoleCreator}
-	handler := NewRespondInviteHandler(stub)
+	handler := NewRespondInviteHandler(stub, &mockBus{})
 
 	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
 	if err != nil {
@@ -196,7 +196,7 @@ func TestRespondInviteHandler_MemberAcceptCreatesPendingRequest(t *testing.T) {
 	ctx := context.Background()
 	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
 	stub := &respondInviteStub{invitation: existing}
-	handler := NewRespondInviteHandler(stub)
+	handler := NewRespondInviteHandler(stub, &mockBus{})
 
 	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
 	if err != nil {
@@ -220,7 +220,7 @@ func TestRespondInviteHandler_MemberAcceptSkipsDuplicateRequest(t *testing.T) {
 	ctx := context.Background()
 	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
 	stub := &respondInviteStub{invitation: existing, hasPending: true}
-	handler := NewRespondInviteHandler(stub)
+	handler := NewRespondInviteHandler(stub, &mockBus{})
 
 	result, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: true})
 	if err != nil {
@@ -238,7 +238,7 @@ func TestRespondInviteHandler_DeclineDeletesInvitation(t *testing.T) {
 	ctx := context.Background()
 	existing := &group.Invitation{ID: "inv-1", GroupID: "group-1", InviterID: "creator-1", InviteeID: "user-1"}
 	stub := &respondInviteStub{invitation: existing}
-	handler := NewRespondInviteHandler(stub)
+	handler := NewRespondInviteHandler(stub, &mockBus{})
 
 	_, err := handler.Execute(ctx, RespondInviteCommand{GroupID: "group-1", InviteeID: "user-1", Accept: false})
 	if err != nil {

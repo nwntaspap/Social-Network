@@ -37,8 +37,8 @@ func initTopic(db database.DB, bus eventbus.EventBus) *topictransport.Handler {
 		topiccommands.NewCreateTopicHandler(store, img),
 		topiccommands.NewUpdateTopicHandler(store, img),
 		topiccommands.NewDeleteTopicHandler(store, bus, img),
-		topiccommands.NewDeleteVoteHandler(store),
 		topiccommands.NewCastVoteHandler(store, bus, users),
+		topiccommands.NewDeleteVoteHandler(store, bus),
 		// we need to add a deleteVote Handler the command is ready we just need to wire it
 		topicqueries.NewGetFeedResolver(store),
 		topicqueries.NewGetTopicResolver(store),

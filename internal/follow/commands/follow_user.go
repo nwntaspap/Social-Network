@@ -55,7 +55,7 @@ func (h *FollowUserHandler) Execute(ctx context.Context, cmd FollowUserCommand) 
 
 	actor, err := h.users.GetByID(ctx, cmd.FollowerID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if isPrivate {
