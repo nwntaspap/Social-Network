@@ -10,11 +10,12 @@ import (
 )
 
 type mockListUsersRepo struct {
-	users  []user.User
-	count  int
-	err    error
-	offset int
-	limit  int
+	users         []user.User
+	count         int
+	err           error
+	offset        int
+	limit         int
+	excludeUserID string
 }
 
 func (m *mockListUsersRepo) Create(_ context.Context, _ *user.User) error { return nil }
@@ -45,6 +46,18 @@ func (m *mockListUsersRepo) SearchUsers(_ context.Context, _ string, limit int, 
 }
 
 func (m *mockListUsersRepo) CountUsers(_ context.Context, _ string) (int, error) {
+	return m.count, m.err
+}
+
+func (m *mockListUsersRepo) SearchUsersExcluding(_ context.Context, _ string, excludeUserID string, limit int, offset int) ([]user.User, error) {
+	m.limit = limit
+	m.offset = offset
+	m.excludeUserID = excludeUserID
+	return m.users, m.err
+}
+
+func (m *mockListUsersRepo) CountUsersExcluding(_ context.Context, _ string, excludeUserID string) (int, error) {
+	m.excludeUserID = excludeUserID
 	return m.count, m.err
 }
 
@@ -90,6 +103,43 @@ func TestListUsersResolver_PaginatesOffset(t *testing.T) {
 	}
 	if repo.limit != 10 {
 		t.Errorf("limit = %d, want 10", repo.limit)
+	}
+}
+
+func TestListUsersResolver_ForwardsExcludeUserID(t *testing.T) {
+	users := []user.User{
+		{ID: "u1", Nickname: "alice"},
+		{ID: "u2", Nickname: "bob"},
+	}
+	repo := &mockListUsersRepo{users: users, count: 2}
+	r := NewListUsersResolver(repo, nil)
+
+	result, err := r.Resolve(context.Background(), ListUsersQuery{
+		Page:          1,
+		Limit:         10,
+		ExcludeUserID: "viewer",
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if repo.excludeUserID != "viewer" {
+		t.Errorf("excludeUserID = %q, want %q", repo.excludeUserID, "viewer")
+	}
+	if len(result.Users) != 2 || result.Total != 2 {
+		t.Errorf("got %d users / %d total, want 2/2", len(result.Users), result.Total)
+	}
+}
+
+func TestListUsersResolver_EmptyExcludeUserIDUsesPlainSearch(t *testing.T) {
+	repo := &mockListUsersRepo{count: 3}
+	r := NewListUsersResolver(repo, nil)
+
+	_, err := r.Resolve(context.Background(), ListUsersQuery{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if repo.excludeUserID != "" {
+		t.Errorf("excludeUserID = %q, want empty (plain search)", repo.excludeUserID)
 	}
 }
 

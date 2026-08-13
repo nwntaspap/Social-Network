@@ -171,8 +171,22 @@ func userSearchFilter(query string) (string, []any) {
 		return "", nil
 	}
 	pattern := "%" + query + "%"
-	where := `WHERE username LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?`
+	where := `WHERE (username LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)`
 	args := []any{pattern, pattern, pattern, pattern}
+	return where, args
+}
+
+func excludeFollowed(where string, args []any, userID string) (string, []any) {
+	if userID == "" {
+		return where, args
+	}
+	clause := `id != ? AND id NOT IN (SELECT followee_id FROM follows WHERE follower_id = ?)`
+	if where == "" {
+		where = `WHERE ` + clause
+	} else {
+		where += ` AND ` + clause
+	}
+	args = append(args, userID, userID)
 	return where, args
 }
 
@@ -199,6 +213,36 @@ func (s *SQLiteStore) SearchUsers(ctx context.Context, query string, limit, offs
 
 func (s *SQLiteStore) CountUsers(ctx context.Context, query string) (int, error) {
 	where, args := userSearchFilter(query)
+	var count int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users `+where, args...).Scan(&count)
+	return count, err
+}
+
+func (s *SQLiteStore) SearchUsersExcluding(ctx context.Context, query, excludeUserID string, limit, offset int) ([]user.User, error) {
+	where, args := userSearchFilter(query)
+	where, args = excludeFollowed(where, args, excludeUserID)
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users `+where+` ORDER BY username ASC LIMIT ? OFFSET ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []user.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
+}
+
+func (s *SQLiteStore) CountUsersExcluding(ctx context.Context, query, excludeUserID string) (int, error) {
+	where, args := userSearchFilter(query)
+	where, args = excludeFollowed(where, args, excludeUserID)
 	var count int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users `+where, args...).Scan(&count)
 	return count, err

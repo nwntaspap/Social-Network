@@ -35,9 +35,10 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.listUsers.Resolve(r.Context(), queries.ListUsersQuery{
-		Query: r.URL.Query().Get("query"),
-		Page:  page,
-		Limit: limit,
+		Query:         r.URL.Query().Get("query"),
+		Page:          page,
+		Limit:         limit,
+		ExcludeUserID: r.URL.Query().Get("excludeFollowedOf"),
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)

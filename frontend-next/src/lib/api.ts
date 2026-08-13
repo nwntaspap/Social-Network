@@ -221,6 +221,13 @@ export async function searchUsers(query: string, page = 1): Promise<PaginatedRes
   return api.get<PaginatedResponse<User>>('/users', { query, page, pageSize: 10 });
 }
 
+export async function getSuggestedUsers(
+  excludeFollowedOf: string,
+  page = 1
+): Promise<PaginatedResponse<User>> {
+  return api.get<PaginatedResponse<User>>('/users', { excludeFollowedOf, page, pageSize: 10 });
+}
+
 // ─── Follow ───────────────────────────────────────────────────────────────────
 
 export interface FollowResponse {

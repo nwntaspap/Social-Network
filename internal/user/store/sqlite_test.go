@@ -25,6 +25,14 @@ CREATE TABLE users (
     date_of_birth DATETIME,
     about_me TEXT,
     is_private BOOLEAN DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id TEXT NOT NULL,
+    followee_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(follower_id, followee_id),
+    FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
 );`
 
 func setupStore(t *testing.T) *SQLiteStore {
@@ -410,5 +418,70 @@ func TestCountUsers_MatchesFilter(t *testing.T) {
 	}
 	if count != 3 {
 		t.Errorf("CountUsers(empty) = %d, want 3", count)
+	}
+}
+
+func TestSearchUsersExcluding_ExcludesSelfAndFollowed(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u4", Email: "dave@example.com", Nickname: "dave", PasswordHash: "h", CreatedAt: time.Now()})
+
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`, "u1", "u2"); err != nil {
+		t.Fatalf("seed follow: %v", err)
+	}
+
+	users, err := s.SearchUsersExcluding(ctx, "", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding() error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("SearchUsersExcluding() returned %d users, want 2", len(users))
+	}
+	if users[0].Nickname != "carol" || users[1].Nickname != "dave" {
+		t.Errorf("SearchUsersExcluding() = %+v, want [carol dave]", users)
+	}
+
+	count, err := s.CountUsersExcluding(ctx, "", "u1")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding() error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsersExcluding() = %d, want 2", count)
+	}
+
+	searched, err := s.SearchUsersExcluding(ctx, "bob", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding(bob) error = %v", err)
+	}
+	if len(searched) != 0 {
+		t.Errorf("SearchUsersExcluding(bob) = %+v, want empty (followed user)", searched)
+	}
+}
+
+func TestSearchUsersExcluding_EmptyViewerBehavesLikeSearchUsers(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsersExcluding(ctx, "", "", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding(empty viewer) error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Errorf("SearchUsersExcluding(empty viewer) = %+v, want 2 users", users)
+	}
+
+	count, err := s.CountUsersExcluding(ctx, "", "")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding(empty viewer) error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsersExcluding(empty viewer) = %d, want 2", count)
 	}
 }

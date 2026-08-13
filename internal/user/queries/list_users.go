@@ -7,9 +7,10 @@ import (
 )
 
 type ListUsersQuery struct {
-	Query string
-	Page  int
-	Limit int
+	Query         string
+	Page          int
+	Limit         int
+	ExcludeUserID string
 }
 
 type ListUsersResult struct {
@@ -22,6 +23,8 @@ type ListUsersResult struct {
 type SearchRepository interface {
 	SearchUsers(ctx context.Context, query string, limit, offset int) ([]user.User, error)
 	CountUsers(ctx context.Context, query string) (int, error)
+	SearchUsersExcluding(ctx context.Context, query, excludeUserID string, limit, offset int) ([]user.User, error)
+	CountUsersExcluding(ctx context.Context, query, excludeUserID string) (int, error)
 }
 
 type ListUsersResolver struct {
@@ -38,12 +41,23 @@ func (r *ListUsersResolver) Resolve(ctx context.Context, q ListUsersQuery) (*Lis
 	limit := max(q.Limit, 1)
 	offset := (page - 1) * limit
 
-	users, err := r.repo.SearchUsers(ctx, q.Query, limit, offset)
+	var users []user.User
+	var total int
+	var err error
+	if q.ExcludeUserID != "" {
+		users, err = r.repo.SearchUsersExcluding(ctx, q.Query, q.ExcludeUserID, limit, offset)
+	} else {
+		users, err = r.repo.SearchUsers(ctx, q.Query, limit, offset)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	total, err := r.repo.CountUsers(ctx, q.Query)
+	if q.ExcludeUserID != "" {
+		total, err = r.repo.CountUsersExcluding(ctx, q.Query, q.ExcludeUserID)
+	} else {
+		total, err = r.repo.CountUsers(ctx, q.Query)
+	}
 	if err != nil {
 		return nil, err
 	}

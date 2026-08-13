@@ -247,6 +247,31 @@ func TestListUsers_ForwardsQueryAndPage(t *testing.T) {
 	}
 }
 
+func TestListUsers_ForwardsExcludeFollowedOf(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.listUsers = &stubListUsers{
+			result: &queries.ListUsersResult{Users: []user.User{}, Total: 0},
+		}
+	})
+	withDefaults(h)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/users?excludeFollowedOf=viewer1", nil)
+	rr := httptest.NewRecorder()
+
+	h.ListUsers(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	stub, ok := h.listUsers.(*stubListUsers)
+	if !ok {
+		t.Fatal("listUsers is not a *stubListUsers")
+	}
+	if stub.got.ExcludeUserID != "viewer1" {
+		t.Errorf("ExcludeUserID = %q, want %q", stub.got.ExcludeUserID, "viewer1")
+	}
+}
+
 func TestListUsers_MatchesFrontendPaginatedResponse(t *testing.T) {
 	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 	h := newTestHandler(func(h *Handler) {

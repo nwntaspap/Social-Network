@@ -3,11 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import SuggestedUsers from './SuggestedUsers';
 
-const mockSearchUsers = vi.fn();
+const mockGetSuggestedUsers = vi.fn();
 const mockSendFollowRequest = vi.fn();
 
 vi.mock('@/lib/api', () => ({
-  searchUsers: (...args: unknown[]) => mockSearchUsers(...args),
+  getSuggestedUsers: (userId: string) => mockGetSuggestedUsers(userId),
   sendFollowRequest: (userId: string) => mockSendFollowRequest(userId),
 }));
 
@@ -111,18 +111,19 @@ beforeEach(() => {
 
 describe('SuggestedUsers', () => {
   it('renders users fetched from the API (not hardcoded)', async () => {
-    mockSearchUsers.mockResolvedValue({ data: [alice, bob, viewer], totalPages: 1 });
+    mockGetSuggestedUsers.mockResolvedValue({ data: [alice, bob, viewer], totalPages: 1 });
     render(<SuggestedUsers />);
 
     await waitFor(() => {
-      expect(mockSearchUsers).toHaveBeenCalled();
+      expect(mockGetSuggestedUsers).toHaveBeenCalled();
     });
+    expect(mockGetSuggestedUsers).toHaveBeenCalledWith('me');
     expect(await screen.findByText('Alice Smith')).toBeInTheDocument();
     expect(screen.getByText('Bob Jones')).toBeInTheDocument();
   });
 
   it('never shows the current user in the suggestions', async () => {
-    mockSearchUsers.mockResolvedValue({ data: [viewer, alice], totalPages: 1 });
+    mockGetSuggestedUsers.mockResolvedValue({ data: [viewer, alice], totalPages: 1 });
     render(<SuggestedUsers />);
 
     await screen.findByText('Alice Smith');
@@ -130,7 +131,7 @@ describe('SuggestedUsers', () => {
   });
 
   it('shows the online status from the snapshot', async () => {
-    mockSearchUsers.mockResolvedValue({ data: [alice, bob], totalPages: 1 });
+    mockGetSuggestedUsers.mockResolvedValue({ data: [alice, bob], totalPages: 1 });
     render(<SuggestedUsers />);
 
     expect(await screen.findByText('Online')).toBeInTheDocument();
@@ -138,7 +139,7 @@ describe('SuggestedUsers', () => {
   });
 
   it('updates a user status live on isOnlineStatus.update broadcasts', async () => {
-    mockSearchUsers.mockResolvedValue({ data: [alice, bob], totalPages: 1 });
+    mockGetSuggestedUsers.mockResolvedValue({ data: [alice, bob], totalPages: 1 });
     render(<SuggestedUsers />);
 
     await screen.findByText('Online');
@@ -152,17 +153,17 @@ describe('SuggestedUsers', () => {
   });
 
   it('refetches the snapshot on reconnect', async () => {
-    mockSearchUsers.mockResolvedValue({ data: [alice], totalPages: 1 });
+    mockGetSuggestedUsers.mockResolvedValue({ data: [alice], totalPages: 1 });
     render(<SuggestedUsers />);
 
     await screen.findByText('Alice Smith');
-    expect(mockSearchUsers).toHaveBeenCalledTimes(1);
+    expect(mockGetSuggestedUsers).toHaveBeenCalledTimes(1);
 
     mockChatSocket.isConnected.mockReturnValue(true);
     wsConnectionListeners.forEach((listener) => listener());
 
     await waitFor(() => {
-      expect(mockSearchUsers).toHaveBeenCalledTimes(2);
+      expect(mockGetSuggestedUsers).toHaveBeenCalledTimes(2);
     });
   });
 });

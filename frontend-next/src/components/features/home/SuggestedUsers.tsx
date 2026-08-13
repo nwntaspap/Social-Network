@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { searchUsers, sendFollowRequest } from '@/lib/api';
+import { getSuggestedUsers, sendFollowRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { getDisplayName, getFileUrl, truncateText } from '@/lib/helpers';
 import { chatSocket } from '@/lib/ws';
@@ -20,7 +20,8 @@ export default function SuggestedUsers() {
     chatSocket.connect();
 
     const load = () => {
-      searchUsers('', 1)
+      if (!user?.id) return;
+      getSuggestedUsers(user.id)
         .then((response) => {
           setUsers(response.data.filter((u) => u.id !== user?.id).slice(0, MAX_SUGGESTIONS));
         })
