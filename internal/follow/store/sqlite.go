@@ -17,7 +17,7 @@ func NewSQLiteStore(db database.DB) *SQLiteStore {
 
 func (s *SQLiteStore) CreateFollow(ctx context.Context, f *follow.Follow) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO follows (follower_id, followee_id) VALUES (?, ?)`,
 		f.FollowerID, f.FolloweeID)
 	return err
 }
@@ -71,7 +71,7 @@ func (s *SQLiteStore) GetFollowing(ctx context.Context, userID string) ([]follow
 
 func (s *SQLiteStore) CreateFollowRequest(ctx context.Context, req *follow.Request) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`,
 		req.FollowerID, req.FolloweeID)
 	return err
 }

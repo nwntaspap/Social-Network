@@ -135,6 +135,48 @@ func TestSQLiteStore_CreateFollowRequest(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_CreateFollowRequest_Idempotent(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	req := &follow.Request{FollowerID: "user-1", FolloweeID: "user-2"}
+	if err := s.CreateFollowRequest(ctx, req); err != nil {
+		t.Fatalf("CreateFollowRequest() first call error = %v", err)
+	}
+	if err := s.CreateFollowRequest(ctx, req); err != nil {
+		t.Fatalf("CreateFollowRequest() duplicate call error = %v, want nil", err)
+	}
+
+	requests, err := s.GetPendingRequests(ctx, "user-2")
+	if err != nil {
+		t.Fatalf("GetPendingRequests() error = %v", err)
+	}
+	if len(requests) != 1 {
+		t.Fatalf("GetPendingRequests() returned %d, want 1 (no duplicate rows)", len(requests))
+	}
+}
+
+func TestSQLiteStore_CreateFollow_Idempotent(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	f := &follow.Follow{FollowerID: "user-1", FolloweeID: "user-2"}
+	if err := s.CreateFollow(ctx, f); err != nil {
+		t.Fatalf("CreateFollow() first call error = %v", err)
+	}
+	if err := s.CreateFollow(ctx, f); err != nil {
+		t.Fatalf("CreateFollow() duplicate call error = %v, want nil", err)
+	}
+
+	following, err := s.GetFollowing(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("GetFollowing() error = %v", err)
+	}
+	if len(following) != 1 {
+		t.Fatalf("GetFollowing() returned %d, want 1 (no duplicate rows)", len(following))
+	}
+}
+
 func TestSQLiteStore_DeleteFollowRequest(t *testing.T) {
 	s := setupStore(t)
 	ctx := context.Background()
