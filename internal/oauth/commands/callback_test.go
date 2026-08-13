@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"testing"
+	"time"
 
 	"social-network/internal/oauth"
 )
@@ -56,7 +57,11 @@ type capturingSessionCreator struct {
 
 func (s *capturingSessionCreator) CreateSession(_ context.Context, userID string) (*oauth.Session, error) {
 	s.userID = userID
-	return &oauth.Session{AccessToken: "tok", RefreshToken: "refresh"}, nil
+	return &oauth.Session{
+		AccessToken:  "tok",
+		RefreshToken: "refresh",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}, nil
 }
 
 func TestCallbackHandler_Login_GeneratesUserID(t *testing.T) {
@@ -95,5 +100,8 @@ func TestCallbackHandler_Login_GeneratesUserID(t *testing.T) {
 	}
 	if result.Session == nil || result.Session.AccessToken != "tok" {
 		t.Error("expected session with access token in result")
+	}
+	if result.Session.ExpiresAt.IsZero() {
+		t.Error("expected session expiry to be propagated to result")
 	}
 }

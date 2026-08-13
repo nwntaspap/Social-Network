@@ -279,6 +279,12 @@ func TestCallback_SetsRealAccessCookieHeader(t *testing.T) {
 	if !strings.HasPrefix(setCookie, "access_token=tok") {
 		t.Errorf("Set-Cookie = %q, want access_token=tok", setCookie)
 	}
+	if strings.Contains(setCookie, "Max-Age=0") {
+		t.Errorf("Set-Cookie = %q, cookie must not be already expired (Max-Age=0)", setCookie)
+	}
+	if !strings.Contains(setCookie, "Expires=") {
+		t.Errorf("Set-Cookie = %q, want a real Expires attribute", setCookie)
+	}
 }
 
 func TestCallback_CodeMissing(t *testing.T) {

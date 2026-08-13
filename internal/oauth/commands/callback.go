@@ -107,7 +107,7 @@ func (h *CallbackHandler) handleLogin(ctx context.Context, _ StateData, provider
 			}, nil
 		}
 		return &CallbackResult{
-			Session:     &oauth.Session{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken},
+			Session:     session,
 			FrontendURL: appendSuccessParam(frontendURL, "login", h.providerName),
 		}, nil
 	}
@@ -138,7 +138,7 @@ func (h *CallbackHandler) handleLogin(ctx context.Context, _ StateData, provider
 		}, nil
 	}
 	return &CallbackResult{
-		Session:     &oauth.Session{AccessToken: session.AccessToken, RefreshToken: session.RefreshToken},
+		Session:     session,
 		FrontendURL: appendSuccessParam(frontendURL, "login", h.providerName),
 	}, nil
 }
