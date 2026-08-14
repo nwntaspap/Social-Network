@@ -2,11 +2,48 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"social-network/services/notifications/internal/platform/database"
 )
+
+const notificationColumns = "id, recipient_id, type, resource_type, resource_id, actor_id, actor_name, actor_avatar, content_text, image_url, join_request_id, event_id, is_read, created_at"
+
+func scanNotifications(rows *sql.Rows) ([]Notification, error) {
+	var ns []Notification
+	for rows.Next() {
+		var n Notification
+		if err := rows.Scan(
+			&n.ID, &n.RecipientID, &n.Type, &n.ResourceType, &n.ResourceID,
+			&n.ActorID, &n.ActorName, &n.ActorAvatar, &n.ContentText, &n.ImageURL,
+			&n.JoinRequestID, &n.EventID, &n.IsRead, &n.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan notification: %w", err)
+		}
+		ns = append(ns, n)
+	}
+	return ns, rows.Err()
+}
+
+func (s *SQLiteStore) deleteReturning(ctx context.Context, where string, args ...any) ([]Notification, error) {
+	query := "DELETE FROM notifications " + where + " RETURNING " + notificationColumns
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("delete notifications: %w", err)
+	}
+	defer rows.Close()
+
+	ns, err := scanNotifications(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(ns) == 0 {
+		return nil, ErrNotFound
+	}
+	return ns, nil
+}
 
 type SQLiteStore struct {
 	db database.DB
@@ -26,7 +63,7 @@ func isFollowDomain(typ string) bool {
 
 func (s *SQLiteStore) Create(ctx context.Context, n *Notification) error {
 	if isFollowDomain(n.Type) {
-		_ = s.DeleteFollowNotifications(ctx, n.RecipientID, n.ActorID)
+		_, _ = s.DeleteFollowNotifications(ctx, n.RecipientID, n.ActorID)
 	}
 
 	query := `
@@ -126,95 +163,42 @@ func (s *SQLiteStore) MarkAllRead(ctx context.Context, recipientID string) error
 	return nil
 }
 
-func (s *SQLiteStore) DeleteEventByRecipient(ctx context.Context, typ, recipientId, eventID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications
-		 WHERE type = ?  AND recipient_id=? AND event_id==?`,
+func (s *SQLiteStore) DeleteEventByRecipient(ctx context.Context, typ, recipientId, eventID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE type = ? AND recipient_id = ? AND event_id = ?`,
 		typ, recipientId, eventID)
-	if err != nil {
-		return fmt.Errorf("delete notification by resource: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
-func (s *SQLiteStore) DeleteByResource(ctx context.Context, typ, actorID, resourceType, resourceID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications
-		 WHERE type = ? AND actor_id = ? AND resource_type = ? AND resource_id = ?`,
+func (s *SQLiteStore) DeleteByResource(ctx context.Context, typ, actorID, resourceType, resourceID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE type = ? AND actor_id = ? AND resource_type = ? AND resource_id = ?`,
 		typ, actorID, resourceType, resourceID)
-	if err != nil {
-		return fmt.Errorf("delete notification by resource: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
-func (s *SQLiteStore) DeleteFollowNotifications(ctx context.Context, userID, otherUserID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications
-		 WHERE ((recipient_id = ? AND actor_id = ?) OR (recipient_id = ? AND actor_id = ?))
+func (s *SQLiteStore) DeleteFollowNotifications(ctx context.Context, userID, otherUserID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE ((recipient_id = ? AND actor_id = ?) OR (recipient_id = ? AND actor_id = ?))
 		   AND type IN ('follow','follow_request','follow_accept','follow_declined')`,
 		userID, otherUserID, otherUserID, userID)
-	if err != nil {
-		return fmt.Errorf("delete follow notifications: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
-func (s *SQLiteStore) DeleteVoteNotifications(ctx context.Context, actorID, resourceType, resourceID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications
-		 WHERE actor_id = ? AND resource_type = ? AND resource_id = ?
+func (s *SQLiteStore) DeleteVoteNotifications(ctx context.Context, actorID, resourceType, resourceID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE actor_id = ? AND resource_type = ? AND resource_id = ?
 		   AND type IN ('like','dislike')`,
 		actorID, resourceType, resourceID)
-	if err != nil {
-		return fmt.Errorf("delete vote notifications: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
-func (s *SQLiteStore) DeleteAllByResource(ctx context.Context, resourceID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications
-		 WHERE resource_id = ?`,
+func (s *SQLiteStore) DeleteAllByResource(ctx context.Context, resourceID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE resource_id = ?`,
 		resourceID)
-	if err != nil {
-		return fmt.Errorf("delete all notifications by resource: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
-func (s *SQLiteStore) DeleteByJoinRequestID(ctx context.Context, joinRequestID string) error {
-	result, err := s.db.ExecContext(ctx,
-		`DELETE FROM notifications WHERE join_request_id = ?`,
+func (s *SQLiteStore) DeleteByJoinRequestID(ctx context.Context, joinRequestID string) ([]Notification, error) {
+	return s.deleteReturning(ctx,
+		`WHERE join_request_id = ?`,
 		joinRequestID)
-	if err != nil {
-		return fmt.Errorf("delete notifications by join request: %w", err)
-	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
 }
 
 func (s *SQLiteStore) UpdateActorInfo(ctx context.Context, actorID, name, avatar string) error {

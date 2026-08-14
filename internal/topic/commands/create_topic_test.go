@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -36,7 +37,7 @@ type mockTopicRepo struct {
 	deleteFn     func(ctx context.Context, userID string, topicID int) error
 	getByIDFn    func(ctx context.Context, id int, userID *string) (*topic.Topic, error)
 	getImageFn   func(ctx context.Context, topicID int, userID string) (string, error)
-	castVoteFn   func(ctx context.Context, userID string, topicID int, reaction int) error
+	castVoteFn   func(ctx context.Context, userID string, topicID int, reaction int) (topic.VoteChange, error)
 	deleteVoteFn func(ctx context.Context, userID string, topicID int) error
 	getCountsFn  func(ctx context.Context, topicID int) (*topic.VoteCounts, error)
 }
@@ -89,11 +90,11 @@ func (m *mockTopicRepo) GetTopicsByGroupID(_ context.Context, _ string, _, _ int
 	return nil, 0, nil
 }
 
-func (m *mockTopicRepo) CastVote(ctx context.Context, userID string, topicID int, reaction int) error {
+func (m *mockTopicRepo) CastVote(ctx context.Context, userID string, topicID int, reaction int) (topic.VoteChange, error) {
 	if m.castVoteFn != nil {
 		return m.castVoteFn(ctx, userID, topicID, reaction)
 	}
-	return nil
+	return topic.VoteChangeAdded, nil
 }
 
 func (m *mockTopicRepo) DeleteVote(ctx context.Context, userID string, topicID int) error {
@@ -114,10 +115,15 @@ func (m *mockTopicRepo) GetVoteCount(_ context.Context, _ string) (int, error) {
 
 type mockEventBus struct {
 	routingKey string
+	eventType  string
 }
 
-func (m *mockEventBus) Publish(_ string, routingKey string, _ []byte) error {
+func (m *mockEventBus) Publish(_ string, routingKey string, body []byte) error {
 	m.routingKey = routingKey
+	var n eventbus.Notification
+	if err := json.Unmarshal(body, &n); err == nil {
+		m.eventType = n.Type
+	}
 	return nil
 }
 

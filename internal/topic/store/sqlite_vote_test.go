@@ -14,7 +14,7 @@ func TestCastVote(t *testing.T) {
 	top := &topic.Topic{UserID: "u1", Title: "Vote", Content: "x"}
 	_ = s.CreateTopic(context.Background(), top, nil)
 
-	if err := s.CastVote(context.Background(), "u2", top.ID, 1); err != nil {
+	if _, err := s.CastVote(context.Background(), "u2", top.ID, 1); err != nil {
 		t.Fatalf("CastVote: %v", err)
 	}
 
@@ -33,12 +33,40 @@ func TestCastVote_Toggle(t *testing.T) {
 	top := &topic.Topic{UserID: "u1", Title: "Toggle", Content: "x"}
 	_ = s.CreateTopic(context.Background(), top, nil)
 
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
+	_, _ = s.CastVote(context.Background(), "u2", top.ID, 1)
+	_, _ = s.CastVote(context.Background(), "u2", top.ID, -1)
 
 	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
 	if vc.Upvotes != 0 || vc.Downvotes != 1 || vc.Score != -1 {
 		t.Errorf("after toggle: votes = %+v, want {0 1 -1}", vc)
+	}
+}
+
+func TestCastVote_ToggleOff(t *testing.T) {
+	s := setupTopicStore(t)
+
+	top := &topic.Topic{UserID: "u1", Title: "ToggleOff", Content: "x"}
+	_ = s.CreateTopic(context.Background(), top, nil)
+
+	change, err := s.CastVote(context.Background(), "u2", top.ID, 1)
+	if err != nil {
+		t.Fatalf("CastVote: %v", err)
+	}
+	if change != topic.VoteChangeAdded {
+		t.Errorf("first cast change = %v, want VoteChangeAdded", change)
+	}
+
+	change, err = s.CastVote(context.Background(), "u2", top.ID, 1)
+	if err != nil {
+		t.Fatalf("CastVote toggle off: %v", err)
+	}
+	if change != topic.VoteChangeRemoved {
+		t.Errorf("second cast change = %v, want VoteChangeRemoved", change)
+	}
+
+	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
+	if vc.Upvotes != 0 || vc.Downvotes != 0 || vc.Score != 0 {
+		t.Errorf("after toggle off: votes = %+v, want {0 0 0}", vc)
 	}
 }
 
@@ -47,7 +75,7 @@ func TestDeleteVote(t *testing.T) {
 
 	top := &topic.Topic{UserID: "u1", Title: "DelVote", Content: "x"}
 	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
+	_, _ = s.CastVote(context.Background(), "u2", top.ID, 1)
 
 	if err := s.DeleteVote(context.Background(), "u2", top.ID); err != nil {
 		t.Fatalf("DeleteVote: %v", err)
@@ -64,8 +92,8 @@ func TestGetVoteCounts(t *testing.T) {
 
 	top := &topic.Topic{UserID: "u1", Title: "Counts", Content: "x"}
 	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u1", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
+	_, _ = s.CastVote(context.Background(), "u1", top.ID, 1)
+	_, _ = s.CastVote(context.Background(), "u2", top.ID, -1)
 
 	vc, err := s.GetVoteCounts(context.Background(), top.ID)
 	if err != nil {
@@ -82,13 +110,13 @@ func TestCastVote_NonVisibleTopic(t *testing.T) {
 	priv := &topic.Topic{UserID: "u1", Title: "Private", Content: "x", Visibility: topic.VisibilityPrivate}
 	_ = s.CreateTopic(context.Background(), priv, []string{"u2"})
 
-	if err := s.CastVote(context.Background(), "u3", priv.ID, 1); !errors.Is(err, topic.ErrTopicNotFound) {
+	if _, err := s.CastVote(context.Background(), "u3", priv.ID, 1); !errors.Is(err, topic.ErrTopicNotFound) {
 		t.Errorf("non-allowed voter: err = %v, want ErrTopicNotFound", err)
 	}
-	if err := s.CastVote(context.Background(), "u2", priv.ID, 1); err != nil {
+	if _, err := s.CastVote(context.Background(), "u2", priv.ID, 1); err != nil {
 		t.Fatalf("allowed voter: %v", err)
 	}
-	if err := s.CastVote(context.Background(), "u1", priv.ID, -1); err != nil {
+	if _, err := s.CastVote(context.Background(), "u1", priv.ID, -1); err != nil {
 		t.Fatalf("owner voter: %v", err)
 	}
 }

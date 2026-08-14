@@ -29,8 +29,8 @@ func (m *mockRepository) GetCommentsByTopicIDWithVotes(_ context.Context, _ int,
 	return nil, nil
 }
 
-func (m *mockRepository) CastCommentVote(_ context.Context, _ string, _ int, _ int) error {
-	return nil
+func (m *mockRepository) CastCommentVote(_ context.Context, _ string, _ int, _ int) (VoteChange, error) {
+	return VoteChangeAdded, nil
 }
 
 func (m *mockRepository) DeleteCommentVote(_ context.Context, _ string, _ int) error {

@@ -32,11 +32,11 @@ type Repository interface {
 	GetUnreadCount(ctx context.Context, recipientID string) (int, error)
 	MarkRead(ctx context.Context, id int, recipientID string) error
 	MarkAllRead(ctx context.Context, recipientID string) error
-	DeleteByResource(ctx context.Context, typ, actorID, resourceType, resourceID string) error
-	DeleteEventByRecipient(ctx context.Context, typ, recipientId, eventID string) error
-	DeleteFollowNotifications(ctx context.Context, userID, otherUserID string) error
-	DeleteVoteNotifications(ctx context.Context, actorID, resourceType, resourceID string) error
-	DeleteAllByResource(ctx context.Context, resourceID string) error
-	DeleteByJoinRequestID(ctx context.Context, joinRequestID string) error
+	DeleteByResource(ctx context.Context, typ, actorID, resourceType, resourceID string) ([]Notification, error)
+	DeleteEventByRecipient(ctx context.Context, typ, recipientId, eventID string) ([]Notification, error)
+	DeleteFollowNotifications(ctx context.Context, userID, otherUserID string) ([]Notification, error)
+	DeleteVoteNotifications(ctx context.Context, actorID, resourceType, resourceID string) ([]Notification, error)
+	DeleteAllByResource(ctx context.Context, resourceID string) ([]Notification, error)
+	DeleteByJoinRequestID(ctx context.Context, joinRequestID string) ([]Notification, error)
 	UpdateActorInfo(ctx context.Context, actorID, name, avatar string) error
 }

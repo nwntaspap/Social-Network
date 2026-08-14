@@ -18,6 +18,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/lib/api';
+import NotificationBell from '@/components/features/notifications/NotificationBell';
 
 export default function Navbar() {
   const { user, clearUser } = useAuth();
@@ -176,6 +177,10 @@ function LoggedInNav({ user, pathname, clearUser }: LoggedInNavProps) {
                   <Link href={href}>{label}</Link>
                 </li>
               ))}
+
+              <li className="nav-link">
+                <NotificationBell />
+              </li>
 
               <li className="nav-link nav-link-create">
                 <Link href="/create">New Post</Link>

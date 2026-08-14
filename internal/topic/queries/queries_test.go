@@ -55,8 +55,11 @@ func (m *mockTopicRepo) GetTopicsByGroupID(ctx context.Context, groupID string, 
 	}
 	return nil, 0, nil
 }
-func (m *mockTopicRepo) CastVote(_ context.Context, _ string, _ int, _ int) error { return nil }
-func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error      { return nil }
+
+func (m *mockTopicRepo) CastVote(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+	return topic.VoteChangeAdded, nil
+}
+func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error { return nil }
 func (m *mockTopicRepo) GetVoteCounts(ctx context.Context, topicID int) (*topic.VoteCounts, error) {
 	if m.getCountsFn != nil {
 		return m.getCountsFn(ctx, topicID)

@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { likePost, dislikePost, removePostVote, voteGroupPost } from '@/lib/api';
+import { likePost, dislikePost, voteGroupPost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Post } from '@/lib/types';
 
@@ -57,10 +57,9 @@ export default function PostCard({ post, commentsExpanded, onToggleComments }: P
   }
 
   async function handleTopicVote(reaction: 1 | -1) {
-    await handleVote(reaction, async (nextVote) => {
-      if (nextVote === null) {
-        await removePostVote(Number(post.id));
-      } else if (reaction === 1) {
+    await handleVote(reaction, async () => {
+      // Re-casting the same reaction toggles the vote off on the backend.
+      if (reaction === 1) {
         await likePost(Number(post.id));
       } else {
         await dislikePost(Number(post.id));

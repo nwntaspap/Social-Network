@@ -207,13 +207,14 @@ func TestConsumer_ProcessesCascadeDeletedEvent(t *testing.T) {
 		ActorName:    "Alice",
 	})
 
-	ch, unsubscribe := hub.Subscribe("u1")
-	defer unsubscribe()
+	chU1, unsubscribeU1 := hub.Subscribe("u1")
+	defer unsubscribeU1()
+	chU3, unsubscribeU3 := hub.Subscribe("u3")
+	defer unsubscribeU3()
 
+	// Batch delete trigger: no recipient_id, no actor — it's just a cascade trigger.
 	env := EventEnvelope{
 		Type:         eventbus.EventPost,
-		RecipientID:  "u1",
-		ActorID:      "u1",
 		ResourceType: "post",
 		ResourceID:   "42",
 		ContentText:  "Your post was deleted",
@@ -238,8 +239,33 @@ func TestConsumer_ProcessesCascadeDeletedEvent(t *testing.T) {
 	}
 	_ = ns3
 
+	// u1 should receive exactly its two deleted notifications, each marked Deleted=true.
+	u1Deleted := make([]store.Notification, 0, 2)
+	for len(u1Deleted) < 2 {
+		select {
+		case n := <-chU1:
+			if !n.Deleted {
+				t.Errorf("hub Deleted = false, want true for deleted event")
+			}
+			if n.ResourceID != "42" {
+				t.Errorf("hub ResourceID = %s, want 42", n.ResourceID)
+			}
+			u1Deleted = append(u1Deleted, n)
+		case <-time.After(time.Second):
+			t.Fatal("u1 did not receive all deleted notifications")
+		}
+	}
+	gotU1Types := map[string]bool{}
+	for _, n := range u1Deleted {
+		gotU1Types[n.Type] = true
+	}
+	if !gotU1Types["like"] || !gotU1Types["comment"] {
+		t.Errorf("u1 deleted types = %v, want like and comment", gotU1Types)
+	}
+
+	// u3 should receive its one deleted notification.
 	select {
-	case n := <-ch:
+	case n := <-chU3:
 		if !n.Deleted {
 			t.Errorf("hub Deleted = false, want true for deleted event")
 		}
@@ -247,7 +273,7 @@ func TestConsumer_ProcessesCascadeDeletedEvent(t *testing.T) {
 			t.Errorf("hub ResourceID = %s, want 42", n.ResourceID)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("hub did not receive notification")
+		t.Fatal("u3 did not receive deleted notification")
 	}
 }
 

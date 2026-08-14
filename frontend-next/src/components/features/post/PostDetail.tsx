@@ -4,15 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  getPost,
-  getComments,
-  createComment,
-  voteComment,
-  likePost,
-  dislikePost,
-  removePostVote,
-} from '@/lib/api';
+import { getPost, getComments, createComment, voteComment, likePost, dislikePost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Comment, Post } from '@/lib/types';
 
@@ -77,9 +69,8 @@ export default function PostDetail() {
     setDislikesCount((prev) => prev + deltaOf(-1));
 
     try {
-      if (nextVote === null) {
-        await removePostVote(Number(post.id));
-      } else if (nextVote === 1) {
+      // Re-casting the same reaction toggles the vote off on the backend.
+      if (reaction === 1) {
         await likePost(Number(post.id));
       } else {
         await dislikePost(Number(post.id));

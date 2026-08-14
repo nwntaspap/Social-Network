@@ -264,7 +264,7 @@ func TestGetFeed_WithUserVote(t *testing.T) {
 	if err := s.CreateTopic(context.Background(), top, nil); err != nil {
 		t.Fatalf("CreateTopic: %v", err)
 	}
-	if err := s.CastVote(context.Background(), "u1", top.ID, 1); err != nil {
+	if _, err := s.CastVote(context.Background(), "u1", top.ID, 1); err != nil {
 		t.Fatalf("CastVote: %v", err)
 	}
 

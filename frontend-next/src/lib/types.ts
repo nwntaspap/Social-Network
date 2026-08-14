@@ -256,22 +256,43 @@ export interface WsConversation extends Chat {
 }
 
 export type NotificationType =
-  | 'followRequest'
-  | 'followAccepted'
-  | 'groupInvitation'
-  | 'groupJoinRequest'
-  | 'groupJoinAccepted'
-  | 'newEvent'
-  | 'newFollower';
+  | 'like'
+  | 'dislike'
+  | 'follow'
+  | 'follow_request'
+  | 'follow_accept'
+  | 'follow_declined'
+  | 'group_invite'
+  | 'group_invite_removed'
+  | 'group_join_request'
+  | 'group_join_accept'
+  | 'group_join_declined'
+  | 'event'
+  | 'post'
+  | 'comment'
+  | string;
 
 export interface Notification {
-  id: string;
-  userId: string;
+  id: number;
+  recipient_id: string;
   type: NotificationType;
-  message: string;
-  referenceId?: string;
-  isRead: boolean;
-  createdAt: string;
+  resource_type: string;
+  resource_id: string;
+  actor_id: string;
+  actor_name: string;
+  actor_avatar: string;
+  content_text: string;
+  image_url: string;
+  join_request_id: string;
+  event_id: string;
+  is_read: boolean;
+  created_at: string;
+  deleted: boolean;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  total: number;
 }
 
 // API Response types

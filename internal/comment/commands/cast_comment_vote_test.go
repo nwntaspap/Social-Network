@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"social-network/internal/comment"
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/user"
 )
 
@@ -31,6 +32,7 @@ func (m *commentUserRepo) ListAll(_ context.Context) ([]user.User, error)       
 
 type mockVoteRepo struct {
 	castVoteErr     error
+	castVoteChange  comment.VoteChange
 	getCountsResult *comment.VoteCounts
 	getCountsErr    error
 }
@@ -54,8 +56,11 @@ func (m *mockVoteRepo) GetCommentsByTopicIDWithVotes(_ context.Context, _ int, _
 	return []comment.Comment{}, nil
 }
 
-func (m *mockVoteRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) error {
-	return m.castVoteErr
+func (m *mockVoteRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) (comment.VoteChange, error) {
+	if m.castVoteChange != 0 {
+		return m.castVoteChange, m.castVoteErr
+	}
+	return comment.VoteChangeAdded, m.castVoteErr
 }
 
 func (m *mockVoteRepo) DeleteCommentVote(_ context.Context, _ string, _ int) error {
@@ -154,5 +159,22 @@ func TestCastCommentVote_RepoError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Execute() expected error, got nil")
+	}
+}
+
+func TestCastCommentVote_ToggleOff(t *testing.T) {
+	bus := &mockBus{}
+	repo := &mockVoteRepo{castVoteChange: comment.VoteChangeRemoved}
+	h := NewCastCommentVoteHandler(repo, bus, &commentUserRepo{})
+	err := h.Execute(context.Background(), CastCommentVoteCommand{
+		UserID:       "u2",
+		CommentID:    7,
+		ReactionType: 1,
+	})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if bus.routingKey != eventbus.RoutingDeleted {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, eventbus.RoutingDeleted)
 	}
 }

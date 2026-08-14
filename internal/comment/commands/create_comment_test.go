@@ -56,8 +56,11 @@ func (m *mockTopicRepo) GetTopicsByUserID(_ context.Context, _, _ string, _, _ i
 func (m *mockTopicRepo) GetTopicsByGroupID(_ context.Context, _ string, _, _ int) ([]topic.Topic, int, error) {
 	return nil, 0, nil
 }
-func (m *mockTopicRepo) CastVote(_ context.Context, _ string, _ int, _ int) error { return nil }
-func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error      { return nil }
+
+func (m *mockTopicRepo) CastVote(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+	return topic.VoteChangeAdded, nil
+}
+func (m *mockTopicRepo) DeleteVote(_ context.Context, _ string, _ int) error { return nil }
 func (m *mockTopicRepo) GetVoteCounts(_ context.Context, _ int) (*topic.VoteCounts, error) {
 	return &topic.VoteCounts{}, nil
 }
@@ -100,8 +103,8 @@ func (m *mockRepo) GetCommentsByTopicIDWithVotes(_ context.Context, _ int, _ *st
 	return nil, nil
 }
 
-func (m *mockRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) error {
-	return nil
+func (m *mockRepo) CastCommentVote(_ context.Context, _ string, _ int, _ int) (comment.VoteChange, error) {
+	return comment.VoteChangeAdded, nil
 }
 
 func (m *mockRepo) DeleteCommentVote(_ context.Context, _ string, _ int) error {

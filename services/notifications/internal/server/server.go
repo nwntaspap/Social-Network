@@ -51,6 +51,10 @@ func New(cfg *config.Config, logger *slog.Logger, auth *middleware.Auth, notif N
 func (s *Server) buildHandler() {
 	var h http.Handler = s.mux
 
+	if s.cfg.AllowedOrigins != "" {
+		h = middleware.NewCORS(s.cfg.AllowedOrigins, h)
+	}
+
 	h = middleware.NewRateLimiter(100, time.Minute, h)
 
 	if s.logger != nil {

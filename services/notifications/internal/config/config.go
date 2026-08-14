@@ -12,13 +12,15 @@ const (
 	defaultPort       = "8081"
 	defaultBackendURL = "http://localhost:8080/api/v1"
 	defaultDBPath     = "db/data/notifications.db"
+	defaultCORSOrigin = "http://localhost:3001"
 )
 
 type Config struct {
-	Host    string
-	Port    string
-	Backend string
-	DBPath  string
+	Host           string
+	Port           string
+	Backend        string
+	DBPath         string
+	AllowedOrigins string
 
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
@@ -30,6 +32,7 @@ func Load() (*Config, error) {
 	port := env("NOTIFICATIONS_PORT", defaultPort)
 	backend := env("NOTIFICATIONS_BACKEND_URL", defaultBackendURL)
 	dbPath := env("NOTIFICATIONS_DB_PATH", defaultDBPath)
+	allowedOrigins := env("NOTIFICATIONS_ALLOWED_ORIGINS", defaultCORSOrigin)
 
 	readTimeout, err := parseInt("NOTIFICATIONS_READ_TIMEOUT", 10)
 	if err != nil {
@@ -55,13 +58,14 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Host:         host,
-		Port:         port,
-		Backend:      backend,
-		DBPath:       dbPath,
-		ReadTimeout:  time.Duration(readTimeout) * time.Second,
-		WriteTimeout: time.Duration(writeTimeout) * time.Second,
-		IdleTimeout:  time.Duration(idleTimeout) * time.Second,
+		Host:           host,
+		Port:           port,
+		Backend:        backend,
+		DBPath:         dbPath,
+		AllowedOrigins: allowedOrigins,
+		ReadTimeout:    time.Duration(readTimeout) * time.Second,
+		WriteTimeout:   time.Duration(writeTimeout) * time.Second,
+		IdleTimeout:    time.Duration(idleTimeout) * time.Second,
 	}, nil
 }
 

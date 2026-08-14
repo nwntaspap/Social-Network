@@ -5,13 +5,11 @@ import PostCard from './PostCard';
 
 const mockLikePost = vi.fn().mockResolvedValue(undefined);
 const mockDislikePost = vi.fn().mockResolvedValue(undefined);
-const mockRemovePostVote = vi.fn().mockResolvedValue(undefined);
 const mockVoteGroupPost = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/lib/api', () => ({
   likePost: (id: number) => mockLikePost(id),
   dislikePost: (id: number) => mockDislikePost(id),
-  removePostVote: (id: number) => mockRemovePostVote(id),
   voteGroupPost: (id: string, reaction: 1 | -1) => mockVoteGroupPost(id, reaction),
 }));
 
@@ -79,12 +77,23 @@ describe('PostCard', () => {
     expect(mockVoteGroupPost).not.toHaveBeenCalled();
   });
 
-  it('removes the vote when an active like is clicked again', async () => {
+  it('re-casts the vote when an active like is clicked again (toggle off)', async () => {
     render(<PostCard post={makePost({ groupId: undefined, userVote: 1, likesCount: 5 })} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Like' }));
     await waitFor(() => {
-      expect(mockRemovePostVote).toHaveBeenCalledWith(Number('gp1'));
+      expect(mockLikePost).toHaveBeenCalledTimes(1);
     });
+    expect(mockLikePost).toHaveBeenLastCalledWith(Number('gp1'));
+  });
+
+  it('re-casts the vote when an active dislike is clicked again (toggle off)', async () => {
+    render(<PostCard post={makePost({ groupId: undefined, userVote: -1, dislikesCount: 1 })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dislike' }));
+    await waitFor(() => {
+      expect(mockDislikePost).toHaveBeenCalledTimes(1);
+    });
+    expect(mockDislikePost).toHaveBeenLastCalledWith(Number('gp1'));
   });
 });

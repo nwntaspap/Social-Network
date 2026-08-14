@@ -39,8 +39,20 @@ func (h *CastCommentVoteHandler) Execute(ctx context.Context, cmd CastCommentVot
 	if cmd.ReactionType != 1 && cmd.ReactionType != -1 {
 		return ErrInvalidReactionType
 	}
-	if err := h.repo.CastCommentVote(ctx, cmd.UserID, cmd.CommentID, cmd.ReactionType); err != nil {
+	change, err := h.repo.CastCommentVote(ctx, cmd.UserID, cmd.CommentID, cmd.ReactionType)
+	if err != nil {
 		return err
+	}
+
+	if change == comment.VoteChangeRemoved {
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventCommentVoteDeleted,
+			ActorID:      cmd.UserID,
+			ResourceType: eventbus.ResourceComment,
+			ResourceID:   strconv.Itoa(cmd.CommentID),
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
+		return nil
 	}
 
 	actor, err := h.users.GetByID(ctx, cmd.UserID)

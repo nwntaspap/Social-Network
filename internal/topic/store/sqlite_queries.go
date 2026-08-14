@@ -215,19 +215,35 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 	return topics, nil
 }
 
-func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) error {
+func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) (topic.VoteChange, error) {
 	if _, err := s.GetTopicByID(ctx, topicID, &userID); err != nil {
-		return err
+		return topic.VoteChangeAdded, err
 	}
-	_, err := s.db.ExecContext(ctx,
+
+	var existingReaction sql.NullInt32
+	err := s.db.QueryRowContext(ctx,
+		`SELECT reaction_type FROM votes WHERE user_id = ? AND topic_id = ? AND comment_id IS NULL`,
+		userID, topicID).Scan(&existingReaction)
+
+	if err == nil && existingReaction.Valid && int(existingReaction.Int32) == reactionType {
+		_, delErr := s.db.ExecContext(ctx,
+			`DELETE FROM votes WHERE user_id = ? AND topic_id = ? AND comment_id IS NULL`,
+			userID, topicID)
+		if delErr != nil {
+			return topic.VoteChangeRemoved, fmt.Errorf("delete vote: %w", delErr)
+		}
+		return topic.VoteChangeRemoved, nil
+	}
+
+	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO votes (user_id, topic_id, comment_id, reaction_type)
 		 VALUES (?, ?, NULL, ?)
 		 ON CONFLICT (user_id, topic_id) DO UPDATE SET reaction_type = EXCLUDED.reaction_type, created_at = CURRENT_TIMESTAMP`,
 		userID, topicID, reactionType)
 	if err != nil {
-		return fmt.Errorf("cast vote: %w", err)
+		return topic.VoteChangeAdded, fmt.Errorf("cast vote: %w", err)
 	}
-	return nil
+	return topic.VoteChangeAdded, nil
 }
 
 func (s *SQLiteStore) DeleteVote(ctx context.Context, userID string, topicID int) error {

@@ -192,8 +192,8 @@ func (a *legacyAdapter) GetTopicsByGroupID(_ context.Context, _ string, _, _ int
 	return nil, 0, nil
 }
 
-func (a *legacyAdapter) CastVote(_ context.Context, _ string, _ int, _ int) error {
-	return nil
+func (a *legacyAdapter) CastVote(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+	return topic.VoteChangeAdded, nil
 }
 
 func (a *legacyAdapter) DeleteVote(_ context.Context, _ string, _ int) error {

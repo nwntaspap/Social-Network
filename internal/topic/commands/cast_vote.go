@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 
 	"social-network/internal/platform/eventbus"
@@ -43,13 +44,25 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		return fmt.Errorf("get vote counts: %w", err)
 	}
 
-	if err = h.repo.CastVote(ctx, cmd.UserID, cmd.TopicID, cmd.ReactionType); err != nil {
+	change, err := h.repo.CastVote(ctx, cmd.UserID, cmd.TopicID, cmd.ReactionType)
+	if err != nil {
 		return fmt.Errorf("cast vote: %w", err)
 	}
 
 	actor, err := h.users.GetByID(ctx, cmd.UserID)
 	if err != nil {
 		return err
+	}
+
+	if change == topic.VoteChangeRemoved {
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventPostVoteDeleted,
+			ActorID:      actor.ID,
+			ResourceType: eventbus.ResourcePost,
+			ResourceID:   strconv.Itoa(cmd.TopicID),
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
+		return nil
 	}
 
 	t, err := h.repo.GetTopicByID(ctx, cmd.TopicID, &cmd.UserID)
@@ -72,6 +85,7 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		ContentText:  t.Content,
 		ImageURL:     t.ImagePath,
 	})
+	log.Printf("this is the event Type:%s", eventType)
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return nil

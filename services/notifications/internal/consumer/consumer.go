@@ -83,7 +83,7 @@ func (c *Consumer) handleCreated(env EventEnvelope, msg eventbus.Message) {
 
 	switch env.Type {
 	case eventbus.EventGroupJoinAccepted, eventbus.EventGroupJoinDeclined:
-		if err := c.repo.DeleteByJoinRequestID(context.Background(), env.JoinRequestID); err != nil && !errors.Is(err, store.ErrNotFound) {
+		if _, err := c.repo.DeleteByJoinRequestID(context.Background(), env.JoinRequestID); err != nil && !errors.Is(err, store.ErrNotFound) {
 			c.log.Warn("failed to clear join request notifications", "error", err)
 		}
 	}
@@ -92,7 +92,7 @@ func (c *Consumer) handleCreated(env EventEnvelope, msg eventbus.Message) {
 
 	if err := c.repo.Create(context.Background(), notif); err != nil {
 		c.log.Error("failed to create notification", "error", err)
-		_ = msg.Nack(true)
+		_ = msg.Nack(false)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (c *Consumer) handleEvent(env EventEnvelope, msg eventbus.Message) {
 		notif.RecipientID = groupMember
 		if err := c.repo.Create(context.Background(), notif); err != nil {
 			c.log.Error("failed to create join request notification", "recipient", groupMember, "error", err)
-			_ = msg.Nack(true)
+			_ = msg.Nack(false)
 			return
 		}
 		c.hub.Publish(groupMember, *notif)
@@ -138,7 +138,7 @@ func (c *Consumer) handleJoinRequest(env EventEnvelope, msg eventbus.Message) {
 		notif.RecipientID = adminID
 		if err := c.repo.Create(context.Background(), notif); err != nil {
 			c.log.Error("failed to create join request notification", "recipient", adminID, "error", err)
-			_ = msg.Nack(true)
+			_ = msg.Nack(false)
 			return
 		}
 		c.hub.Publish(adminID, *notif)
@@ -150,38 +150,38 @@ func (c *Consumer) handleJoinRequest(env EventEnvelope, msg eventbus.Message) {
 }
 
 func (c *Consumer) handleDeleted(env EventEnvelope, msg eventbus.Message) {
-	if env.RecipientID == "" || env.Type == "" {
+	if env.Type == "" {
 		c.log.Warn("incomplete event", "envelope", env)
 		_ = msg.Nack(false)
 		return
 	}
 
-	notif := env.ToNotification()
-	notif.Deleted = true
-
-	c.hub.Publish(env.RecipientID, *notif)
+	var (
+		deleted []store.Notification
+		err     error
+	)
 
 	switch env.Type {
 	case eventbus.EventPost, eventbus.EventComment:
-		if err := c.repo.DeleteAllByResource(context.Background(), env.ResourceID); err != nil {
-			c.log.Warn("failed to cascade delete notifications", "error", err)
-		}
+		deleted, err = c.repo.DeleteAllByResource(context.Background(), env.ResourceID)
 	case eventbus.EventFollow:
-		if err := c.repo.DeleteFollowNotifications(context.Background(), env.RecipientID, env.ActorID); err != nil {
-			c.log.Warn("failed to delete follow notifications", "error", err)
-		}
+		deleted, err = c.repo.DeleteFollowNotifications(context.Background(), env.RecipientID, env.ActorID)
 	case eventbus.EventPostVoteDeleted, eventbus.EventCommentVoteDeleted:
-		if err := c.repo.DeleteVoteNotifications(context.Background(), env.ActorID, env.ResourceType, env.ResourceID); err != nil {
-			c.log.Warn("failed to delete vote notifications", "error", err)
-		}
+		deleted, err = c.repo.DeleteVoteNotifications(context.Background(), env.ActorID, env.ResourceType, env.ResourceID)
 	case eventbus.EventEvent:
-		if err := c.repo.DeleteEventByRecipient(context.Background(), mapEventType(env.Type), env.RecipientID, env.EventID); err != nil {
-			c.log.Warn("failed to delete notification", "error", err)
-		}
+		deleted, err = c.repo.DeleteEventByRecipient(context.Background(), mapEventType(env.Type), env.RecipientID, env.EventID)
 	default:
-		if err := c.repo.DeleteByResource(context.Background(), mapEventType(env.Type), env.ActorID, env.ResourceType, env.ResourceID); err != nil {
-			c.log.Warn("failed to delete notification", "error", err)
-		}
+		deleted, err = c.repo.DeleteByResource(context.Background(), mapEventType(env.Type), env.ActorID, env.ResourceType, env.ResourceID)
+	}
+
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		c.log.Warn("failed to delete notifications", "error", err)
+	}
+
+	for i := range deleted {
+		notif := deleted[i]
+		notif.Deleted = true
+		c.hub.Publish(notif.RecipientID, notif)
 	}
 
 	if err := msg.Ack(); err != nil {

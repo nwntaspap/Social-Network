@@ -25,6 +25,7 @@ func NewDeleteVoteHandler(repo topic.Repository, bus eventbus.EventBus) *DeleteV
 }
 
 func (h *DeleteVoteHandler) Execute(ctx context.Context, cmd DeleteVoteCommand) error {
+	fmt.Println("hello")
 	if cmd.UserID == "" {
 		return topic.ErrUnauthorized
 	}

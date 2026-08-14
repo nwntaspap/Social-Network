@@ -120,7 +120,7 @@ func TestGetByRecipient_HardDeleted(t *testing.T) {
 
 	n := &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"}
 	_ = s.Create(context.Background(), n)
-	_ = s.DeleteByResource(context.Background(), "like", "u2", "post", "1")
+	_, _ = s.DeleteByResource(context.Background(), "like", "u2", "post", "1")
 
 	ns, total, err := s.GetByRecipient(context.Background(), "u1", 10, 0)
 	if err != nil {
@@ -198,8 +198,15 @@ func TestDeleteByResource(t *testing.T) {
 
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 
-	if err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1"); err != nil {
+	deleted, err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1")
+	if err != nil {
 		t.Fatalf("DeleteByResource: %v", err)
+	}
+	if len(deleted) != 1 {
+		t.Fatalf("deleted %d notifications, want 1", len(deleted))
+	}
+	if deleted[0].RecipientID != "u1" || deleted[0].Type != "like" {
+		t.Errorf("deleted notification = %+v, want recipient u1 type like", deleted[0])
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -217,8 +224,12 @@ func TestDeleteByResource_OnlyMatchingType(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 
-	if err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1"); err != nil {
+	deleted, err := s.DeleteByResource(context.Background(), "like", "u2", "post", "1")
+	if err != nil {
 		t.Fatalf("DeleteByResource: %v", err)
+	}
+	if len(deleted) != 1 || deleted[0].Type != "like" {
+		t.Errorf("deleted = %+v, want only the like", deleted)
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -232,7 +243,7 @@ func TestDeleteByResource_OnlyMatchingType(t *testing.T) {
 
 func TestDeleteByResource_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteByResource(context.Background(), "like", "u1", "post", "999")
+	_, err := s.DeleteByResource(context.Background(), "like", "u1", "post", "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -245,8 +256,12 @@ func TestDeleteAllByResource(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u3"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u1"})
 
-	if err := s.DeleteAllByResource(context.Background(), "1"); err != nil {
+	deleted, err := s.DeleteAllByResource(context.Background(), "1")
+	if err != nil {
 		t.Fatalf("DeleteAllByResource: %v", err)
+	}
+	if len(deleted) != 3 {
+		t.Errorf("deleted %d notifications, want 3", len(deleted))
 	}
 
 	ns1, total1, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -264,7 +279,7 @@ func TestDeleteAllByResource(t *testing.T) {
 
 func TestDeleteAllByResource_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteAllByResource(context.Background(), "999")
+	_, err := s.DeleteAllByResource(context.Background(), "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -277,8 +292,17 @@ func TestDeleteByJoinRequestID(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "a2", Type: "group_join_request", ResourceID: "g1", ActorID: "u1", JoinRequestID: "jr-1"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "b1", Type: "group_join_request", ResourceID: "g2", ActorID: "u1", JoinRequestID: "jr-2"})
 
-	if err := s.DeleteByJoinRequestID(context.Background(), "jr-1"); err != nil {
+	deleted, err := s.DeleteByJoinRequestID(context.Background(), "jr-1")
+	if err != nil {
 		t.Fatalf("DeleteByJoinRequestID: %v", err)
+	}
+	if len(deleted) != 2 {
+		t.Errorf("deleted %d notifications, want 2", len(deleted))
+	}
+	for _, n := range deleted {
+		if n.JoinRequestID != "jr-1" || n.RecipientID == "" {
+			t.Errorf("deleted notification = %+v, want join request jr-1 with recipient", n)
+		}
 	}
 
 	_, total1, _ := s.GetByRecipient(context.Background(), "a1", 10, 0)
@@ -301,7 +325,7 @@ func TestDeleteByJoinRequestID(t *testing.T) {
 
 func TestDeleteByJoinRequestID_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteByJoinRequestID(context.Background(), "999")
+	_, err := s.DeleteByJoinRequestID(context.Background(), "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -314,8 +338,12 @@ func TestDeleteEventByRecipient(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "event", EventID: "evt-2"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "event", EventID: "evt-1"})
 
-	if err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "evt-1"); err != nil {
+	deleted, err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "evt-1")
+	if err != nil {
 		t.Fatalf("DeleteEventByRecipient: %v", err)
+	}
+	if len(deleted) != 1 || deleted[0].EventID != "evt-1" || deleted[0].RecipientID != "u1" {
+		t.Errorf("deleted = %+v, want the u1 evt-1 notification", deleted)
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -334,7 +362,7 @@ func TestDeleteEventByRecipient(t *testing.T) {
 
 func TestDeleteEventByRecipient_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "999")
+	_, err := s.DeleteEventByRecipient(context.Background(), "event", "u1", "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -347,8 +375,12 @@ func TestDeleteVoteNotifications_DeletesLikeAndDislike(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "dislike", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "comment", ResourceType: "post", ResourceID: "1", ActorID: "u3"})
 
-	if err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1"); err != nil {
+	deleted, err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1")
+	if err != nil {
 		t.Fatalf("DeleteVoteNotifications: %v", err)
+	}
+	if len(deleted) != 2 {
+		t.Errorf("deleted %d notifications, want 2 (like and dislike)", len(deleted))
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -366,8 +398,12 @@ func TestDeleteVoteNotifications_KeepsOtherResource(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "dislike", ResourceType: "post", ResourceID: "2", ActorID: "u2"})
 
-	if err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1"); err != nil {
+	deleted, err := s.DeleteVoteNotifications(context.Background(), "u2", "post", "1")
+	if err != nil {
 		t.Fatalf("DeleteVoteNotifications: %v", err)
+	}
+	if len(deleted) != 1 || deleted[0].ResourceID != "1" {
+		t.Errorf("deleted = %+v, want only the post 1 vote", deleted)
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -381,7 +417,7 @@ func TestDeleteVoteNotifications_KeepsOtherResource(t *testing.T) {
 
 func TestDeleteVoteNotifications_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteVoteNotifications(context.Background(), "u1", "post", "999")
+	_, err := s.DeleteVoteNotifications(context.Background(), "u1", "post", "999")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
@@ -394,8 +430,12 @@ func TestDeleteFollowNotifications(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow_accept", ActorID: "u2"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u1"})
 
-	if err := s.DeleteFollowNotifications(context.Background(), "u1", "u2"); err != nil {
+	deleted, err := s.DeleteFollowNotifications(context.Background(), "u1", "u2")
+	if err != nil {
 		t.Fatalf("DeleteFollowNotifications: %v", err)
+	}
+	if len(deleted) != 1 || deleted[0].Type != "follow_accept" || deleted[0].RecipientID != "u1" {
+		t.Errorf("deleted = %+v, want the follow_accept for u1 (follow_request was deduped on create)", deleted)
 	}
 
 	ns, total, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -419,8 +459,12 @@ func TestDeleteFollowNotifications_Symmetric(t *testing.T) {
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u2", Type: "follow_request", ActorID: "u1"})
 	_ = s.Create(context.Background(), &Notification{RecipientID: "u1", Type: "follow", ActorID: "u2"})
 
-	if err := s.DeleteFollowNotifications(context.Background(), "u2", "u1"); err != nil {
+	deleted, err := s.DeleteFollowNotifications(context.Background(), "u2", "u1")
+	if err != nil {
 		t.Fatalf("DeleteFollowNotifications: %v", err)
+	}
+	if len(deleted) != 1 || deleted[0].Type != "follow" || deleted[0].RecipientID != "u1" {
+		t.Errorf("deleted = %+v, want the follow for u1 (follow_request was deduped on create)", deleted)
 	}
 
 	_, total1, _ := s.GetByRecipient(context.Background(), "u1", 10, 0)
@@ -435,7 +479,7 @@ func TestDeleteFollowNotifications_Symmetric(t *testing.T) {
 
 func TestDeleteFollowNotifications_NotFound(t *testing.T) {
 	s := setupStore(t)
-	err := s.DeleteFollowNotifications(context.Background(), "u1", "u2")
+	_, err := s.DeleteFollowNotifications(context.Background(), "u1", "u2")
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}

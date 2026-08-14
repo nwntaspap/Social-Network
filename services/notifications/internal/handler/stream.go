@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -50,6 +51,7 @@ func (h *StreamHub) Publish(userID string, n store.Notification) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
+	log.Printf("this is the recipient:%s and this is the notificaiton:%v", userID, n)
 	for _, ch := range h.subs[userID] {
 		select {
 		case ch <- n:

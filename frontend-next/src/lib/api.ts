@@ -23,7 +23,7 @@ import type {
   ChatMessage,
   GroupChatMessageWire,
   GroupPresence,
-  Notification,
+  NotificationsResponse,
   FollowRequest,
   PaginatedResponse,
 } from './types';
@@ -31,6 +31,14 @@ import type {
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api/v1';
+
+/**
+ * Base URL for the standalone notifications service. The Next dev proxy routes
+ * /api/* to the main backend (8080), which does not serve /notifications/*, so
+ * the notifications UI talks to this service directly (CORS-enabled).
+ */
+const NOTIFICATIONS_BASE =
+  process.env.NEXT_PUBLIC_NOTIFICATIONS_URL || 'http://localhost:8081/api/v1';
 
 // ─── Error class ─────────────────────────────────────────────────────────────
 
@@ -330,10 +338,6 @@ export async function dislikePost(postId: number): Promise<void> {
   return api.post<void>(`/topics/vote?id=${postId}`, { reactionType: -1 });
 }
 
-export async function removePostVote(postId: number): Promise<void> {
-  return api.delete<void>(`/topics/vote?id=${postId}`);
-}
-
 export async function voteGroupPost(postId: string, reactionType: 1 | -1): Promise<void> {
   return api.post<void>(`/groups/posts/${postId}/vote`, { reactionType });
 }
@@ -356,6 +360,11 @@ export async function createComment(
 
 export async function getComments(topicId: number): Promise<Comment[]> {
   return api.get<Comment[]>('/comments/topic/votes', { topicId });
+}
+
+/** Fetch a single comment (used to resolve a comment notification's post). */
+export async function getComment(commentId: number): Promise<Comment> {
+  return api.get<Comment>('/comments/get', { id: commentId });
 }
 
 export async function voteComment(commentId: number, reactionType: 1 | -1): Promise<void> {
@@ -552,20 +561,64 @@ export async function getGroupPresence(groupId: string): Promise<GroupPresence> 
   return api.get<GroupPresence>(`/groups/${groupId}/presence`);
 }
 
-// ─── Notifications (not yet wired) ───────────────────────────────────────────
+// ─── Notifications ───────────────────────────────────────────────────────────
 
-export async function getNotifications(page = 1): Promise<PaginatedResponse<Notification>> {
-  return api.get<PaginatedResponse<Notification>>('/notifications', { page });
+async function notifFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(NOTIFICATIONS_BASE + path, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers as Record<string, string>),
+    },
+  });
+
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw new ApiError(401, 'Session expired');
+  }
+
+  if (!response.ok) {
+    let message: string;
+    const text = await response.text();
+    try {
+      const errBody = text ? JSON.parse(text) : {};
+      message = errBody?.error || errBody?.message || `HTTP ${response.status}`;
+    } catch {
+      message = text || `HTTP ${response.status}`;
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  const text = await response.text();
+  if (!text) return {} as T;
+
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new ApiError(response.status, 'Failed to parse server response');
+  }
+
+  if (body && typeof body === 'object' && 'data' in body) {
+    return (body as { data: T }).data;
+  }
+
+  return body as T;
+}
+
+export async function getNotifications(limit = 50): Promise<NotificationsResponse> {
+  return notifFetch<NotificationsResponse>(`/notifications?limit=${limit}`);
 }
 
 export async function getUnreadNotificationCount(): Promise<{ count: number }> {
-  return api.get<{ count: number }>('/notifications/unread-count');
+  return notifFetch<{ count: number }>('/notifications/unread-count');
 }
 
-export async function markNotificationRead(notificationId: string): Promise<void> {
-  return api.put<void>(`/notifications/${notificationId}/read`);
+export async function markNotificationRead(notificationId: number): Promise<void> {
+  return notifFetch<void>(`/notifications/read?id=${notificationId}`, { method: 'PATCH' });
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  return api.put<void>('/notifications/read-all');
+  return notifFetch<void>('/notifications/read-all', { method: 'PATCH' });
 }

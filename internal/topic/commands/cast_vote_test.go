@@ -87,8 +87,8 @@ func TestCastVote_InvalidReaction(t *testing.T) {
 
 func TestCastVote_RepoError(t *testing.T) {
 	repo := &mockTopicRepo{
-		castVoteFn: func(_ context.Context, _ string, _ int, _ int) error {
-			return errors.New("db error")
+		castVoteFn: func(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+			return topic.VoteChangeAdded, errors.New("db error")
 		},
 	}
 	bus := &mockEventBus{}
@@ -102,5 +102,28 @@ func TestCastVote_RepoError(t *testing.T) {
 	}
 	if bus.routingKey != "" {
 		t.Errorf("event published after error: %q", bus.routingKey)
+	}
+}
+
+func TestCastVote_ToggleOff(t *testing.T) {
+	bus := &mockEventBus{}
+	repo := &mockTopicRepo{
+		castVoteFn: func(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+			return topic.VoteChangeRemoved, nil
+		},
+	}
+	h := NewCastVoteHandler(repo, bus, &mockUserRepo{})
+
+	err := h.Execute(context.Background(), CastVoteCommand{
+		UserID: "u2", TopicID: 1, ReactionType: 1,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if bus.routingKey != "deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "deleted")
+	}
+	if bus.eventType != "post.vote.deleted" {
+		t.Errorf("eventType = %q, want %q", bus.eventType, "post.vote.deleted")
 	}
 }
