@@ -75,6 +75,12 @@ describe('getNotificationMessage', () => {
     );
   });
 
+  it('formats group join accept with the group title', () => {
+    expect(
+      getNotificationMessage(makeNotification({ type: 'group_join_accept', content_text: 'Devs' }))
+    ).toBe('Alice accepted your join request for group:"Devs"');
+  });
+
   it('falls back to actor name when actor_name is missing', () => {
     expect(getNotificationMessage(makeNotification({ type: 'like', actor_name: '' }))).toBe(
       'Someone liked your post'

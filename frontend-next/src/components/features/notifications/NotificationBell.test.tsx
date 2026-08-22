@@ -163,6 +163,32 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument());
   });
 
+  it('removes the unread badge when a live unread notification is deleted', async () => {
+    render(<NotificationBell />);
+    await waitFor(() => expect(mockGetUnreadNotificationCount).toHaveBeenCalled());
+
+    act(() => {
+      streamHandlers.notification.forEach((handler) =>
+        handler(makeNotification({ id: 7, type: 'like' }))
+      );
+    });
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Alice liked your post')).toBeInTheDocument());
+
+    act(() => {
+      streamHandlers.notification.forEach((handler) =>
+        handler(makeNotification({ id: 7, type: 'like', deleted: true }))
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Alice liked your post')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('1')).not.toBeInTheDocument();
+    });
+  });
+
   it('removes a notification from the DOM when the stream reports deleted', async () => {
     mockGetNotifications.mockResolvedValue({
       notifications: [makeNotification({ id: 7, type: 'follow', is_read: true })],

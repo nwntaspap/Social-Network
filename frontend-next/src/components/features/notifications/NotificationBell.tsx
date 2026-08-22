@@ -111,8 +111,14 @@ export default function NotificationBell() {
       if (!list) return;
 
       if (n.deleted) {
-        list.querySelector(`[data-notification-id="${n.id}"]`)?.remove();
+        const item = list.querySelector(`[data-notification-id="${n.id}"]`);
+        if (item?.classList.contains('unread')) {
+          setUnread((prev) => Math.max(0, prev - 1));
+        }
+        item?.remove();
         if (list.children.length === 0) renderEmpty(list);
+        // Re-sync with the server count (covers items that were never rendered).
+        refreshUnread();
         return;
       }
 

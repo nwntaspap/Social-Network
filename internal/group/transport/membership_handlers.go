@@ -2,6 +2,7 @@ package transport
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"social-network/internal/group"
@@ -71,6 +72,7 @@ func (h *Handler) RespondInvite(w http.ResponseWriter, r *http.Request) {
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
+	fmt.Println("this is the group id:", groupID)
 
 	var body struct {
 		Action string `json:"action"`

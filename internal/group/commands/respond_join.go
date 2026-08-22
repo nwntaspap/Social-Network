@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"social-network/internal/group"
 	"social-network/internal/platform/eventbus"
@@ -24,10 +25,11 @@ type RespondJoinHandler struct {
 	bus  eventbus.EventBus
 }
 
-func NewRespondJoinHandler(repo group.Repository, bus eventbus.EventBus) *RespondJoinHandler {
+func NewRespondJoinHandler(repo group.Repository, bus eventbus.EventBus, user user.Repository) *RespondJoinHandler {
 	return &RespondJoinHandler{
 		repo: repo,
 		bus:  bus,
+		user: user,
 	}
 }
 
@@ -65,28 +67,38 @@ func (h *RespondJoinHandler) Execute(ctx context.Context, cmd RespondJoinCommand
 		return err
 	}
 
-	if err := h.repo.DeleteJoinRequest(ctx, groupID, requesterID); err != nil {
+	err = h.repo.DeleteJoinRequest(ctx, groupID, requesterID)
+	if err != nil {
 		return err
 	}
 
-	gr, _ := h.repo.GetGroupByID(ctx, cmd.GroupID)
+	gr, err := h.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		log.Println("this is the error", err)
+		return err
+	}
 	eventType := eventbus.EventGroupJoinDeclined
 	if cmd.Accept {
 		eventType = eventbus.EventGroupJoinAccepted
-		if err := h.repo.AddMember(ctx, groupID, requesterID, group.RoleMember); err != nil {
+		err = h.repo.AddMember(ctx, groupID, requesterID, group.RoleMember)
+		if err != nil {
 			return err
 		}
 	}
 
-	actor, _ := h.user.GetByID(ctx, cmd.AdminID)
+	actor, err := h.user.GetByID(ctx, cmd.AdminID)
+	if err != nil {
+		log.Println("hello this is the eroor", err)
+		return err
+	}
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:          eventType,
-		RecipientID:   cmd.RequesterID,
+		RecipientID:   requesterID,
 		ActorID:       cmd.AdminID,
 		ActorName:     actor.Nickname,
 		ActorAvatar:   actor.AvatarPath,
 		ResourceType:  eventbus.ResourceGroup,
-		ResourceID:    cmd.GroupID,
+		ResourceID:    groupID,
 		JoinRequestID: jr.ID,
 		ContentText:   gr.Title,
 	})

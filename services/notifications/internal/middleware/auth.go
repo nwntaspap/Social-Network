@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,6 +28,11 @@ func NewAuth(backendURL string) *Auth {
 		backendURL: backendURL,
 		client: &http.Client{
 			Timeout: 5 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true, //nolint:gosec
+				},
+			},
 		},
 	}
 }

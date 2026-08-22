@@ -35,7 +35,9 @@ export function getNotificationMessage(n: Notification): string {
     case 'group_join_request':
       return `${name} wants to join your group`;
     case 'group_join_accept':
-      return `${name} accepted your group join request`;
+      return n.content_text
+        ? `${name} accepted your join request for group:"${n.content_text}"`
+        : `${name} accepted your group join request`;
     case 'group_join_declined':
       return `${name} declined your group join request`;
     case 'event':

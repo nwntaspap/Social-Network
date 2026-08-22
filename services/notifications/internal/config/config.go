@@ -10,7 +10,7 @@ import (
 const (
 	defaultHost       = "0.0.0.0"
 	defaultPort       = "8081"
-	defaultBackendURL = "http://localhost:8080/api/v1"
+	defaultBackendURL = "https://localhost:8080/api/v1"
 	defaultDBPath     = "db/data/notifications.db"
 	defaultCORSOrigin = "http://localhost:3001"
 )
