@@ -4,7 +4,7 @@
   "description": "Next.js frontend for Social-Network",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "NODE_EXTRA_CA_CERTS=../certs/localhost+2.pem next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",

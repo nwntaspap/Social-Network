@@ -265,8 +265,13 @@ run-broker: ## Start the message broker container
 	@echo "📨 Starting broker container on port 5672..."
 	@docker rm -f social-network-broker 2>/dev/null || true
 	@docker run -d --rm --name social-network-broker -p 5672:5672 danielkotsi/golangmq
-	@sleep 1
-	@echo "✅ Broker container started (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
+	@echo "⏳ Waiting for broker to accept connections..."
+	@ok=0; for i in $$(seq 1 60); do \
+		if nc -z 127.0.0.1 5672 >/dev/null 2>&1; then ok=1; break; fi; \
+		sleep 0.5; \
+	done; \
+	if [ "$$ok" != "1" ]; then echo "❌ Broker did not become ready"; exit 1; fi
+	@echo "✅ Broker ready on port 5672 (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
 
 run-frontend: ## Run frontend natively (Next.js or legacy)
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
@@ -282,10 +287,10 @@ run-frontend: ## Run frontend natively (Next.js or legacy)
 
 run: ## Run backend + frontend concurrently (native)
 	@trap 'kill 0' EXIT; \
-	$(MAKE) -s run-broker & \
-	$(MAKE) -s run-notifications & \
-	$(MAKE) -s run-backend & \
-	$(MAKE) -s run-frontend
+	$(MAKE) -s run-broker && \
+	{ $(MAKE) -s run-notifications & \
+	  $(MAKE) -s run-backend & \
+	  $(MAKE) -s run-frontend; }
 
 run-all: run ## Alias for run
 
