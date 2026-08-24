@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -46,6 +47,12 @@ func (m *goBrokerMessage) Nack(requeue bool) error {
 }
 
 func NewGoBroker() (*GoBroker, error) {
+	// Broker address is configurable so the service works in Docker
+	// (broker:5672) and locally (default localhost:5672).
+	addr := os.Getenv("NOTIFICATIONS_BROKER_URL")
+	if addr == "" {
+		addr = "localhost:5672"
+	}
 	cfg := gomqSDK.Config{
 		ClientName:   "notifications-service",
 		Username:     "social-network",
@@ -54,7 +61,7 @@ func NewGoBroker() (*GoBroker, error) {
 		FrameMax:     10372,
 		HeartbeatSec: 10,
 	}
-	client, err := gomqSDK.Connect("localhost:5672", cfg)
+	client, err := gomqSDK.Connect(addr, cfg)
 	if err != nil {
 		fmt.Println("not connected to broker")
 		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%w", err)

@@ -2,6 +2,7 @@ package queries
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -23,8 +24,8 @@ func TestListEventRSVPsResolver(t *testing.T) {
 		{EventID: "evt-1", UserID: "u3", OptionID: "opt-2"},
 	}
 
-	resolver := NewListEventRSVPsResolver(repo)
-	result, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "evt-1"})
+	resolver := NewListEventRSVPsResolver(repo, newFakeMemberChecker().add("g1", "u1"))
+	result, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "evt-1", RequesterID: "u1"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -51,8 +52,8 @@ func TestListEventRSVPsResolver_Empty(t *testing.T) {
 	repo := newFakeEventRepo()
 	repo.events["evt-1"] = &event.Event{ID: "evt-1", GroupID: "g1", Title: "Event 1", ScheduledTime: time.Now().Add(time.Hour)}
 
-	resolver := NewListEventRSVPsResolver(repo)
-	result, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "evt-1"})
+	resolver := NewListEventRSVPsResolver(repo, newFakeMemberChecker().add("g1", "u1"))
+	result, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "evt-1", RequesterID: "u1"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -65,9 +66,21 @@ func TestListEventRSVPsResolver_EventNotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeEventRepo()
 
-	resolver := NewListEventRSVPsResolver(repo)
-	_, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "missing"})
+	resolver := NewListEventRSVPsResolver(repo, newFakeMemberChecker())
+	_, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "missing", RequesterID: "u1"})
 	if err == nil {
 		t.Fatal("expected error for missing event")
+	}
+}
+
+func TestListEventRSVPsResolver_NonMemberDenied(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeEventRepo()
+	repo.events["evt-1"] = &event.Event{ID: "evt-1", GroupID: "g1", Title: "Event 1"}
+
+	resolver := NewListEventRSVPsResolver(repo, newFakeMemberChecker())
+	_, err := resolver.Resolve(ctx, ListEventRSVPsQuery{EventID: "evt-1", RequesterID: "outsider"})
+	if !errors.Is(err, ErrNotGroupMember) {
+		t.Errorf("Resolve() error = %v, want %v", err, ErrNotGroupMember)
 	}
 }

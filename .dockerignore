@@ -49,3 +49,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Node
+node_modules/
+frontend-next/node_modules/

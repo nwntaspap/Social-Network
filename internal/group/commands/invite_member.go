@@ -11,7 +11,7 @@ import (
 	"social-network/internal/user"
 )
 
-var ErrNotConnected = errors.New("users are not connected: inviter must follow invitee")
+var ErrNotConnected = errors.New("users are not connected: invitee must be a follower of the inviter")
 
 type InviteMemberCommand struct {
 	GroupID   string
@@ -66,7 +66,8 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 		return nil, group.ErrAlreadyInvited
 	}
 
-	connected, err := h.follow.AreConnected(ctx, cmd.InviterID, cmd.InviteeID)
+	// Only followers may be invited: the invitee must follow the inviter.
+	connected, err := h.follow.AreConnected(ctx, cmd.InviteeID, cmd.InviterID)
 	if err != nil {
 		return nil, err
 	}

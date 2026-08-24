@@ -1,0 +1,47 @@
+# Multi-stage Dockerfile for the notifications microservice
+# Build:  docker build -f Dockerfile.notifications -t social-network-notifications .
+
+# Stage 1: Build the service binary
+FROM golang:1.25-alpine AS builder
+
+# Install build dependencies for SQLite3 (CGO required)
+RUN apk add --no-cache gcc musl-dev sqlite-dev
+
+WORKDIR /app
+
+# The service is its own Go module
+COPY services/notifications/go.mod services/notifications/go.sum ./
+RUN go mod download
+
+COPY services/notifications/ .
+
+# Build with CGO enabled for SQLite3
+RUN CGO_ENABLED=1 GOOS=linux go build \
+    -ldflags="-extldflags=-static" \
+    -o /bin/notifications \
+    ./cmd/server/main.go
+
+# Stage 2: Runtime image
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    addgroup -g 1002 appuser && \
+    adduser -D -u 1002 -G appuser appuser
+
+WORKDIR /app
+
+COPY --from=builder /bin/notifications /app/notifications
+COPY --from=builder /app/migrations /app/migrations
+
+RUN mkdir -p /app/db/data && chown -R appuser:appuser /app/db/data
+
+USER appuser
+
+ENV NOTIFICATIONS_HOST=0.0.0.0 \
+    NOTIFICATIONS_PORT=8081 \
+    NOTIFICATIONS_DB_PATH=db/data/notifications.db
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/api/v1/notifications/unread-count || exit 1CMD ["/app/notifications"]

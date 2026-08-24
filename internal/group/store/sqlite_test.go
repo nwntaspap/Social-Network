@@ -226,6 +226,28 @@ func TestCreatePost_ThenGetPostsByGroupID_ReturnsIt(t *testing.T) {
 	}
 }
 
+func TestGetPostByID_RoundTrip(t *testing.T) {
+	s := setupGroupPostStore(t)
+	ctx := context.Background()
+
+	p := &group.Post{ID: "p-byid", GroupID: "g1", AuthorID: "u1", Title: "T", Content: "C"}
+	if err := s.CreatePost(ctx, p); err != nil {
+		t.Fatalf("CreatePost: %v", err)
+	}
+
+	got, err := s.GetPostByID(ctx, "p-byid")
+	if err != nil {
+		t.Fatalf("GetPostByID: %v", err)
+	}
+	if got.GroupID != "g1" || got.AuthorID != "u1" || got.Title != "T" {
+		t.Errorf("post = %+v, want group g1 author u1 title T", got)
+	}
+
+	if _, err := s.GetPostByID(ctx, "missing"); !errors.Is(err, group.ErrPostNotFound) {
+		t.Errorf("GetPostByID(missing) error = %v, want ErrPostNotFound", err)
+	}
+}
+
 func TestGetPostComments_NullImagePath(t *testing.T) {
 	s := setupGroupPostStore(t)
 	ctx := context.Background()

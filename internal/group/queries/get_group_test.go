@@ -169,3 +169,7 @@ func TestGetGroupResolver_ForwardsCountError(t *testing.T) {
 		t.Fatal("Resolve() expected error from CountMembers")
 	}
 }
+
+func (s *getGroupStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
+}

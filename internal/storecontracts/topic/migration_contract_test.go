@@ -23,6 +23,7 @@ CREATE TABLE users (
     password_hash TEXT,
     first_name TEXT,
     last_name TEXT,
+    is_private BOOLEAN NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE categories (
@@ -66,6 +67,25 @@ CREATE INDEX idx_topics_created ON topics(created_at DESC);`
 
 // New schema matches internal/topic/store: has visibility, group_id, topic_allowed_users.
 const newSchema = legacySchema + `
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    topic_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    image_path TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY(topic_id) REFERENCES topics(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE follows (
+    follower_id TEXT NOT NULL,
+    followee_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, followee_id),
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (followee_id) REFERENCES users(id) ON DELETE CASCADE
+);
 ALTER TABLE topics ADD COLUMN visibility INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE topics ADD COLUMN group_id TEXT;
 CREATE TABLE topic_allowed_users (

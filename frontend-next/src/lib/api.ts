@@ -37,8 +37,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api/v1';
  * /api/* to the main backend (8080), which does not serve /notifications/*, so
  * the notifications UI talks to this service directly (CORS-enabled).
  */
-const NOTIFICATIONS_BASE =
-  process.env.NEXT_PUBLIC_NOTIFICATIONS_URL || 'http://localhost:8081/api/v1';
+// Proxied through Next.js (see next.config.ts rewrites) so the session
+// cookie stays first-party and no CORS setup is required.
+const NOTIFICATIONS_BASE = '/notifications-api/api/v1';
 
 // ─── Error class ─────────────────────────────────────────────────────────────
 
@@ -199,8 +200,35 @@ export async function loginUsername(username: string, password: string): Promise
   return api.post<LoginResponse>('/login/username', { identifier: username, password });
 }
 
-export async function register(body: RegisterBody): Promise<void> {
-  return api.post<void>('/register', body);
+export async function register(body: RegisterBody, avatar?: File | null): Promise<void> {
+  const form = new FormData();
+  form.append('email', body.email);
+  form.append('password', body.password);
+  form.append('firstName', body.firstName);
+  form.append('lastName', body.lastName);
+  form.append('nickname', body.nickname);
+  form.append('dateOfBirth', body.dateOfBirth);
+  form.append('gender', body.gender);
+  if (avatar) {
+    form.append('avatar', avatar);
+  }
+  const url = API_BASE + '/register';
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    let message = `HTTP ${response.status}`;
+    try {
+      const err = text ? JSON.parse(text) : {};
+      message = err.error || err.message || message;
+    } catch {
+      if (text) message = text;
+    }
+    throw new ApiError(response.status, message);
+  }
 }
 
 export async function logout(): Promise<void> {
@@ -221,8 +249,8 @@ export async function updateProfile(body: Partial<User>): Promise<User> {
   return api.put<User>('/user/update', body);
 }
 
-export async function toggleProfilePrivacy(): Promise<void> {
-  return api.post<void>('/user/privacy');
+export async function toggleProfilePrivacy(isPrivate: boolean): Promise<void> {
+  return api.post<void>('/user/privacy', { isPrivate });
 }
 
 export async function searchUsers(query: string, page = 1): Promise<PaginatedResponse<User>> {

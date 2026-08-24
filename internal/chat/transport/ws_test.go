@@ -193,7 +193,7 @@ func TestWS_HistoryReturnsResult(t *testing.T) {
 
 func TestWS_MarkRead(t *testing.T) {
 	hub := realtime.NewHub()
-	h, _, markRead := newTestWSHandler(t, hub, nil)
+	h, _, markRead := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2"})
 	client := realtime.NewClient("u1", hub, nil)
 
 	payload, _ := json.Marshal(realtime.MarkReadPayload{ChatID: "c1", UpToMessageID: 5})
@@ -201,6 +201,23 @@ func TestWS_MarkRead(t *testing.T) {
 
 	if markRead.calls != 1 {
 		t.Fatalf("markRead.calls = %d, want 1", markRead.calls)
+	}
+}
+
+func TestWS_MarkReadRejectsNonParticipant(t *testing.T) {
+	hub := realtime.NewHub()
+	h, _, markRead := newTestWSHandler(t, hub, &chat.Chat{ID: "c1", UserOneID: "u1", UserTwoID: "u2"})
+	client := realtime.NewClient("u9", hub, nil)
+
+	payload, _ := json.Marshal(realtime.MarkReadPayload{ChatID: "c1", UpToMessageID: 5})
+	h.handleMarkRead(client, realtime.Envelope{Type: realtime.TypeMarkRead, Payload: payload})
+
+	reply := readEnvelope(t, client)
+	if reply.Type != realtime.TypeError {
+		t.Fatalf("reply type = %s, want error", reply.Type)
+	}
+	if markRead.calls != 0 {
+		t.Fatalf("markRead.calls = %d, want 0", markRead.calls)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"social-network/internal/pkg/imgutil"
 	"social-network/internal/topic"
 )
 
@@ -45,6 +46,9 @@ func (h *UpdateTopicHandler) Execute(ctx context.Context, cmd UpdateTopicCommand
 	}
 
 	if len(cmd.ImageData) > 0 && cmd.ImageFileName != "" {
+		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
+			return nil, err
+		}
 		oldPath, _ := h.repo.GetImagePathFromTopicID(ctx, cmd.TopicID, cmd.UserID)
 		if oldPath != "" {
 			_ = h.img.Delete(ctx, oldPath)

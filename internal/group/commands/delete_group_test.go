@@ -196,3 +196,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 		}
 	})
 }
+
+func (s *deleteGroupStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
+}

@@ -44,8 +44,8 @@ func initComment(db database.DB, bus eventbus.EventBus, logger logger.Logger) *c
 		commentcommands.NewDeleteCommentVoteHandler(store, bus),
 		commentqueries.NewGetCommentByIDResolver(store),
 		commentqueries.NewGetCommentByIDWithVotesResolver(store),
-		commentqueries.NewGetCommentsByTopicResolver(store),
-		commentqueries.NewGetCommentsByTopicWithVotesResolver(store),
+		commentqueries.NewGetCommentsByTopicResolver(store, topics),
+		commentqueries.NewGetCommentsByTopicWithVotesResolver(store, topics),
 		commentqueries.NewGetVoteCountsResolver(store),
 		logger,
 	)

@@ -17,8 +17,9 @@
 
 import type { Notification } from './types';
 
-const NOTIFICATIONS_BASE =
-  process.env.NEXT_PUBLIC_NOTIFICATIONS_URL || 'http://localhost:8081/api/v1';
+// Proxied through Next.js (see next.config.ts rewrites) so the session
+// cookie stays first-party and no CORS setup is required.
+const NOTIFICATIONS_BASE = '/notifications-api/api/v1';
 
 type NotificationHandler = (notification: Notification) => void;
 type UnreadCountHandler = (count: number) => void;

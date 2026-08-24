@@ -181,6 +181,24 @@ func (s *SQLiteStore) CreatePost(ctx context.Context, p *group.Post) error {
 	return err
 }
 
+func (s *SQLiteStore) GetPostByID(ctx context.Context, postID string) (*group.Post, error) {
+	var p group.Post
+	var imagePath sql.NullString
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, group_id, author_id, title, content, image_path, created_at
+		 FROM group_posts WHERE id = ?`, postID).Scan(
+		&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &imagePath, &p.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, group.ErrPostNotFound
+		}
+		return nil, fmt.Errorf("get group post: %w", err)
+	}
+	p.ImagePath = imagePath.String
+	return &p, nil
+}
+
 func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID, userID string, page, size int) ([]group.Post, int, error) {
 	var total int
 	err := s.db.QueryRowContext(ctx,

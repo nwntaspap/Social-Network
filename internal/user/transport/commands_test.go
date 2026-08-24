@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +17,29 @@ import (
 	"social-network/internal/user/queries"
 )
 
+// newRegisterFormRequest builds a multipart POST /api/register request.
+func newRegisterFormRequest(t *testing.T, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		_ = w.WriteField(k, v)
+	}
+	_ = w.Close()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+var registerDefaultFields = map[string]string{
+	"email":       "a@b.com",
+	"password":    "password123",
+	"firstName":   "John",
+	"lastName":    "Doe",
+	"nickname":    "nick",
+	"dateOfBirth": "2000-01-01T00:00:00Z",
+}
+
 func TestRegister_Success(t *testing.T) {
 	h := newTestHandler(func(h *Handler) {
 		h.register = &stubRegister{
@@ -24,14 +48,7 @@ func TestRegister_Success(t *testing.T) {
 	})
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{
-		"email":       "a@b.com",
-		"password":    "password123",
-		"nickname":    "nick",
-		"dateOfBirth": "2000-01-01T00:00:00Z",
-	})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegisterFormRequest(t, registerDefaultFields)
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)
@@ -55,14 +72,15 @@ func TestRegister_DateOnlyAccepted(t *testing.T) {
 	})
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{
+	fields := map[string]string{
 		"email":       "a@b.com",
 		"password":    "password123",
+		"firstName":   "John",
+		"lastName":    "Doe",
 		"nickname":    "nick",
 		"dateOfBirth": "2000-01-15",
-	})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	}
+	req := newRegisterFormRequest(t, fields)
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)
@@ -81,20 +99,53 @@ func TestRegister_DateOnlyAccepted(t *testing.T) {
 	}
 }
 
+func TestRegister_GenderPassthrough(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.register = &stubRegister{user: &user.User{ID: "u1", Email: "a@b.com"}}
+	})
+	withDefaults(h)
+
+	fields := map[string]string{
+		"email":       "a@b.com",
+		"password":    "password123",
+		"firstName":   "John",
+		"lastName":    "Doe",
+		"nickname":    "nick",
+		"dateOfBirth": "2000-01-15",
+		"gender":      "female",
+	}
+	req := newRegisterFormRequest(t, fields)
+	rr := httptest.NewRecorder()
+
+	h.Register(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusCreated)
+	}
+	stub, ok := h.register.(*stubRegister)
+	if !ok {
+		t.Fatal("register handler is not a *stubRegister")
+	}
+	if stub.got.Gender != "female" {
+		t.Errorf("Gender = %q, want %q", stub.got.Gender, "female")
+	}
+}
+
 func TestRegister_InvalidDateFormat(t *testing.T) {
 	h := newTestHandler(func(h *Handler) {
 		h.register = &stubRegister{user: &user.User{ID: "u1", Email: "a@b.com"}}
 	})
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{
+	fields := map[string]string{
 		"email":       "a@b.com",
 		"password":    "password123",
+		"firstName":   "John",
+		"lastName":    "Doe",
 		"nickname":    "nick",
 		"dateOfBirth": "not-a-date",
-	})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	}
+	req := newRegisterFormRequest(t, fields)
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)
@@ -122,8 +173,8 @@ func TestRegister_InvalidBody(t *testing.T) {
 	h := newTestHandler()
 	withDefaults(h)
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader([]byte("not json")))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader([]byte("not multipart")))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=does-not-exist")
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)
@@ -139,14 +190,7 @@ func TestRegister_EmailTaken(t *testing.T) {
 	})
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{
-		"email":       "a@b.com",
-		"password":    "password123",
-		"nickname":    "nick",
-		"dateOfBirth": "2000-01-01T00:00:00Z",
-	})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegisterFormRequest(t, registerDefaultFields)
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)
@@ -162,14 +206,7 @@ func TestRegister_InternalError(t *testing.T) {
 	})
 	withDefaults(h)
 
-	body, _ := json.Marshal(map[string]string{
-		"email":       "a@b.com",
-		"password":    "password123",
-		"nickname":    "nick",
-		"dateOfBirth": "2000-01-01T00:00:00Z",
-	})
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newRegisterFormRequest(t, registerDefaultFields)
 	rr := httptest.NewRecorder()
 
 	h.Register(rr, req)

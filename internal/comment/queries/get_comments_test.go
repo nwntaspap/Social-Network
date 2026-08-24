@@ -6,7 +6,19 @@ import (
 	"testing"
 
 	"social-network/internal/comment"
+	"social-network/internal/topic"
 )
+
+type fakeTopicChecker struct {
+	err error
+}
+
+func (f *fakeTopicChecker) GetTopicByID(_ context.Context, _ int, _ *string) (*topic.Topic, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &topic.Topic{}, nil
+}
 
 type mockRepo struct {
 	getResult     []comment.Comment
@@ -60,7 +72,7 @@ func TestGetCommentsByTopicResolver_Success(t *testing.T) {
 		{ID: 2, TopicID: 1, UserID: "u2", Content: "b"},
 	}
 	repo := &mockRepo{getResult: expected}
-	r := NewGetCommentsByTopicResolver(repo)
+	r := NewGetCommentsByTopicResolver(repo, &fakeTopicChecker{})
 
 	result, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1})
 	if err != nil {
@@ -76,7 +88,7 @@ func TestGetCommentsByTopicResolver_Success(t *testing.T) {
 
 func TestGetCommentsByTopicResolver_Empty(t *testing.T) {
 	repo := &mockRepo{getResult: []comment.Comment{}}
-	r := NewGetCommentsByTopicResolver(repo)
+	r := NewGetCommentsByTopicResolver(repo, &fakeTopicChecker{})
 
 	result, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1})
 	if err != nil {
@@ -89,10 +101,20 @@ func TestGetCommentsByTopicResolver_Empty(t *testing.T) {
 
 func TestGetCommentsByTopicResolver_Error(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db down")}
-	r := NewGetCommentsByTopicResolver(repo)
+	r := NewGetCommentsByTopicResolver(repo, &fakeTopicChecker{})
 
 	_, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1})
 	if err == nil {
 		t.Fatal("Resolve() expected error, got nil")
+	}
+}
+
+func TestGetCommentsByTopicResolver_HiddenTopicDenied(t *testing.T) {
+	repo := &mockRepo{getResult: []comment.Comment{{ID: 1, TopicID: 1}}}
+	r := NewGetCommentsByTopicResolver(repo, &fakeTopicChecker{err: topic.ErrTopicNotFound})
+
+	_, err := r.Resolve(context.Background(), GetCommentsByTopicQuery{TopicID: 1})
+	if !errors.Is(err, topic.ErrTopicNotFound) {
+		t.Errorf("Resolve() error = %v, want ErrTopicNotFound", err)
 	}
 }

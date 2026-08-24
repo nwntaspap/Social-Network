@@ -6,6 +6,7 @@ import (
 
 	"social-network/internal/comment/queries"
 	"social-network/internal/pkg/helpers"
+	"social-network/internal/topic"
 )
 
 func (h *Handler) GetCommentsByTopic(w http.ResponseWriter, r *http.Request) {
@@ -22,11 +23,18 @@ func (h *Handler) GetCommentsByTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requesterID, _ := h.extractUser(r)
+
 	comments, err := h.getByTopic.Resolve(r.Context(), queries.GetCommentsByTopicQuery{
-		TopicID: topicID,
+		TopicID:     topicID,
+		RequesterID: requesterID,
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, topic.ErrTopicNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, "Topic not found")
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

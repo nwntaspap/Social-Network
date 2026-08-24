@@ -228,3 +228,7 @@ func TestUpdateGroupHandler_Execute(t *testing.T) {
 		}
 	})
 }
+
+func (s *updateGroupStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
+}

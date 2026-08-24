@@ -73,6 +73,7 @@ func (r Repo) CreateTopic(ctx context.Context, topic *topic.Topic) error {
 	if err != nil {
 		return fmt.Errorf("failed to get last insert id: %w", err)
 	}
+	topic.ID = int(topicID)
 
 	categoryQuery := `
 	INSERT INTO topic_categories (topic_id, category_id)

@@ -219,6 +219,14 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, group.ErrNotMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if errors.Is(err, group.ErrPostNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -228,6 +236,13 @@ func (h *Handler) CreateGroupPostComment(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) GetGroupPostComments(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.extractUser(r)
+	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
 	postID, ok := h.requirePathParam(w, r, "postId", "postId")
 	if !ok {
 		return
@@ -235,10 +250,18 @@ func (h *Handler) GetGroupPostComments(w http.ResponseWriter, r *http.Request) {
 
 	pagination := helpers.GetPagination(r)
 	res, err := h.getGroupPostComments.Resolve(r.Context(), queries.GetGroupPostCommentsQuery{
-		PostID: postID, Page: pagination.Page, Size: pagination.Limit,
+		PostID: postID, RequesterID: userID, Page: pagination.Page, Size: pagination.Limit,
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, group.ErrNotMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		if errors.Is(err, group.ErrPostNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

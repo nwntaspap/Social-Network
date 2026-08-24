@@ -254,3 +254,7 @@ func TestRespondInviteHandler_DeclineDeletesInvitation(t *testing.T) {
 		t.Error("expected no join request on decline")
 	}
 }
+
+func (s *respondInviteStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
+}

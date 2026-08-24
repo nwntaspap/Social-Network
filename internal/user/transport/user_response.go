@@ -17,6 +17,7 @@ func userResponse(u *user.User) map[string]any {
 		"firstName":   u.FirstName,
 		"lastName":    u.LastName,
 		"aboutMe":     u.AboutMe,
+		"gender":      u.Gender,
 		"dateOfBirth": u.DateOfBirth.Format(dateOnlyLayout),
 		"avatarUrl":   u.AvatarPath,
 		"isPublic":    !u.IsPrivate,

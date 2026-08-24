@@ -145,6 +145,13 @@ func (h *Handler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListGroupEvents(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.extractUser(r)
+	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
 	groupID, ok := h.requirePathParam(w, r, "groupId", "Group ID")
 	if !ok {
 		return
@@ -160,14 +167,19 @@ func (h *Handler) ListGroupEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := queries.ListGroupEventsQuery{
-		GroupID: groupID,
-		Cursor:  cursor,
-		Size:    size,
+		GroupID:     groupID,
+		RequesterID: userID,
+		Cursor:      cursor,
+		Size:        size,
 	}
 
 	events, nextCursor, err := h.listGroupEvents.Resolve(r.Context(), q)
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, queries.ErrNotGroupMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -225,6 +237,10 @@ func (h *Handler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.rsvp.Execute(r.Context(), cmd); err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, commands.ErrNotGroupMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -233,14 +249,25 @@ func (h *Handler) RespondToEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListEventResponders(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.extractUser(r)
+	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
 	eventID, ok := h.requirePathParam(w, r, "eventId", "Event ID")
 	if !ok {
 		return
 	}
 
-	options, err := h.listEventRSVPs.Resolve(r.Context(), queries.ListEventRSVPsQuery{EventID: eventID})
+	options, err := h.listEventRSVPs.Resolve(r.Context(), queries.ListEventRSVPsQuery{EventID: eventID, RequesterID: userID})
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, queries.ErrNotGroupMember) {
+			helpers.RespondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}

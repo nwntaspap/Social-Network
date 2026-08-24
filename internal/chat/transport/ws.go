@@ -218,6 +218,17 @@ func (h *WSHandler) handleMarkRead(client *realtime.Client, env realtime.Envelop
 		sendRealtimeError(client, env.RequestID, "invalid mark_read payload")
 		return
 	}
+
+	c, err := h.getChat.GetChat(context.Background(), payload.ChatID)
+	if err != nil {
+		sendRealtimeError(client, env.RequestID, err.Error())
+		return
+	}
+	if c.UserOneID != client.UserID && c.UserTwoID != client.UserID {
+		sendRealtimeError(client, env.RequestID, "not a participant of this chat")
+		return
+	}
+
 	if err := h.markAsRead.MarkAsRead(context.Background(), payload.ChatID, client.UserID, payload.UpToMessageID); err != nil {
 		sendRealtimeError(client, env.RequestID, err.Error())
 	}

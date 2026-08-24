@@ -13,7 +13,8 @@ const topicSchema = `
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
-    username TEXT NOT NULL UNIQUE
+    username TEXT NOT NULL UNIQUE,
+    is_private BOOLEAN NOT NULL DEFAULT 0
 );
 CREATE TABLE topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

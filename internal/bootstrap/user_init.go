@@ -8,6 +8,7 @@ import (
 	"social-network/internal/core/middleware"
 	coresession "social-network/internal/core/session"
 	followstore "social-network/internal/follow/store"
+	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/pkg/bcrypt"
 	"social-network/internal/pkg/uuid"
 	"social-network/internal/platform/database"
@@ -33,7 +34,7 @@ func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewar
 
 	return usertransport.NewHandler(
 		&authUserExtractor{},
-		usercommands.NewRegisterHandler(userStore, uuidProvider, bcryptProvider),
+		usercommands.NewRegisterHandler(userStore, uuidProvider, bcryptProvider, localstorage.NewLocalStorage()),
 		usercommands.NewLoginHandler(userStore, bcryptProvider, sessionMgr),
 		usercommands.NewLogoutHandler(sessionMgr),
 		usercommands.NewUpdateProfileHandler(userStore, bus),

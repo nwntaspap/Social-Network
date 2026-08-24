@@ -25,6 +25,7 @@ The system uses SQLite (with Write-Ahead Logging `WAL` and busy timeout configur
 -- Note: schema_migrations is used by custom migration system.
 
 -- Altered in 000002_user_profile_fields.up.sql: added date_of_birth, about_me, is_private; dropped age.
+-- Altered in 000014_user_gender.up.sql: added gender (male/female/other/prefer_not_to_say; empty = prefer_not_to_say).
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE,
     about_me TEXT,
     is_private BOOLEAN NOT NULL DEFAULT 0,
+    gender TEXT NOT NULL DEFAULT 'prefer_not_to_say',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -282,13 +284,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 | 000006    | `groups`                | Create groups, group_members, group_invitations, group_join_requests, group_chat_messages, group_posts, group_post_comments |
 | 000007    | `events`                | Create events, event_options, event_rsvps                                                                                   |
 | 000008    | `migrate_chats`         | Create chats, messages; migrate legacy chat data                                                                            |
-| 000009    | `seed_data`             | Optional: demo users, posts, groups, follows                                                                                |
+| 000009    | `seed_data`             | Demo dataset (users, follows, groups, chats, events, posts, topics, comments, votes, notifications)                         |
 | 000010    | `migrate_group_topics`  | Backfill group_posts from group topics (topics with `group_id`)                                                             |
 | 000011    | `group_post_votes`      | Create group_post_votes (user_id, post_id, reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id))                         |
 | 000012    | `chat_pair_unique`      | Deduplicate 1:1 chats per (user_one_id, user_two_id) pair; add UNIQUE index idx_chats_pair                                  |
 | 000013    | `group_chat_reads`      | Create group_chat_reads (group_id, user_id, last_read_at) per-user read markers for group chat unread                       |
+| 000014    | `user_gender`           | Add gender column to users (male/female/other/prefer_not_to_say; empty defaults to prefer_not_to_say)                       |
 
-**Gap note:** All numbered migrations (000001–000013) exist in `db/migrations/` as paired up/down scripts. See `target-architecture-with-phases.md` for the full migration plan.
+**Gap note:** All numbered migrations (000001–000014) exist in `db/migrations/` as paired up/down scripts. See `target-architecture-with-phases.md` for the full migration plan.
 
 **Note on SDS SQL comments above:** The inline migration-number comments in the SQL schema (e.g. `-- 000005_groups.up.sql`) are approximate references. The canonical numbering is this table.
 
@@ -723,7 +726,8 @@ Semantic CSS variables are defined in `src/styles/`:
   - `First Name` & `Last Name`: Required string validations.
   - `Date of Birth`: Date picker enforcing a minimum age constraint of 13.
   - `Avatar` (optional): Upload handler incorporating magic-byte checking on client/server side to prevent non-image extensions.
-  - `Nickname` & `About Me`: Optional string inputs.
+  - `Nickname`: Optional string input (auto-generated when empty).
+  - `Gender`: Select input (`male` / `female` / `other` / `prefer not to say`). About Me is **not** part of registration — it is edited on the profile page.
 - **Confirmation dialogs**: All destructive or critical user operations (e.g., deleting a post, leaving a group, unfollowing, declining a request, toggling profile privacy) must prompt the user with a `shadcn/ui` Dialog overlay for confirmation before executing.
 - **Notification vs message display**: Notifications are displayed in a dedicated UI panel (bell icon with unread count), visually and structurally distinct from the Chat panel. This ensures users can differentiate new notifications (follow requests, group invites, event alerts) from new private messages at a glance.
 

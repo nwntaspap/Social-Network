@@ -191,6 +191,59 @@ func TestPrivateAccessRevokedOnUnfollow(t *testing.T) {
 	}
 }
 
+// TestPrivateAuthorPostsHiddenFromNonFollowers verifies the author-privacy
+// guard: when an author's profile is private, ALL their posts (including
+// public ones) are invisible to non-followers, in both feed and profile queries.
+func TestPrivateAuthorPostsHiddenFromNonFollowers(t *testing.T) {
+	s := setupTopicStore(t)
+	seedVisibilityTopics(t, s)
+
+	// Make author u1 private. u2 and u3 follow u1; a new user "stranger" does not.
+	if _, err := s.db.ExecContext(context.Background(),
+		`UPDATE users SET is_private = 1 WHERE id = 'u1'`); err != nil {
+		t.Fatalf("set private: %v", err)
+	}
+
+	// Non-follower sees none of the private-profile author's posts.
+	topics, count, err := s.GetTopicsByUserID(context.Background(), "u1", "stranger", 1, 10)
+	if err != nil {
+		t.Fatalf("GetTopicsByUserID stranger: %v", err)
+	}
+	if len(topics) != 0 || count != 0 {
+		t.Errorf("stranger profile view = %d/%d, want 0/0", len(topics), count)
+	}
+	feedTopics, count, err := s.GetFeed(context.Background(), "stranger", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed stranger: %v", err)
+	}
+	for _, tpc := range feedTopics {
+		if tpc.UserID == "u1" {
+			t.Errorf("feed leaked post %q from private-profile author to non-follower", tpc.Title)
+		}
+	}
+	_ = count
+
+	// Follower still sees public + followers-only posts.
+	topics, count, err = s.GetTopicsByUserID(context.Background(), "u1", "u3", 1, 10)
+	if err != nil {
+		t.Fatalf("GetTopicsByUserID follower: %v", err)
+	}
+	assertTitles(t, topicTitles(topics), "Followers", "Public")
+	if count != 2 {
+		t.Errorf("follower profile view count = %d, want 2", count)
+	}
+
+	// Owner always sees everything.
+	topics, count, err = s.GetTopicsByUserID(context.Background(), "u1", "u1", 1, 10)
+	if err != nil {
+		t.Fatalf("GetTopicsByUserID owner: %v", err)
+	}
+	assertTitles(t, topicTitles(topics), "Private", "Followers", "Public")
+	if count != 3 {
+		t.Errorf("owner profile view count = %d, want 3", count)
+	}
+}
+
 func TestDeleteVote_Nonexistent(t *testing.T) {
 	s := setupTopicStore(t)
 

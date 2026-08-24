@@ -64,3 +64,7 @@ func TestCastGroupPostVoteHandler_Execute(t *testing.T) {
 		}
 	})
 }
+
+func (s *castGroupPostVoteStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
+}

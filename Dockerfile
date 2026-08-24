@@ -1,7 +1,7 @@
-# Multi-stage Dockerfile for Go Forum Application
-# Builds both backend API server and frontend client server
+# Multi-stage Dockerfile for the Go backend API server
+# The frontend runs in its own container (see Dockerfile.frontend).
 
-# Stage 1: Build both binaries
+# Stage 1: Build the backend binary
 FROM golang:1.25-alpine AS builder
 
 # Install build dependencies for SQLite3 (CGO required)
@@ -22,12 +22,6 @@ RUN CGO_ENABLED=1 GOOS=linux go build \
     -o /bin/server \
     ./cmd/server/main.go
 
-# Build frontend client (no CGO needed)
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-w -s" \
-    -o /bin/client \
-    ./cmd/client/main.go
-
 # Stage 2: Runtime image
 FROM alpine:latest
 
@@ -40,7 +34,6 @@ WORKDIR /app
 
 # Copy binaries from builder
 COPY --from=builder /bin/server /app/server
-COPY --from=builder /bin/client /app/client
 
 # Copy application assets
 COPY --chown=appuser:appuser frontend/ /app/frontend/
@@ -54,9 +47,6 @@ COPY --chown=appuser:appuser go.mod /app/go.mod
 RUN mkdir -p /app/db/data /app/frontend/static/images/uploads && \
     chown -R appuser:appuser /app/db/data /app/frontend/static/images/uploads
 
-# Copy entrypoint script
-COPY --chmod=755 scripts/entrypoint.sh /app/entrypoint.sh
-
 # Switch to non-root user
 USER appuser
 
@@ -65,21 +55,17 @@ ENV SERVER_HOST=0.0.0.0 \
     SERVER_PORT=8080 \
     SERVER_ENVIRONMENT=production \
     SERVER_API_CONTEXT_V1=/api/v1 \
-    CLIENT_HOST=0.0.0.0 \
-    CLIENT_PORT=3001 \
-    CLIENT_ENVIRONMENT=production \
-    BACKEND_URL=http://localhost:8080/api/v1 \
     DB_DRIVER=sqlite3 \
     DB_PATH=db/data/forum.db \
     DB_MIGRATE_ON_START=true \
     DB_SEED_ON_START=false
 
-# Expose ports
-EXPOSE 8080 3001
+# Expose port
+EXPOSE 8080
 
-# Health check
+# Health check (TLS is configured via SERVER_TLS_* env at runtime)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider --no-check-certificate https://localhost:8080/api/v1/health || exit 1
 
-# Use entrypoint script to start both services
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Run the backend API server directly
+CMD ["/app/server"]

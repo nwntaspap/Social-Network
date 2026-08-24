@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"social-network/internal/pkg/imgutil"
 	"social-network/internal/topic"
 )
 
@@ -49,6 +50,9 @@ func (h *CreateTopicHandler) Execute(ctx context.Context, cmd CreateTopicCommand
 	}
 
 	if len(cmd.ImageData) > 0 && cmd.ImageFileName != "" {
+		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
+			return nil, err
+		}
 		t.ImagePath = filepath.Join("/static/images/uploads", cmd.ImageFileName)
 		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
 			return nil, fmt.Errorf("upload image: %w", err)

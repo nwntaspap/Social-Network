@@ -2,6 +2,7 @@ package transport
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -9,14 +10,16 @@ import (
 	"social-network/internal/user/commands"
 )
 
+const registerMaxUploadSize = 20 << 20 // 20 MB
+
 type registerRequest struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	FirstName   string `json:"firstName"`
-	LastName    string `json:"lastName"`
-	Nickname    string `json:"nickname"`
-	Gender      string `json:"gender"`
-	DateOfBirth string `json:"dateOfBirth"`
+	Email       string
+	Password    string
+	FirstName   string
+	LastName    string
+	Nickname    string
+	DateOfBirth string
+	Gender      string
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -26,11 +29,20 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req registerRequest
-	if _, err := helpers.ParseBodyRequest(r, &req); err != nil {
-		h.logger.PrintError(errors.New("invalid request body"), nil)
-		helpers.RespondWithError(w, http.StatusBadRequest, "invalid request body")
+	if err := r.ParseMultipartForm(registerMaxUploadSize); err != nil { // #nosec G120 -- bounded by registerMaxUploadSize
+		h.logger.PrintError(errors.New("invalid form data"), nil)
+		helpers.RespondWithError(w, http.StatusBadRequest, "invalid form data")
 		return
+	}
+
+	req := registerRequest{
+		Email:       r.FormValue("email"),
+		Password:    r.FormValue("password"),
+		FirstName:   r.FormValue("firstName"),
+		LastName:    r.FormValue("lastName"),
+		Nickname:    r.FormValue("nickname"),
+		DateOfBirth: r.FormValue("dateOfBirth"),
+		Gender:      r.FormValue("gender"),
 	}
 
 	dob, err := time.Parse(time.RFC3339, req.DateOfBirth)
@@ -42,22 +54,37 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	avatarData, avatarFileName, err := readAvatarFile(r)
+	if err != nil {
+		h.logger.PrintError(err, nil)
+		helpers.RespondWithError(w, http.StatusBadRequest, "failed to read avatar")
+		return
+	}
+
 	u, err := h.register.Execute(r.Context(), commands.RegisterCommand{
-		Email:       req.Email,
-		Password:    req.Password,
-		FirstName:   req.FirstName,
-		LastName:    req.LastName,
-		Nickname:    req.Nickname,
-		DateOfBirth: dob,
+		Email:          req.Email,
+		Password:       req.Password,
+		FirstName:      req.FirstName,
+		LastName:       req.LastName,
+		Nickname:       req.Nickname,
+		DateOfBirth:    dob,
+		Gender:         req.Gender,
+		AvatarData:     avatarData,
+		AvatarFileName: avatarFileName,
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)
 		switch {
-		case errors.Is(err, commands.ErrEmailTaken):
+		case errors.Is(err, commands.ErrEmailTaken),
+			errors.Is(err, commands.ErrNicknameTaken):
 			helpers.RespondWithError(w, http.StatusConflict, err.Error())
 		case errors.Is(err, commands.ErrUnderage),
 			errors.Is(err, commands.ErrWeakPassword),
-			errors.Is(err, commands.ErrNicknameEmpty):
+			errors.Is(err, commands.ErrNicknameEmpty),
+			errors.Is(err, commands.ErrFirstNameMissing),
+			errors.Is(err, commands.ErrLastNameMissing),
+			errors.Is(err, commands.ErrInvalidAvatar),
+			errors.Is(err, commands.ErrInvalidGender):
 			helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		default:
 			helpers.RespondWithError(w, http.StatusInternalServerError, "registration failed")
@@ -69,4 +96,26 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		"id":    u.ID,
 		"email": u.Email,
 	})
+}
+
+// readAvatarFile extracts the optional "avatar" file from a multipart request.
+func readAvatarFile(r *http.Request) ([]byte, string, error) {
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		// Field absent or empty is not an error: avatar is optional.
+		return nil, "", nil
+	}
+	defer file.Close()
+
+	buf := make([]byte, registerMaxUploadSize)
+	n, readErr := file.Read(buf)
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		return nil, "", readErr
+	}
+
+	name := ""
+	if header != nil && header.Filename != "" && n > 0 {
+		name = header.Filename
+	}
+	return buf[:n], name, nil
 }

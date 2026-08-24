@@ -33,9 +33,6 @@ func readTokenFromRequest(r *http.Request, cookieName string) string {
 	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
 		return c.Value
 	}
-	if t := r.URL.Query().Get(cookieName); t != "" {
-		return t
-	}
 	return ""
 }
 

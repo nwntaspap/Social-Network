@@ -3,7 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { getUserProfile, getUserPosts, sendFollowRequest, unfollowUser } from '@/lib/api';
+import {
+  getUserProfile,
+  getUserPosts,
+  sendFollowRequest,
+  unfollowUser,
+  toggleProfilePrivacy,
+  updateProfile,
+} from '@/lib/api';
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
 import { openChatWithUser } from '@/lib/chatWidget';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +29,17 @@ export default function ProfileContent() {
   const [followState, setFollowState] = useState<'none' | 'following' | 'pending'>('none');
   const [followBusy, setFollowBusy] = useState(false);
   const [statModal, setStatModal] = useState<'followers' | 'following' | null>(null);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+
+  // Posts pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // About Me editor (own profile only)
+  const [editingAbout, setEditingAbout] = useState(false);
+  const [aboutDraft, setAboutDraft] = useState('');
+  const [savingAbout, setSavingAbout] = useState(false);
 
   const isOwnProfile = currentUser?.id === id;
 
@@ -32,6 +50,8 @@ export default function ProfileContent() {
         if (ignore) return;
         setProfile(profileData);
         setPosts(postsData.data ?? []);
+        setTotalPages(postsData.totalPages ?? 1);
+        setPage(1);
         setFollowState(profileData.isFollowing ? 'following' : 'none');
       })
       .catch(() => {
@@ -45,8 +65,30 @@ export default function ProfileContent() {
     };
   }, [id]);
 
+  async function handleLoadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = page + 1;
+      const postsData = await getUserPosts(id, next, 10);
+      setPosts((prev) => [...prev, ...(postsData.data ?? [])]);
+      setTotalPages(postsData.totalPages ?? next);
+      setPage(next);
+    } catch (err) {
+      console.error('Load more posts failed:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   async function handleFollow() {
     if (!profile || followBusy) return;
+    if (followState === 'following') {
+      const confirmed = window.confirm(
+        `Unfollow ${getDisplayName(profile)}? You will stop seeing their posts in your feed.`
+      );
+      if (!confirmed) return;
+    }
     setFollowBusy(true);
     try {
       if (followState === 'following') {
@@ -63,8 +105,57 @@ export default function ProfileContent() {
     }
   }
 
+  function handleEditAbout() {
+    setAboutDraft(profile?.aboutMe ?? '');
+    setEditingAbout(true);
+  }
+
+  async function handleSaveAbout() {
+    if (!profile || savingAbout) return;
+    setSavingAbout(true);
+    try {
+      // The update endpoint replaces all profile fields — resend current values.
+      const updated = await updateProfile({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        nickname: profile.nickname ?? '',
+        aboutMe: aboutDraft,
+      });
+      setProfile({ ...profile, ...updated });
+      setEditingAbout(false);
+    } catch (err) {
+      console.error('About Me update failed:', err);
+    } finally {
+      setSavingAbout(false);
+    }
+  }
+
+  async function handleTogglePrivacy() {
+    if (!profile || privacyBusy) return;
+    const nextIsPrivate = profile.isPublic;
+    const confirmed = window.confirm(
+      nextIsPrivate
+        ? 'Make your profile private? Only your followers will see your profile details and posts.'
+        : 'Make your profile public? Everyone will be able to see your profile details and public posts.'
+    );
+    if (!confirmed) return;
+
+    setPrivacyBusy(true);
+    try {
+      await toggleProfilePrivacy(nextIsPrivate);
+      setProfile({ ...profile, isPublic: !nextIsPrivate });
+    } catch (err) {
+      console.error('Privacy toggle failed:', err);
+    } finally {
+      setPrivacyBusy(false);
+    }
+  }
+
   if (loading) return <p className="activity-page-title">Loading...</p>;
   if (error || !profile) return <p className="activity-page-title">{error}</p>;
+
+  // Locked = viewing someone else's private profile without following them.
+  const isLockedProfile = !isOwnProfile && profile.isPublic === false && !profile.isFollowing;
 
   return (
     <div className="activity-container">
@@ -87,6 +178,15 @@ export default function ProfileContent() {
           <div className="profile-main">
             <h1 className="profile-name">{getDisplayName(profile)}</h1>
             <p className="profile-bio-text">@{profile.username || profile.nickname}</p>
+
+            {isOwnProfile && (
+              <div className="profile-contact-info">
+                <p className="profile-bio-text">Email: {profile.email}</p>
+                <p className="profile-bio-text">
+                  Date of birth: {profile.dateOfBirth?.slice(0, 10)}
+                </p>
+              </div>
+            )}
 
             <div className="profile-stats">
               {!isOwnProfile && profile.isPublic === false && !profile.isFollowing ? (
@@ -122,11 +222,46 @@ export default function ProfileContent() {
               )}
             </div>
 
-            {profile.aboutMe && (
-              <div className="profile-bio">
-                <p className="profile-bio-text">{profile.aboutMe}</p>
-              </div>
-            )}
+            <div className="profile-bio">
+              {isOwnProfile && editingAbout ? (
+                <>
+                  <textarea
+                    className="form-input"
+                    placeholder="Tell us about yourself"
+                    rows={4}
+                    value={aboutDraft}
+                    onChange={(e) => setAboutDraft(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="group-action-btn"
+                      onClick={handleSaveAbout}
+                      disabled={savingAbout}
+                    >
+                      {savingAbout ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      className="group-action-btn"
+                      onClick={() => setEditingAbout(false)}
+                      disabled={savingAbout}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {profile.aboutMe && <p className="profile-bio-text">{profile.aboutMe}</p>}
+                  {isOwnProfile && (
+                    <button type="button" className="group-action-btn" onClick={handleEditAbout}>
+                      {profile.aboutMe ? 'Edit About Me' : 'Add About Me'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
 
             {!isOwnProfile && (
               <button
@@ -152,17 +287,48 @@ export default function ProfileContent() {
                 Message
               </button>
             )}
+
+            {isOwnProfile && (
+              <button
+                type="button"
+                className="group-action-btn"
+                onClick={handleTogglePrivacy}
+                disabled={privacyBusy}
+              >
+                {privacyBusy
+                  ? 'Updating…'
+                  : profile.isPublic
+                    ? 'Make Profile Private'
+                    : 'Make Profile Public'}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {isOwnProfile && <FollowRequestsSection />}
 
-      <h2 className="activity-page-title">Posts</h2>
-      {posts.length === 0 ? (
-        <p className="activity-section">No posts yet.</p>
+      {isLockedProfile ? (
+        <p className="activity-section">This profile is private. Follow to see posts.</p>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        <>
+          <h2 className="activity-page-title">Posts</h2>
+          {posts.length === 0 ? (
+            <p className="activity-section">No posts yet.</p>
+          ) : (
+            posts.map((post) => <PostCard key={post.id} post={post} />)
+          )}
+          {page < totalPages && (
+            <button
+              type="button"
+              className="group-action-btn"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Loading…' : 'Load More Posts'}
+            </button>
+          )}
+        </>
       )}
 
       {statModal && (

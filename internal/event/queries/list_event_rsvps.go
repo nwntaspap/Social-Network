@@ -13,20 +13,31 @@ type OptionRSVPs struct {
 }
 
 type ListEventRSVPsQuery struct {
-	EventID string
+	EventID     string
+	RequesterID string
 }
 
 type ListEventRSVPsResolver struct {
-	repo event.Repository
+	repo   event.Repository
+	member MemberChecker
 }
 
-func NewListEventRSVPsResolver(repo event.Repository) *ListEventRSVPsResolver {
-	return &ListEventRSVPsResolver{repo: repo}
+func NewListEventRSVPsResolver(repo event.Repository, member MemberChecker) *ListEventRSVPsResolver {
+	return &ListEventRSVPsResolver{repo: repo, member: member}
 }
 
 func (r *ListEventRSVPsResolver) Resolve(ctx context.Context, q ListEventRSVPsQuery) ([]OptionRSVPs, error) {
-	if _, err := r.repo.GetEvent(ctx, q.EventID); err != nil {
+	e, err := r.repo.GetEvent(ctx, q.EventID)
+	if err != nil {
 		return nil, err
+	}
+
+	isMember, err := r.member.IsMember(ctx, e.GroupID, q.RequesterID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, ErrNotGroupMember
 	}
 
 	opts, err := r.repo.GetOptionsByEvent(ctx, q.EventID)

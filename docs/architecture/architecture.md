@@ -157,7 +157,7 @@ Vote logic is absorbed into `topic/` and `comment/` — there is no standalone `
 
 ### Docker
 
-- **Two containers**: Backend (Go, port 8080) and Frontend (Next.js, port 3000), orchestrated via `docker-compose.yml`.
+- **Four containers**: Backend (Go, port 8080), Frontend (Next.js, port 3001), Notifications microservice (`services/notifications`, port 8081, proxied by the frontend at `/notifications-api`), and Broker (`golangmq`, port 5672), orchestrated via `docker-compose.yml`.
 - **Build script**: Optional `scripts/docker-build.sh` convenience script for automated image building and container startup.
 
 ---

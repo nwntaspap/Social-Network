@@ -118,6 +118,26 @@ func TestCreate_DuplicateUsername(t *testing.T) {
 	}
 }
 
+func TestCreate_GenderRoundTrip(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	if err := s.Create(ctx, &user.User{
+		ID: "u1", Email: "g@example.com", Nickname: "gendered",
+		PasswordHash: "h", Gender: "female", CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if got.Gender != "female" {
+		t.Errorf("Gender = %q, want %q", got.Gender, "female")
+	}
+}
+
 func TestGetByID(t *testing.T) {
 	s := setupStore(t)
 	ctx := context.Background()

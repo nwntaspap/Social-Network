@@ -2,6 +2,7 @@ package queries
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -86,6 +87,26 @@ func (r *fakeEventRepo) GetUserRSVP(_ context.Context, _, _ string) (*event.RSVP
 	return nil, event.ErrRSVPNotFound
 }
 
+type fakeMemberChecker struct {
+	members map[string]map[string]bool
+}
+
+func newFakeMemberChecker() *fakeMemberChecker {
+	return &fakeMemberChecker{members: make(map[string]map[string]bool)}
+}
+
+func (f *fakeMemberChecker) IsMember(_ context.Context, groupID, userID string) (bool, error) {
+	return f.members[groupID][userID], nil
+}
+
+func (f *fakeMemberChecker) add(groupID, userID string) *fakeMemberChecker {
+	if f.members[groupID] == nil {
+		f.members[groupID] = make(map[string]bool)
+	}
+	f.members[groupID][userID] = true
+	return f
+}
+
 func TestListGroupEventsResolver(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeEventRepo()
@@ -102,8 +123,8 @@ func TestListGroupEventsResolver(t *testing.T) {
 		{EventID: "evt-1", UserID: "u3", OptionID: "opt-2"},
 	}
 
-	resolver := NewListGroupEventsResolver(repo)
-	result, _, err := resolver.Resolve(ctx, ListGroupEventsQuery{GroupID: "g1", Size: 10})
+	resolver := NewListGroupEventsResolver(repo, newFakeMemberChecker().add("g1", "u1"))
+	result, _, err := resolver.Resolve(ctx, ListGroupEventsQuery{GroupID: "g1", RequesterID: "u1", Size: 10})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -126,5 +147,17 @@ func TestListGroupEventsResolver(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestListGroupEventsResolver_NonMemberDenied(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeEventRepo()
+	repo.events["evt-1"] = &event.Event{ID: "evt-1", GroupID: "g1", Title: "Event 1"}
+
+	resolver := NewListGroupEventsResolver(repo, newFakeMemberChecker())
+	_, _, err := resolver.Resolve(ctx, ListGroupEventsQuery{GroupID: "g1", RequesterID: "outsider", Size: 10})
+	if !errors.Is(err, ErrNotGroupMember) {
+		t.Errorf("Resolve() error = %v, want %v", err, ErrNotGroupMember)
 	}
 }

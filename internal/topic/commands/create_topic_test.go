@@ -195,3 +195,18 @@ func TestCreateTopic_RepoError(t *testing.T) {
 		t.Fatal("expected error from repo")
 	}
 }
+
+func TestCreateTopic_RejectsInvalidImageHeader(t *testing.T) {
+	h := NewCreateTopicHandler(&mockTopicRepo{}, &mockImageStorage{})
+
+	_, err := h.Execute(context.Background(), CreateTopicCommand{
+		UserID:        "u1",
+		Title:         "X",
+		Content:       "Y",
+		ImageData:     []byte{0x00, 0x01, 0x02, 0x03},
+		ImageFileName: "evil.png",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid image header")
+	}
+}

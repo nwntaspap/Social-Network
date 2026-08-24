@@ -36,6 +36,18 @@ func (h *CreateGroupPostCommentHandler) Execute(ctx context.Context, cmd CreateG
 		return nil, errors.New("content is required")
 	}
 
+	post, err := h.repo.GetPostByID(ctx, cmd.PostID)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := h.repo.IsMember(ctx, post.GroupID, cmd.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, group.ErrNotMember
+	}
+
 	c := &group.PostComment{
 		ID:       uuid.NewProvider().NewUUID(),
 		PostID:   cmd.PostID,

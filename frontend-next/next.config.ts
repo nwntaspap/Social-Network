@@ -1,8 +1,18 @@
 import type { NextConfig } from 'next';
 
+// Origin of the Go backend. Defaults to the local dev setup; docker-compose
+// sets BACKEND_ORIGIN=https://forum:8080 for the containerised frontend.
+const backendOrigin = process.env.BACKEND_ORIGIN || 'https://localhost:8080';
+
+// Origin of the notifications microservice. Direct browser calls work in local
+// dev; in Docker the request is proxied through Next so session cookies stay
+// first-party (SameSite) and no extra CORS/TLS setup is needed.
+const notificationsOrigin = process.env.NOTIFICATIONS_ORIGIN || 'http://localhost:8081';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // That's it! Next.js handles CSS automatically
+  // Emits .next/standalone so the production image needs no node_modules.
+  output: 'standalone',
 
   // DiceBear avatars used by dev seed data (db/seeds/dev_data.sql);
   // Google (lh3.googleusercontent.com) and GitHub (avatars.githubusercontent.com)
@@ -16,12 +26,20 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Proxy API requests to Go backend
+  // Proxy API requests and uploaded static files to the Go backend
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://localhost:8080/api/:path*',
+        destination: `${backendOrigin}/api/:path*`,
+      },
+      {
+        source: '/static/:path*',
+        destination: `${backendOrigin}/static/:path*`,
+      },
+      {
+        source: '/notifications-api/:path*',
+        destination: `${notificationsOrigin}/api/:path*`,
       },
     ];
   },

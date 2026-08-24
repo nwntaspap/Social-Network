@@ -70,8 +70,11 @@ To configure your local environment for development and testing, install the fol
    ```
 
 3. **Access points**
-   - **Frontend web App**: [http://localhost:3000](http://localhost:3000)
+   - **Frontend web App**: [https://localhost:3001](https://localhost:3001)
    - **Backend REST API**: [http://localhost:8080/api/v1](http://localhost:8080/api/v1)
+   - **Notifications service**: proxied by the frontend at `/notifications-api` (direct port `8081`)
+
+   The compose stack runs four containers: `forum` (Go API), `frontend` (Next.js), `notifications` (SSE + notification store), and `broker` (event bus).
 
 4. **Shutdown and Clean**  
    Stop the services:
@@ -160,7 +163,7 @@ graph TD
 
 ### 🔐 Authentication & Session Persistence
 
-- **Rich Registration**: Custom flow requiring Email, Password, First Name, Last Name, and Date of Birth. Optional Avatar, Nickname, and About Me info.
+- **Rich Registration**: Custom flow requiring Email, Password, First Name, Last Name, and Date of Birth. Optional Avatar, Nickname, and Gender info.
 - **Secure Sessions**: Persistent double-cookie auth (`access_token` and `refresh_token` rotation) behind `HttpOnly` and secure flags.
 - **OAuth Delegation**: Built-in GitHub and Google authentication.
 

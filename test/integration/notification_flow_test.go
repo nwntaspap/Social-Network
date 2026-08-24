@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -104,10 +105,12 @@ func TestNotificationFlow(t *testing.T) {
 	ts := time.Now().Unix()
 	aliceEmail := fmt.Sprintf("alice-%d@test.com", ts)
 	bobEmail := fmt.Sprintf("bob-%d@test.com", ts)
+	aliceNick := fmt.Sprintf("alice-%d", ts)
+	bobNick := fmt.Sprintf("bob-%d", ts)
 
 	// Step 1: Register alice
 	t.Log("registering alice")
-	aliceID := registerUser(t, client, api, aliceEmail, "password123", "Alice", "Smith", "alice")
+	aliceID := registerUser(t, client, api, aliceEmail, "password123", "Alice", "Smith", aliceNick)
 	if aliceID == "" {
 		t.Fatal("alice ID is empty")
 	}
@@ -142,7 +145,7 @@ func TestNotificationFlow(t *testing.T) {
 
 	// Step 5: Register bob
 	t.Log("registering bob")
-	bobID := registerUser(t, client, api, bobEmail, "password456", "Bob", "Jones", "bob")
+	bobID := registerUser(t, client, api, bobEmail, "password456", "Bob", "Jones", bobNick)
 	if bobID == "" {
 		t.Fatal("bob ID is empty")
 	}
@@ -299,7 +302,9 @@ func startNotificationService(t *testing.T, ctx context.Context, backendURL stri
 func registerUser(t *testing.T, client *http.Client, api, email, password, firstName, lastName, nickname string) string {
 	t.Helper()
 
-	payload := map[string]string{
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	fields := map[string]string{
 		"email":       email,
 		"password":    password,
 		"firstName":   firstName,
@@ -307,9 +312,16 @@ func registerUser(t *testing.T, client *http.Client, api, email, password, first
 		"nickname":    nickname,
 		"dateOfBirth": "2000-01-01T00:00:00Z",
 	}
-	body, _ := json.Marshal(payload)
+	for k, v := range fields {
+		if err := w.WriteField(k, v); err != nil {
+			t.Fatalf("write field %s: %v", k, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
 
-	resp, err := client.Post(api+"/register", "application/json", bytes.NewReader(body))
+	resp, err := client.Post(api+"/register", w.FormDataContentType(), &buf)
 	if err != nil {
 		t.Fatalf("register %s: %v", email, err)
 	}
@@ -405,22 +417,28 @@ func createPost(t *testing.T, client *http.Client, api string, cookie *http.Cook
 
 	var result struct {
 		Data struct {
-			ID int `json:"id"`
-		} `json:"data"`
+			ID string `json:"id"`
+		}
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		t.Fatalf("create post unmarshal: %v body=%s", err, string(respBody))
 	}
-	return result.Data.ID
+	id, err := strconv.Atoi(result.Data.ID)
+	if err != nil {
+		t.Fatalf("create post id parse: %v body=%s", err, string(respBody))
+	}
+	return id
 }
 
 func likePost(t *testing.T, client *http.Client, api string, cookie *http.Cookie, postID int) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf(api+"/topics/vote?id=%d", postID), nil)
+	body := bytes.NewReader([]byte(`{"reactionType":1}`))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf(api+"/topics/vote?id=%d", postID), body)
 	if err != nil {
 		t.Fatalf("like post request: %v", err)
 	}
+	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(cookie)
 
 	resp, err := client.Do(req)

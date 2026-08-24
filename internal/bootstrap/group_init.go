@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"social-network/internal/core/middleware"
+	"social-network/internal/follow"
+	followstore "social-network/internal/follow/store"
 	"social-network/internal/group"
 	groupcommands "social-network/internal/group/commands"
 	groupqueries "social-network/internal/group/queries"
@@ -23,7 +25,7 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 	img := localstorage.NewLocalStorage()
 	users := userstore.NewSQLiteStore(db)
 
-	followChecker := &groupFollowChecker{}
+	followChecker := &groupFollowChecker{follows: followstore.NewSQLiteStore(db)}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -61,10 +63,15 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 	)
 }
 
-type groupFollowChecker struct{}
+type groupFollowChecker struct {
+	follows follow.Repository
+}
 
-func (fc *groupFollowChecker) AreConnected(_ context.Context, _, _ string) (bool, error) {
-	return true, nil
+// AreConnected reports whether invitee is a follower of inviter.
+// The group command invokes this as AreConnected(invitee, inviter);
+// the follow store treats (a, b) as "a follows b".
+func (fc *groupFollowChecker) AreConnected(ctx context.Context, a, b string) (bool, error) {
+	return fc.follows.AreConnected(ctx, a, b)
 }
 
 type userLookupAdapter struct {

@@ -48,3 +48,19 @@ func TestUpdateTopic_ZeroID(t *testing.T) {
 		t.Errorf("err = %v, want ErrTopicNotFound", err)
 	}
 }
+
+func TestUpdateTopic_RejectsInvalidImageHeader(t *testing.T) {
+	h := NewUpdateTopicHandler(&mockTopicRepo{}, &mockImageStorage{})
+
+	_, err := h.Execute(context.Background(), UpdateTopicCommand{
+		TopicID:       1,
+		UserID:        "u1",
+		Title:         "X",
+		Content:       "Y",
+		ImageData:     []byte{0x00, 0x01, 0x02, 0x03},
+		ImageFileName: "evil.png",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid image header")
+	}
+}

@@ -23,21 +23,19 @@ services:
     
     volumes:
       # Mount source code for live changes (requires rebuild for Go changes)
-      - ./frontend-next:/app/frontend:ro
       - ./db/migrations:/app/db/migrations:ro
       - ./db/seeds:/app/db/seeds:ro
       - ./cmd/client/data:/app/cmd/client/data:ro
-      
+
       # Persistent data (same as production)
       - forum-db:/app/db/data
       - forum-uploads:/app/frontend/static/images/uploads
-      
+
       # Optional: Mount local uploads for development
       - ./frontend/static/images/uploads:/app/frontend/static/images/uploads
-    
+
     ports:
-      # Same ports as production for consistency
-      - "3001:3001"
+      # Backend API (the frontend container publishes 3001)
       - "8080:8080"
 
 volumes:

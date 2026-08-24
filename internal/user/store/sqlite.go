@@ -26,6 +26,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*user.User, error) {
 	var dateOfBirth sql.NullTime
 	var aboutMe sql.NullString
 	var isPrivate sql.NullBool
+	var gender sql.NullString
 
 	err := row.Scan(
 		&u.ID,
@@ -39,6 +40,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*user.User, error) {
 		&dateOfBirth,
 		&aboutMe,
 		&isPrivate,
+		&gender,
 	)
 	if err != nil {
 		return nil, err
@@ -52,20 +54,21 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*user.User, error) {
 	}
 	u.AboutMe = aboutMe.String
 	u.IsPrivate = isPrivate.Bool
+	u.Gender = gender.String
 
 	return &u, nil
 }
 
 const userColumns = `id, username, email, password_hash, first_name, last_name,
-	created_at, avatar_url, date_of_birth, about_me, is_private`
+	created_at, avatar_url, date_of_birth, about_me, is_private, gender`
 
 func (s *SQLiteStore) Create(ctx context.Context, u *user.User) error {
 	_, err := s.db.ExecContext(
 		ctx,
-		`INSERT INTO users (id, username, email, password_hash, first_name, last_name, created_at, avatar_url, date_of_birth, about_me, is_private)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO users (id, username, email, password_hash, first_name, last_name, created_at, avatar_url, date_of_birth, about_me, is_private, gender)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		u.ID, u.Nickname, u.Email, u.PasswordHash, u.FirstName, u.LastName,
-		u.CreatedAt, nullString(u.AvatarPath), nullTime(u.DateOfBirth), nullString(u.AboutMe), u.IsPrivate,
+		u.CreatedAt, nullString(u.AvatarPath), nullTime(u.DateOfBirth), nullString(u.AboutMe), u.IsPrivate, u.Gender,
 	)
 	return err
 }

@@ -2,11 +2,14 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 
 	"social-network/internal/event"
-	"social-network/internal/platform/eventbus"
 )
+
+// GroupMembershipChecker reports whether a user belongs to a group.
+type GroupMembershipChecker interface {
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+}
 
 type RSVPCommand struct {
 	EventID  string
@@ -15,14 +18,14 @@ type RSVPCommand struct {
 }
 
 type RSVPHandler struct {
-	repo event.Repository
-	bus  eventbus.EventBus
+	repo   event.Repository
+	member GroupMembershipChecker
 }
 
-func NewRSVPHandler(repo event.Repository, bus eventbus.EventBus) *RSVPHandler {
+func NewRSVPHandler(repo event.Repository, member GroupMembershipChecker) *RSVPHandler {
 	return &RSVPHandler{
-		repo: repo,
-		bus:  bus,
+		repo:   repo,
+		member: member,
 	}
 }
 
@@ -37,9 +40,17 @@ func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
 		return ErrInvalidOption
 	}
 
-	_, err := h.repo.GetEvent(ctx, cmd.EventID)
+	e, err := h.repo.GetEvent(ctx, cmd.EventID)
 	if err != nil {
 		return err
+	}
+
+	isMember, err := h.member.IsMember(ctx, e.GroupID, cmd.UserID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrNotGroupMember
 	}
 
 	opt, err := h.repo.GetOption(ctx, cmd.OptionID)
@@ -56,11 +67,5 @@ func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
 		OptionID: cmd.OptionID,
 	}
 
-	payload, _ := json.Marshal(eventbus.Notification{
-		Type:        eventbus.EventEvent,
-		RecipientID: cmd.UserID,
-		EventID:     cmd.EventID,
-	})
-	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, payload)
 	return h.repo.UpsertRSVP(ctx, rsvp)
 }

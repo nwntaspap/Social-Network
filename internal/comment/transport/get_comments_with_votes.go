@@ -6,6 +6,7 @@ import (
 
 	"social-network/internal/comment/queries"
 	"social-network/internal/pkg/helpers"
+	"social-network/internal/topic"
 )
 
 func (h *Handler) GetCommentsByTopicWithVotes(w http.ResponseWriter, r *http.Request) {
@@ -30,11 +31,15 @@ func (h *Handler) GetCommentsByTopicWithVotes(w http.ResponseWriter, r *http.Req
 	}
 
 	comments, err := h.getByTopicWV.Resolve(r.Context(), queries.GetCommentsByTopicWithVotesQuery{
-		TopicID: topicID,
-		UserID:  userID,
+		TopicID:     topicID,
+		RequesterID: userID,
 	})
 	if err != nil {
 		h.logger.PrintError(err, nil)
+		if errors.Is(err, topic.ErrTopicNotFound) {
+			helpers.RespondWithError(w, http.StatusNotFound, "Topic not found")
+			return
+		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

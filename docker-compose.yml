@@ -5,10 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: forum-app
+    container_name: forum-backend
     restart: unless-stopped
     ports:
-      - "3001:3001"  # Frontend client
       - "8080:8080"  # Backend API
     environment:
       # Server Configuration
@@ -21,14 +20,6 @@ services:
       SERVER_IDLE_TIMEOUT: 30
       SERVER_TLS_CERT_FILE: certs/localhost+2.pem
       SERVER_TLS_KEY_FILE: certs/localhost+2-key.pem
-      
-      # Client Configuration
-      CLIENT_HOST: 0.0.0.0
-      CLIENT_PORT: 3001
-      CLIENT_ENVIRONMENT: development
-      CLIENT_TLS_CERT_FILE: certs/localhost+2.pem
-      CLIENT_TLS_KEY_FILE: certs/localhost+2-key.pem
-      BACKEND_URL: https://localhost:8080/api/v1
       
       # Database Configuration
       DB_DRIVER: sqlite3
@@ -77,15 +68,83 @@ services:
         condition: service_started
     networks:
       - forum-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: forum-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # Next.js frontend
+    environment:
+      # Where the server-side proxy (rewrites) reaches the backend.
+      # Uses the compose service name; certs below make its TLS trusted.
+      BACKEND_ORIGIN: https://forum:8080
+      NODE_EXTRA_CA_CERTS: /app/certs/localhost+2.pem
+      SESSION_SECURE_COOKIE: "true"
+    volumes:
+      # Trust the backend's self-signed certificate for the API proxy
+      - ./certs:/app/certs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      forum:
+        condition: service_started
+    networks:
+      - forum-network
+
   broker:
     image: danielkotsi/golangmq:latest
     ports:
       - "5672:5672"
 
+  notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile.notifications
+    container_name: forum-notifications
+    restart: unless-stopped
+    ports:
+      - "8081:8081"  # Notifications API + SSE stream
+    environment:
+      # Where the service verifies session cookies against the backend.
+      NOTIFICATIONS_BACKEND_URL: https://forum:8080/api/v1
+      # Trust the backend's self-signed certificate (Go honours SSL_CERT_FILE).
+      SSL_CERT_FILE: /app/certs/localhost+2.pem
+      # Browser origin(s) allowed by CORS for direct calls.
+      NOTIFICATIONS_ALLOWED_ORIGINS: http://localhost:3001,https://localhost:3001
+      # Broker address inside the compose network.
+      NOTIFICATIONS_BROKER_URL: broker:5672
+      # SSE streams are long-lived — disable the write timeout.
+      NOTIFICATIONS_WRITE_TIMEOUT: "0"
+    volumes:
+      - ./certs:/app/certs:ro
+      - notifications-db:/app/db/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/api/v1/notifications/unread-count"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      forum:
+        condition: service_started
+      broker:
+        condition: service_started
+    networks:
+      - forum-network
+
 volumes:
   forum-db:
     driver: local
   forum-uploads:
+    driver: local
+  notifications-db:
     driver: local
 
 networks:

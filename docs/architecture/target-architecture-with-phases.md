@@ -541,6 +541,7 @@ Create numbered migration scripts:
 - `000011_group_post_votes.up.sql` — Create `group_post_votes` (reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id)) + matching down script
 - `000012_chat_pair_unique.up.sql` — Deduplicate 1:1 chats per pair + add `UNIQUE` index `idx_chats_pair` + matching down script
 - `000013_group_chat_reads.up.sql` — Create `group_chat_reads` (per-user read markers for group chat unread) + matching down script
+- `000014_user_gender.up.sql` — Add `gender` column to users (`male`/`female`/`other`/`prefer_not_to_say`) + matching down script
 
 **Verify**: Run migrations on fresh DB. `go vet ./...`.
 

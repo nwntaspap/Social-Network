@@ -36,9 +36,9 @@ func initEvent(db database.DB, bus eventbus.EventBus, logger logger.Logger) *eve
 		userLookup,
 		eventcommands.NewCreateEventHandler(store, groupMember, bus, users),
 		eventcommands.NewUpdateEventHandler(store, groupRole),
-		eventcommands.NewRSVPHandler(store, bus),
-		eventqueries.NewListGroupEventsResolver(store),
-		eventqueries.NewListEventRSVPsResolver(store),
+		eventcommands.NewRSVPHandler(store, groupMember),
+		eventqueries.NewListGroupEventsResolver(store, groupMember),
+		eventqueries.NewListEventRSVPsResolver(store, groupMember),
 		logger,
 	)
 }
@@ -78,7 +78,7 @@ func (c *groupMemberChecker) GetGroupMembers(ctx context.Context, groupID string
 	var users []string
 	rows, err := c.db.QueryContext(
 		ctx,
-		`SELECT user_id FROM group_members WHERE group_id = ?)`,
+		`SELECT user_id FROM group_members WHERE group_id = ?`,
 		groupID,
 	)
 	if err != nil {
