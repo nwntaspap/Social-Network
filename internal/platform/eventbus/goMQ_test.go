@@ -3,9 +3,39 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 )
+
+func TestBrokerAddr_Default(t *testing.T) {
+	t.Setenv("NOTIFICATIONS_BROKER_URL", "")
+	if got := brokerAddr(); got != "localhost:5672" {
+		t.Errorf("brokerAddr() = %q, want %q", got, "localhost:5672")
+	}
+}
+
+func TestBrokerAddr_EnvOverride(t *testing.T) {
+	t.Setenv("NOTIFICATIONS_BROKER_URL", "broker:5672")
+	if got := brokerAddr(); got != "broker:5672" {
+		t.Errorf("brokerAddr() = %q, want %q", got, "broker:5672")
+	}
+}
+
+func TestGoBroker_PublishWithoutConnection(t *testing.T) {
+	broker := &GoBroker{}
+	err := broker.Publish("notifications.exchange", "created", []byte("x"))
+	if err == nil {
+		t.Fatal("Publish on unconnected broker expected error, got nil")
+	}
+}
+
+func TestGoBroker_SubscribeWithoutConnection(t *testing.T) {
+	broker := &GoBroker{}
+	if _, err := broker.Subscribe(context.Background(), "notifications_queue"); !errors.Is(err, ErrNotConnected) {
+		t.Errorf("Subscribe error = %v, want ErrNotConnected", err)
+	}
+}
 
 func TestTopologyJSON_UnmarshalsCorrectly(t *testing.T) {
 	var topo goBrokerTopology

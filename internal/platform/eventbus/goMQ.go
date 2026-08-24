@@ -4,13 +4,22 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/danielkotsi/golangMQSDK/gomqSDK"
 	"github.com/danielkotsi/golangMQSDK/protocol"
 )
+
+const defaultBrokerAddr = "localhost:5672"
+
+// ErrNotConnected is returned by Publish/Subscribe when the broker client
+// never connected (e.g. NewGoBroker failed but the app chose to continue).
+var ErrNotConnected = errors.New("eventbus: broker not connected")
 
 //go:embed gobroker_schema.json
 var goBrokerSchema []byte
@@ -50,6 +59,13 @@ func (m *goBrokerMessage) Nack(requeue bool) error {
 	return m.channel.Nack(m.deliveryTag, requeue)
 }
 
+func brokerAddr() string {
+	if addr := os.Getenv("NOTIFICATIONS_BROKER_URL"); addr != "" {
+		return addr
+	}
+	return defaultBrokerAddr
+}
+
 func NewGoBroker() (*GoBroker, error) {
 	cfg := gomqSDK.Config{
 		ClientName:   "social-network",
@@ -59,9 +75,11 @@ func NewGoBroker() (*GoBroker, error) {
 		FrameMax:     10372,
 		HeartbeatSec: 10,
 	}
-	client, err := gomqSDK.Connect("localhost:5672", cfg)
+	addr := brokerAddr()
+	log.Printf("eventbus: connecting to broker at %s", addr)
+	client, err := gomqSDK.Connect(addr, cfg)
 	if err != nil {
-		return &GoBroker{}, fmt.Errorf("not able to connect to broker:%w", err)
+		return &GoBroker{}, fmt.Errorf("not able to connect to broker %s:%w", addr, err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -83,6 +101,9 @@ func NewGoBroker() (*GoBroker, error) {
 }
 
 func (b *GoBroker) Subscribe(ctx context.Context, queue string) (<-chan Message, error) {
+	if b.client == nil {
+		return nil, ErrNotConnected
+	}
 	channel, err := b.client.OpenChannel(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("channel for communication could not be created:%w", err)
@@ -162,6 +183,9 @@ func (b *GoBroker) InitTopology(ctx context.Context) error {
 }
 
 func (b *GoBroker) Publish(exchange, routingkey string, body []byte) error {
+	if b.pubChannel == nil {
+		return ErrNotConnected
+	}
 	msg := protocol.Publish{
 		Exchange:   exchange,
 		RoutingKey: routingkey,

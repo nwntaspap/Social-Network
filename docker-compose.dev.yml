@@ -20,7 +20,10 @@ services:
       
       # More verbose logging
       LOG_LEVEL: debug
-    
+
+      # Message broker (eventbus) inside the compose network
+      NOTIFICATIONS_BROKER_URL: broker:5672
+
     volumes:
       # Mount source code for live changes (requires rebuild for Go changes)
       - ./db/migrations:/app/db/migrations:ro

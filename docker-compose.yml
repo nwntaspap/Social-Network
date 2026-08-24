@@ -36,7 +36,10 @@ services:
       RATE_LIMIT_ENABLED: "true"
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_WINDOW_SECONDS: 60
-      
+
+      # Message broker (eventbus) inside the compose network
+      NOTIFICATIONS_BROKER_URL: broker:5672
+
       # OAuth (optional - add your credentials)
       GITHUB_CLIENT_ID: "{ INSERT HERE YOUR GITHUB CLIENT ID }"
       GITHUB_CLIENT_SECRET: "{ INSERT HERE YOUR GITHUB CLIENT SECRET }"
@@ -81,6 +84,8 @@ services:
       # Where the server-side proxy (rewrites) reaches the backend.
       # Uses the compose service name; certs below make its TLS trusted.
       BACKEND_ORIGIN: https://forum:8080
+      # Where the server-side proxy reaches the notifications service.
+      NOTIFICATIONS_ORIGIN: http://notifications:8081
       NODE_EXTRA_CA_CERTS: /app/certs/localhost+2.pem
       SESSION_SECURE_COOKIE: "true"
     volumes:
@@ -102,6 +107,8 @@ services:
     image: danielkotsi/golangmq:latest
     ports:
       - "5672:5672"
+    networks:
+      - forum-network
 
   notifications:
     build:
