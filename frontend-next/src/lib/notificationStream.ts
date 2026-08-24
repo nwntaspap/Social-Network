@@ -105,6 +105,11 @@ class NotificationStream {
     });
 
     es.onerror = () => {
+      // Surface connection failures — silent retries hide broken wiring.
+      console.warn(
+        `[notificationStream] error (readyState=${es.readyState}); ` +
+          (this.connectCount > 0 ? 'retrying shortly' : 'stream closed')
+      );
       es.close();
       if (this.es === es) this.es = null;
 

@@ -80,6 +80,9 @@ func (h *Notifications) StreamNotifications(w http.ResponseWriter, r *http.Reque
 	ch, unsubscribe := h.hub.Subscribe(userID)
 	defer unsubscribe()
 
+	log.Printf("stream: client connected user=%s", userID)
+	defer log.Printf("stream: client disconnected user=%s", userID)
+
 	unreadCount, err := h.repo.GetUnreadCount(r.Context(), userID)
 	if err == nil {
 		fmt.Fprintf(w, "event: connected\ndata: {\"type\":\"connected\"}\n\n")

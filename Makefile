@@ -257,9 +257,10 @@ run-backend: ## Run backend natively
 	@echo "==> Running backend..."
 	go run cmd/server/main.go
 
-run-notifications: ## Run backend natively
+run-notifications: ## Run notifications service natively
 	@echo "==> Running notifications..."
-	cd services/notifications && go run cmd/server/main.go \
+	cd services/notifications && \
+	NOTIFICATIONS_WRITE_TIMEOUT=0 go run cmd/server/main.go
 
 run-broker: ## Start the message broker container
 	@echo "📨 Starting broker container on port 5672..."

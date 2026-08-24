@@ -89,8 +89,8 @@ export default function NotificationBell() {
     try {
       const data = await getUnreadNotificationCount();
       setUnread(data?.count ?? 0);
-    } catch {
-      // not logged in or network error — badge stays hidden
+    } catch (err) {
+      console.warn('[NotificationBell] unread-count refresh failed:', err);
     }
   }, [loggedIn]);
 
@@ -99,7 +99,7 @@ export default function NotificationBell() {
     if (!loggedIn) return;
     getUnreadNotificationCount()
       .then((data) => setUnread(data?.count ?? 0))
-      .catch(() => {});
+      .catch((err) => console.warn('[NotificationBell] unread-count fetch failed:', err));
   }, [loggedIn]);
 
   // Live stream: render new items and remove deleted ones by id.

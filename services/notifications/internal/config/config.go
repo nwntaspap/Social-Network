@@ -13,6 +13,10 @@ const (
 	defaultBackendURL = "https://localhost:8080/api/v1"
 	defaultDBPath     = "db/data/notifications.db"
 	defaultCORSOrigin = "http://localhost:3001"
+
+	// SSE streams are long-lived responses — a non-zero write timeout would
+	// kill every active stream once it elapsed.
+	defaultWriteTimeout = 0
 )
 
 type Config struct {
@@ -38,7 +42,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	writeTimeout, err := parseInt("NOTIFICATIONS_WRITE_TIMEOUT", 20)
+	writeTimeout, err := parseInt("NOTIFICATIONS_WRITE_TIMEOUT", defaultWriteTimeout)
 	if err != nil {
 		return nil, err
 	}
