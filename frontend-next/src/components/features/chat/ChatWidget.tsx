@@ -50,6 +50,9 @@ function ActiveGroupRoom({ group, onBack, onClose }: ActiveGroupRoomProps) {
 
 export default function ChatWidget() {
   const { user } = useAuth();
+  // Stable identity for effect deps: AuthContext may hand back a new object
+  // per render, and the socket/fetch setup must not restart when it does.
+  const userId = user?.id;
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<WidgetTab>('chats');
   const [conversations, setConversations] = useState<Chat[]>([]);
@@ -66,6 +69,10 @@ export default function ChatWidget() {
   // Last live increment time per group, so a server snapshot taken BEFORE a
   // live message is never allowed to overwrite the fresher live count.
   const liveSeenRef = useRef<Record<string, number>>({});
+  // Mirror of the conversation list for WS handlers, plus the last time a
+  // refresh was scheduled for an unknown chat id (debounce).
+  const conversationsRef = useRef<Chat[]>([]);
+  const newChatRefreshAtRef = useRef(0);
 
   const loadChats = useCallback(async () => {
     try {
@@ -79,6 +86,10 @@ export default function ChatWidget() {
       return [];
     }
   }, []);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const loadMyGroups = useCallback(async () => {
     try {
@@ -106,7 +117,7 @@ export default function ChatWidget() {
   // On socket reconnect, refetch chats and groups so status/unread missed
   // during the outage are recovered (broadcasts are not replayed).
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let ignore = false;
     chatSocket.connect();
     getChats()
@@ -132,7 +143,7 @@ export default function ChatWidget() {
       unsubscribeConnection();
       chatSocket.disconnect();
     };
-  }, [user, loadChats, loadMyGroups]);
+  }, [userId, loadChats, loadMyGroups]);
 
   const startChatWithUser = useCallback(
     async (userId: string) => {
@@ -178,6 +189,18 @@ export default function ChatWidget() {
     return chatSocket.on('chat.message', (payload) => {
       const msg = payload as { chat_id: string };
       if (!msg || typeof msg.chat_id !== 'string') return;
+      const known = conversationsRef.current.some((c) => c.id === msg.chat_id);
+      if (!known) {
+        // A first-ever message creates the conversation server-side, so it is
+        // missing from the local list. Pull the snapshot, which carries the
+        // new conversation and its authoritative unread count.
+        const now = Date.now();
+        if (now - newChatRefreshAtRef.current >= 2000) {
+          newChatRefreshAtRef.current = now;
+          void loadChats();
+        }
+        return;
+      }
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== msg.chat_id) return c;
@@ -186,7 +209,7 @@ export default function ChatWidget() {
         })
       );
     });
-  }, [activeChat]);
+  }, [activeChat, loadChats]);
 
   // Track unread group messages. The server broadcasts group_chat.message to
   // every member (including the sender), so own messages are skipped, and a

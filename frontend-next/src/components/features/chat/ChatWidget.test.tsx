@@ -40,23 +40,25 @@ vi.mock('@/lib/ws', () => ({
   chatSocket: mockChatSocket,
 }));
 
+const authValue = {
+  user: {
+    id: 'u1',
+    email: 'alice@example.com',
+    username: 'alice',
+    firstName: 'Alice',
+    lastName: 'Smith',
+    dateOfBirth: '1990-01-01',
+    isPublic: true,
+    createdAt: '2024-01-01T00:00:00Z',
+  },
+  loading: false,
+  setUser: vi.fn(),
+  clearUser: vi.fn(),
+  refreshUser: vi.fn(),
+};
+
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'u1',
-      email: 'alice@example.com',
-      username: 'alice',
-      firstName: 'Alice',
-      lastName: 'Smith',
-      dateOfBirth: '1990-01-01',
-      isPublic: true,
-      createdAt: '2024-01-01T00:00:00Z',
-    },
-    loading: false,
-    setUser: vi.fn(),
-    clearUser: vi.fn(),
-    refreshUser: vi.fn(),
-  }),
+  useAuth: () => authValue,
 }));
 
 vi.mock('next/image', () => ({
@@ -221,6 +223,39 @@ describe('ChatWidget', () => {
 
     await waitFor(() => {
       expect(widgetButton).not.toHaveAttribute('data-unread');
+    });
+  });
+
+  it('bumps unread for a message in a conversation missing from the list', async () => {
+    // Regression: a first-ever message creates the conversation server-side,
+    // but no local entry exists yet — the old code silently dropped the event.
+    // The widget must refresh the list, whose snapshot carries the unread.
+    const newConversation = {
+      ...conversation,
+      id: 'c-new',
+      participants: [{ id: 'u3', username: 'carol', isOnline: true }],
+      unreadCount: 1,
+    };
+    mockGetChats.mockResolvedValueOnce([]).mockResolvedValueOnce([newConversation]);
+    const { container } = render(<ChatWidget />);
+    await waitFor(() => {
+      expect(mockGetChats).toHaveBeenCalledTimes(1);
+    });
+
+    wsHandlers['chat.message']({
+      id: 'm1',
+      chat_id: 'c-new',
+      sender_id: 'u3',
+      content: 'first hello',
+      created_at: '2024-01-01T00:00:01Z',
+    });
+
+    await waitFor(() => {
+      expect(mockGetChats).toHaveBeenCalledTimes(2);
+    });
+    const widgetButton = container.querySelector('.chat-widget-button');
+    await waitFor(() => {
+      expect(widgetButton).toHaveAttribute('data-unread', '1');
     });
   });
 
