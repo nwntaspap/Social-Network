@@ -20,6 +20,7 @@ type mockUserRepo struct {
 	getByUsernameErr  error
 	updateErr         error
 	togglePrivacyErr  error
+	updatedUser       *user.User
 }
 
 func (m *mockUserRepo) Create(_ context.Context, _ *user.User) error {
@@ -45,7 +46,8 @@ func (m *mockUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, e
 	return nil, user.ErrUserNotFound
 }
 
-func (m *mockUserRepo) Update(_ context.Context, _ *user.User) error {
+func (m *mockUserRepo) Update(_ context.Context, u *user.User) error {
+	m.updatedUser = u
 	return m.updateErr
 }
 

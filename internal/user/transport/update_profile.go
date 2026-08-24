@@ -10,10 +10,12 @@ import (
 )
 
 type updateProfileRequest struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Nickname  string `json:"nickname"`
-	AboutMe   string `json:"aboutMe"`
+	FirstName   string `json:"firstName"`
+	LastName    string `json:"lastName"`
+	Nickname    string `json:"nickname"`
+	AboutMe     string `json:"aboutMe"`
+	DateOfBirth string `json:"dateOfBirth,omitempty"`
+	Gender      string `json:"gender,omitempty"`
 }
 
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -37,16 +39,28 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dob, err := parseDateOnly(req.DateOfBirth)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "invalid dateOfBirth format, use YYYY-MM-DD")
+		return
+	}
+
 	if err := h.updateProfile.Execute(r.Context(), commands.UpdateProfileCommand{
-		UserID:    userID,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Nickname:  req.Nickname,
-		AboutMe:   req.AboutMe,
+		UserID:      userID,
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		Nickname:    req.Nickname,
+		AboutMe:     req.AboutMe,
+		DateOfBirth: dob,
+		Gender:      req.Gender,
 	}); err != nil {
 		h.logger.PrintError(err, nil)
 		if errors.Is(err, user.ErrUserNotFound) {
 			helpers.RespondWithError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		if errors.Is(err, commands.ErrInvalidGender) {
+			helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		helpers.RespondWithError(w, http.StatusInternalServerError, "failed to update profile")

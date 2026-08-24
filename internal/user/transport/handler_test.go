@@ -43,9 +43,13 @@ func (s *stubLogout) Execute(_ context.Context, _ commands.LogoutCommand) error 
 
 type stubUpdateProfile struct {
 	err error
+	got *commands.UpdateProfileCommand
 }
 
-func (s *stubUpdateProfile) Execute(_ context.Context, _ commands.UpdateProfileCommand) error {
+func (s *stubUpdateProfile) Execute(_ context.Context, cmd commands.UpdateProfileCommand) error {
+	if s.got == nil {
+		s.got = &cmd
+	}
 	return s.err
 }
 

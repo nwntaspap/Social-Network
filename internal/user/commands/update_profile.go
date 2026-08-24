@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/user"
@@ -12,11 +14,13 @@ import (
 var ErrUnauthorized = errors.New("unauthorized to update this profile")
 
 type UpdateProfileCommand struct {
-	UserID    string
-	FirstName string
-	LastName  string
-	Nickname  string
-	AboutMe   string
+	UserID      string
+	FirstName   string
+	LastName    string
+	Nickname    string
+	AboutMe     string
+	DateOfBirth time.Time
+	Gender      string
 }
 
 type UpdateProfileHandler struct {
@@ -37,10 +41,17 @@ func (h *UpdateProfileHandler) Execute(ctx context.Context, cmd UpdateProfileCom
 		return err
 	}
 
+	gender := strings.TrimSpace(cmd.Gender)
+	if gender != "" && !allowedGenders[gender] {
+		return ErrInvalidGender
+	}
+
 	u.FirstName = cmd.FirstName
 	u.LastName = cmd.LastName
 	u.Nickname = cmd.Nickname
 	u.AboutMe = cmd.AboutMe
+	u.DateOfBirth = cmd.DateOfBirth
+	u.Gender = gender
 
 	if err = h.repo.Update(ctx, u); err != nil {
 		return err

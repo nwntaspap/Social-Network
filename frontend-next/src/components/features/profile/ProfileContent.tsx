@@ -28,8 +28,8 @@ const GENDER_LABELS: Record<string, string> = {
 
 // Zero-valued Go time.Time serializes as "0001-01-01" — treat it as absent
 // (locked profiles never receive a real date of birth).
-function hasDateOfBirth(user: Partial<Profile>): boolean {
-  return Boolean(user.dateOfBirth && !user.dateOfBirth.startsWith('0001'));
+function hasDateOfBirth(user?: Partial<Profile> | null): boolean {
+  return Boolean(user?.dateOfBirth && !user.dateOfBirth.startsWith('0001'));
 }
 
 export default function ProfileContent() {
@@ -53,6 +53,8 @@ export default function ProfileContent() {
   // About Me editor (own profile only)
   const [editingAbout, setEditingAbout] = useState(false);
   const [aboutDraft, setAboutDraft] = useState('');
+  const [dobDraft, setDobDraft] = useState('');
+  const [genderDraft, setGenderDraft] = useState('');
   const [savingAbout, setSavingAbout] = useState(false);
 
   const isOwnProfile = currentUser?.id === id;
@@ -121,6 +123,8 @@ export default function ProfileContent() {
 
   function handleEditAbout() {
     setAboutDraft(profile?.aboutMe ?? '');
+    setDobDraft(hasDateOfBirth(profile) ? (profile?.dateOfBirth ?? '').slice(0, 10) : '');
+    setGenderDraft(profile?.gender ?? '');
     setEditingAbout(true);
   }
 
@@ -134,6 +138,8 @@ export default function ProfileContent() {
         lastName: profile.lastName,
         nickname: profile.nickname ?? '',
         aboutMe: aboutDraft,
+        dateOfBirth: dobDraft,
+        gender: genderDraft,
       });
       setProfile({ ...profile, ...updated });
       setEditingAbout(false);
@@ -195,17 +201,17 @@ export default function ProfileContent() {
 
             {(isOwnProfile || !isLockedProfile) && (
               <div className="profile-contact-info">
-                {isOwnProfile && <p className="profile-bio-text">Email: {profile.email}</p>}
-                {hasDateOfBirth(profile) && (
-                  <p className="profile-bio-text">
-                    Date of birth: {profile.dateOfBirth?.slice(0, 10)}
-                  </p>
-                )}
-                {profile.gender && (
-                  <p className="profile-bio-text">
-                    Gender: {GENDER_LABELS[profile.gender] ?? profile.gender}
-                  </p>
-                )}
+                <p className="profile-bio-text">Email: {profile.email || 'Not set yet'}</p>
+                <p className="profile-bio-text">
+                  Date of birth:{' '}
+                  {hasDateOfBirth(profile) ? profile.dateOfBirth?.slice(0, 10) : 'Not set yet'}
+                </p>
+                <p className="profile-bio-text">
+                  Gender:{' '}
+                  {profile.gender
+                    ? (GENDER_LABELS[profile.gender] ?? profile.gender)
+                    : 'Not set yet'}
+                </p>
               </div>
             )}
 
@@ -254,6 +260,28 @@ export default function ProfileContent() {
                     onChange={(e) => setAboutDraft(e.target.value)}
                   />
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      className="form-input"
+                      type="date"
+                      aria-label="Date of birth"
+                      value={dobDraft}
+                      onChange={(e) => setDobDraft(e.target.value)}
+                    />
+                    <select
+                      className="form-input"
+                      aria-label="Gender"
+                      value={genderDraft}
+                      onChange={(e) => setGenderDraft(e.target.value)}
+                    >
+                      <option value="">Not specified</option>
+                      {Object.entries(GENDER_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                       type="button"
                       className="group-action-btn"
@@ -274,7 +302,11 @@ export default function ProfileContent() {
                 </>
               ) : (
                 <>
-                  {profile.aboutMe && <p className="profile-bio-text">{profile.aboutMe}</p>}
+                  {profile.aboutMe ? (
+                    <p className="profile-bio-text">{profile.aboutMe}</p>
+                  ) : (
+                    <p className="profile-bio-text">About me: Not set yet</p>
+                  )}
                   {isOwnProfile && (
                     <button type="button" className="group-action-btn" onClick={handleEditAbout}>
                       {profile.aboutMe ? 'Edit About Me' : 'Add About Me'}

@@ -118,10 +118,10 @@ func (s *SQLiteStore) Update(ctx context.Context, u *user.User) error {
 	result, err := s.db.ExecContext(
 		ctx,
 		`UPDATE users SET email = ?, password_hash = ?, first_name = ?, last_name = ?,
-		avatar_url = ?, date_of_birth = ?, about_me = ?, is_private = ?, updated_at = ?
+		avatar_url = ?, date_of_birth = ?, about_me = ?, is_private = ?, gender = ?, updated_at = ?
 		WHERE id = ?`,
 		u.Email, u.PasswordHash, u.FirstName, u.LastName,
-		nullString(u.AvatarPath), nullTime(u.DateOfBirth), nullString(u.AboutMe), u.IsPrivate,
+		nullString(u.AvatarPath), nullTime(u.DateOfBirth), nullString(u.AboutMe), u.IsPrivate, u.Gender,
 		time.Now(), u.ID,
 	)
 	if err != nil {

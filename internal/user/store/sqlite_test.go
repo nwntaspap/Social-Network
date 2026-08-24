@@ -160,6 +160,64 @@ func TestGetByID(t *testing.T) {
 	}
 }
 
+// Regression: OAuth signups insert users without dob/gender/about (NULLs).
+// GetByID must scan them without error and yield zero-value fields.
+func TestGetByID_OAuthShapedUser(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO users (id, username, email, password_hash, first_name, last_name, avatar_url)
+		 VALUES ('oauth1', 'ghuser', 'gh@example.com', '', 'Git', 'Hub', '/img.png')`)
+	if err != nil {
+		t.Fatalf("seed oauth-shaped user: %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "oauth1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v (NULL profile columns must not break scanning)", err)
+	}
+	if got.Email != "gh@example.com" {
+		t.Errorf("Email = %q, want %q", got.Email, "gh@example.com")
+	}
+	if !got.DateOfBirth.IsZero() {
+		t.Errorf("DateOfBirth = %v, want zero", got.DateOfBirth)
+	}
+	if got.Gender != "" || got.AboutMe != "" {
+		t.Errorf("Gender/AboutMe = %q/%q, want empty", got.Gender, got.AboutMe)
+	}
+	if got.IsPrivate {
+		t.Error("IsPrivate = true, want false (OAuth users are public by default)")
+	}
+}
+
+func TestUpdate_PersistsDOBAndGender(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+	dob := time.Date(2000, 5, 17, 0, 0, 0, 0, time.UTC)
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "u@example.com", Nickname: "u", PasswordHash: "h", CreatedAt: time.Now()})
+
+	err := s.Update(ctx, &user.User{
+		ID: "u1", Email: "u@example.com", Nickname: "u",
+		DateOfBirth: dob, Gender: "other",
+	})
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if !got.DateOfBirth.Equal(dob) {
+		t.Errorf("DateOfBirth = %v, want %v", got.DateOfBirth, dob)
+	}
+	if got.Gender != "other" {
+		t.Errorf("Gender = %q, want %q", got.Gender, "other")
+	}
+}
+
 func TestGetByID_NotFound(t *testing.T) {
 	s := setupStore(t)
 	_, err := s.GetByID(context.Background(), "nonexistent")
