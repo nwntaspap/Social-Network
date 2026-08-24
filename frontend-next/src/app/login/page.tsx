@@ -147,7 +147,11 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
       const msg = err instanceof ApiError ? err.message : String(err);
       const lower = msg.toLowerCase();
 
-      if (lower.includes('email')) {
+      // Bad credentials are shown on the password field — it exists in both
+      // sign-in modes, unlike the email/nickname inputs.
+      if (err instanceof ApiError && err.isUnauthorized) {
+        setPasswordError(msg);
+      } else if (lower.includes('email')) {
         setEmailError(msg);
       } else if (
         lower.includes('nickname') ||
