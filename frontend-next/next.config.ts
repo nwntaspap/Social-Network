@@ -38,8 +38,10 @@ const nextConfig: NextConfig = {
         destination: `${backendOrigin}/static/:path*`,
       },
       {
+        // Client paths already carry /api/v1 (see NOTIFICATIONS_BASE), so the
+        // capture is appended verbatim — adding /api here would double it.
         source: '/notifications-api/:path*',
-        destination: `${notificationsOrigin}/api/:path*`,
+        destination: `${notificationsOrigin}/:path*`,
       },
     ];
   },
