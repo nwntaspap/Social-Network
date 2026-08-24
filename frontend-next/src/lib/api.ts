@@ -75,6 +75,14 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
+// Endpoints where a 401 means "bad credentials", not "session expired" —
+// the global logout flow must not fire for them.
+const AUTH_PATH_PREFIXES = ['/login', '/register', '/logout', '/oauth'];
+
+function isAuthPath(path: string): boolean {
+  return AUTH_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 async function apiFetch<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const url = API_BASE + path;
   const hasBody = options.body !== undefined && options.body !== null;
@@ -97,7 +105,7 @@ async function apiFetch<T = unknown>(path: string, options: RequestOptions = {})
   const text = await response.text();
 
   // Check first response header
-  if (response.status === 401) {
+  if (response.status === 401 && !isAuthPath(path)) {
     handleUnauthorized();
     throw new ApiError(401, 'Session expired');
   }
