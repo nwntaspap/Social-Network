@@ -18,6 +18,20 @@ import PostCard from '@/components/features/home/PostCard';
 import FollowRequestsSection from './FollowRequestsSection';
 import FollowersFollowingModal from './FollowersFollowingModal';
 import type { Post, Profile } from '@/lib/types';
+
+const GENDER_LABELS: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  other: 'Other',
+  prefer_not_to_say: 'Prefer not to say',
+};
+
+// Zero-valued Go time.Time serializes as "0001-01-01" — treat it as absent
+// (locked profiles never receive a real date of birth).
+function hasDateOfBirth(user: Partial<Profile>): boolean {
+  return Boolean(user.dateOfBirth && !user.dateOfBirth.startsWith('0001'));
+}
+
 export default function ProfileContent() {
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useAuth();
@@ -179,12 +193,19 @@ export default function ProfileContent() {
             <h1 className="profile-name">{getDisplayName(profile)}</h1>
             <p className="profile-bio-text">@{profile.username || profile.nickname}</p>
 
-            {isOwnProfile && (
+            {(isOwnProfile || !isLockedProfile) && (
               <div className="profile-contact-info">
-                <p className="profile-bio-text">Email: {profile.email}</p>
-                <p className="profile-bio-text">
-                  Date of birth: {profile.dateOfBirth?.slice(0, 10)}
-                </p>
+                {isOwnProfile && <p className="profile-bio-text">Email: {profile.email}</p>}
+                {hasDateOfBirth(profile) && (
+                  <p className="profile-bio-text">
+                    Date of birth: {profile.dateOfBirth?.slice(0, 10)}
+                  </p>
+                )}
+                {profile.gender && (
+                  <p className="profile-bio-text">
+                    Gender: {GENDER_LABELS[profile.gender] ?? profile.gender}
+                  </p>
+                )}
               </div>
             )}
 

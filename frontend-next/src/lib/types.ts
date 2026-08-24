@@ -10,6 +10,7 @@ export interface User {
   avatarUrl?: string;
   nickname?: string;
   aboutMe?: string;
+  gender?: string;
   isPublic: boolean;
   isOnline?: boolean;
   createdAt: string;

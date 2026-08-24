@@ -128,6 +128,29 @@ func TestGetProfileResolver_PrivateProfile_NotFollowing(t *testing.T) {
 	if result.FollowerCount != 0 {
 		t.Errorf("FollowerCount = %d, want 0 (limited profile)", result.FollowerCount)
 	}
+	if !result.User.IsPrivate {
+		t.Error("User.IsPrivate = false, want true (locked profile must keep privacy flag)")
+	}
+}
+
+func TestGetProfileResolver_PrivateProfile_RequesterAnonymous(t *testing.T) {
+	u := &user.User{ID: "u1", Nickname: "nick", IsPrivate: true}
+	repo := &mockUserRepoQ{getByIDUser: u}
+	r := NewGetProfileResolver(repo, &mockFollowChecker{}, &mockFollowCounter{})
+
+	result, err := r.Resolve(context.Background(), GetProfileQuery{
+		TargetID:    "u1",
+		RequesterID: "",
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if !result.User.IsPrivate {
+		t.Error("User.IsPrivate = false, want true (locked profile, anonymous requester)")
+	}
+	if result.IsFollowing {
+		t.Error("IsFollowing = true, want false (anonymous requester)")
+	}
 }
 
 func TestGetProfileResolver_OwnProfile(t *testing.T) {

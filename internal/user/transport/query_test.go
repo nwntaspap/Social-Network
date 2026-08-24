@@ -48,6 +48,39 @@ func TestGetProfile_Success(t *testing.T) {
 	}
 }
 
+func TestGetProfile_LockedProfile(t *testing.T) {
+	h := newTestHandler(func(h *Handler) {
+		h.getProfile = &stubGetProfile{
+			result: &queries.ProfileResult{
+				// Locked profile: only identity fields, privacy flag must survive.
+				User: user.User{ID: "u1", Nickname: "nick", AvatarPath: "/img.png", IsPrivate: true},
+			},
+		}
+	})
+	withDefaults(h)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/user/profile?user_id=u1", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetProfile(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp struct {
+		Data struct {
+			IsPublic bool `json:"isPublic"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Data.IsPublic {
+		t.Error("isPublic = true, want false (locked private profile)")
+	}
+}
+
 func TestGetProfile_MissingUserID(t *testing.T) {
 	h := newTestHandler()
 	withDefaults(h)

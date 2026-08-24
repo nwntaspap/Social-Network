@@ -52,6 +52,7 @@ func (r *GetProfileResolver) Resolve(ctx context.Context, q GetProfileQuery) (*P
 				ID:         u.ID,
 				Nickname:   u.Nickname,
 				AvatarPath: u.AvatarPath,
+				IsPrivate:  true,
 			},
 		}, nil
 	}
