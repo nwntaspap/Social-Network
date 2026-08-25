@@ -183,13 +183,13 @@ func excludeFollowed(where string, args []any, userID string) (string, []any) {
 	if userID == "" {
 		return where, args
 	}
-	clause := `id != ? AND id NOT IN (SELECT followee_id FROM follows WHERE follower_id = ?)`
+	clause := `id != ? AND id NOT IN (SELECT followee_id FROM follows WHERE follower_id = ?) AND id NOT IN (SELECT followee_id FROM follow_requests WHERE follower_id = ?)`
 	if where == "" {
 		where = `WHERE ` + clause
 	} else {
 		where += ` AND ` + clause
 	}
-	args = append(args, userID, userID)
+	args = append(args, userID, userID, userID)
 	return where, args
 }
 

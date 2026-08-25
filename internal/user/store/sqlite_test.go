@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS follows (
     PRIMARY KEY(follower_id, followee_id),
     FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS follow_requests (
+    follower_id TEXT NOT NULL,
+    followee_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(follower_id, followee_id),
+    FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
 );`
 
 func setupStore(t *testing.T) *SQLiteStore {
@@ -537,6 +545,31 @@ func TestSearchUsersExcluding_ExcludesSelfAndFollowed(t *testing.T) {
 	}
 	if len(searched) != 0 {
 		t.Errorf("SearchUsersExcluding(bob) = %+v, want empty (followed user)", searched)
+	}
+}
+
+func TestSearchUsersExcluding_ExcludesPendingFollowRequests(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@test.com", Nickname: "a", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@test.com", Nickname: "b", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@test.com", Nickname: "c", PasswordHash: "h", CreatedAt: time.Now()})
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`, "u1", "u2"); err != nil {
+		t.Fatalf("seed follow request: %v", err)
+	}
+	users, err := s.SearchUsersExcluding(ctx, "", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding() error = %v", err)
+	}
+	if len(users) != 1 || users[0].Nickname != "c" {
+		t.Errorf("SearchUsersExcluding() = %+v, want [c]", users)
+	}
+	count, err := s.CountUsersExcluding(ctx, "", "u1")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("CountUsersExcluding() = %d, want 1", count)
 	}
 }
 
