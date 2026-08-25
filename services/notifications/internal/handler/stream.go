@@ -106,6 +106,13 @@ func (h *Notifications) StreamNotifications(w http.ResponseWriter, r *http.Reque
 			}
 			fmt.Fprintf(w, "event: notification\ndata: %s\n\n", data)
 			flusher.Flush()
+
+			// Follow every notification with the authoritative unread count so
+			// a missed or miscounted client-side increment self-corrects.
+			if count, err := h.repo.GetUnreadCount(r.Context(), userID); err == nil {
+				fmt.Fprintf(w, "data: {\"type\":\"unread_count\",\"count\":%d}\n\n", count)
+				flusher.Flush()
+			}
 		case <-ticker.C:
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()

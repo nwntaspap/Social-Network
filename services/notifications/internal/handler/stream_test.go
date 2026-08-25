@@ -137,6 +137,52 @@ func TestStreamNotifications_ReadsLines(t *testing.T) {
 	}
 }
 
+func TestStreamNotifications_EmitsUnreadCountAfterNotification(t *testing.T) {
+	h, repo := setupHandlerTest(t)
+
+	ctx := context.Background()
+	err := repo.Create(ctx, &store.Notification{
+		RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2",
+	})
+	if err != nil {
+		t.Fatalf("seed notification: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	r := authenticatedRequest(t, http.MethodGet, "/api/v1/notifications/stream", "u1")
+
+	streamCtx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	r = r.WithContext(streamCtx)
+
+	done := make(chan struct{})
+	go func() {
+		h.StreamNotifications(w, r)
+		close(done)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+	h.hub.Publish("u1", store.Notification{ID: 1, RecipientID: "u1", Type: "like", ResourceType: "post", ResourceID: "1", ActorID: "u2"})
+	time.Sleep(200 * time.Millisecond)
+	cancel()
+	<-done
+
+	body := w.Body.String()
+	notifIdx := strings.Index(body, "event: notification")
+	if notifIdx == -1 {
+		t.Fatalf("missing notification event in SSE response:\n%s", body)
+	}
+	// Every notification frame must be followed by an authoritative unread
+	// count so the client badge can never drift from the server.
+	lastCountIdx := strings.LastIndex(body, `"type":"unread_count"`)
+	if lastCountIdx < notifIdx {
+		t.Errorf("no unread_count frame after the notification event:\n%s", body)
+	}
+	if !strings.Contains(body, `"count":1`) {
+		t.Errorf("unread count does not reflect the new notification:\n%s", body)
+	}
+}
+
 func TestStreamNotifications_Unauthorized(t *testing.T) {
 	h, _ := setupHandlerTest(t)
 
