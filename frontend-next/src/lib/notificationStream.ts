@@ -18,8 +18,20 @@
 import type { Notification } from './types';
 
 // Proxied through Next.js (see next.config.ts rewrites) so the session
-// cookie stays first-party and no CORS setup is required.
+// cookie stays first-party and no CORS setup is required.  In native dev
+// the proxy buffers text/event-stream frames indefinitely, so we dial
+// the service directly when NEXT_PUBLIC_NOTIFICATIONS_ORIGIN is set.
 const NOTIFICATIONS_BASE = '/notifications-api/api/v1';
+const DIRECT_ORIGIN = process.env.NEXT_PUBLIC_NOTIFICATIONS_ORIGIN ?? '';
+
+function streamUrl(): string {
+  if (DIRECT_ORIGIN) {
+    // Direct path bypasses the Next.js rewrite (browsers carry the
+    // forum cookie to localhost:8081 regardless of port).
+    return `${DIRECT_ORIGIN}/api/v1/notifications/stream`;
+  }
+  return `${NOTIFICATIONS_BASE}/notifications/stream`;
+}
 
 type NotificationHandler = (notification: Notification) => void;
 type UnreadCountHandler = (count: number) => void;
@@ -72,7 +84,7 @@ class NotificationStream {
   private open(): void {
     this.shouldReconnect = true;
 
-    const es = new EventSource(`${NOTIFICATIONS_BASE}/notifications/stream`, {
+    const es = new EventSource(streamUrl(), {
       withCredentials: true,
     });
     this.es = es;

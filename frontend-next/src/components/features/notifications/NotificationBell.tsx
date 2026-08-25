@@ -175,6 +175,9 @@ export default function NotificationBell() {
       if (next) {
         setLoaded(false);
         setTimeout(loadNotifications, 0);
+        // Re-sync the badge with the server: missed stream frames would
+        // otherwise keep a stale count until a full page reload.
+        void refreshUnread();
       }
       return next;
     });

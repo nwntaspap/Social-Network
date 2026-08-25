@@ -120,6 +120,21 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(screen.getByText('3')).toBeInTheDocument());
   });
 
+  it('re-syncs the unread count with the server when the dropdown opens', async () => {
+    // Regression: the badge was only set on mount / stream events, so any
+    // missed frame kept it stale until a full page reload even though the
+    // dropdown refetched the list itself.
+    mockGetUnreadNotificationCount.mockResolvedValue({ count: 0 });
+    render(<NotificationBell />);
+    await waitFor(() => expect(mockGetUnreadNotificationCount).toHaveBeenCalledTimes(1));
+
+    mockGetUnreadNotificationCount.mockResolvedValue({ count: 5 });
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+
+    await waitFor(() => expect(mockGetUnreadNotificationCount).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByText('5')).toBeInTheDocument());
+  });
+
   it('loads notifications when the dropdown is opened', async () => {
     mockGetNotifications.mockResolvedValue({
       notifications: [makeNotification({ id: 10, type: 'like', is_read: true })],

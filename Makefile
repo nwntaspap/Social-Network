@@ -277,7 +277,7 @@ run-broker: ## Start the message broker container
 run-frontend: ## Run frontend natively (Next.js or legacy)
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
 		echo "==> Running frontend (Next.js)..."; \
-		cd frontend-next && bun run dev; \
+		cd frontend-next && NEXT_PUBLIC_NOTIFICATIONS_ORIGIN=http://localhost:8081 bun run dev; \
 	elif [ -d frontend ] && [ -f frontend/package.json ]; then \
 		echo "==> Running frontend (Next.js)..."; \
 		cd frontend && bun run dev; \
