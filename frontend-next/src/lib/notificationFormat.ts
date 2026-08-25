@@ -40,6 +40,14 @@ export function getNotificationMessage(n: Notification): string {
         : `${name} accepted your group join request`;
     case 'group_join_declined':
       return `${name} declined your group join request`;
+    case 'group_invite_accepted':
+      return n.content_text
+        ? `You joined group "${n.content_text}"`
+        : `You accepted the group invitation`;
+    case 'group_invite_declined':
+      return n.content_text
+        ? `Invite to group "${n.content_text}" was declined`
+        : `Group invitation was declined`;
     case 'event':
       return n.content_text || `${name} created a new event`;
     case 'post':
@@ -68,6 +76,8 @@ export function getNotificationHref(n: Notification): string | null {
     case 'group_join_request':
     case 'group_join_accept':
     case 'group_join_declined':
+    case 'group_invite_accepted':
+    case 'group_invite_declined':
     case 'event':
       return n.resource_id ? `/groups/${n.resource_id}` : null;
     default:
@@ -96,6 +106,8 @@ export function getNotificationIcon(n: Notification): string {
     case 'group_join_request':
     case 'group_join_accept':
     case 'group_join_declined':
+    case 'group_invite_accepted':
+    case 'group_invite_declined':
       return 'group';
     case 'event':
       return 'event';

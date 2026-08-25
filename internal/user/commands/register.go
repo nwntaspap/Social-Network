@@ -46,6 +46,7 @@ type RegisterCommand struct {
 	Nickname       string
 	DateOfBirth    time.Time
 	Gender         string
+	AboutMe        string
 	AvatarData     []byte
 	AvatarFileName string
 }
@@ -143,6 +144,7 @@ func (h *RegisterHandler) Execute(ctx context.Context, cmd RegisterCommand) (*us
 		Nickname:     nickname,
 		DateOfBirth:  cmd.DateOfBirth,
 		Gender:       gender,
+		AboutMe:      cmd.AboutMe,
 		AvatarPath:   avatarPath,
 		CreatedAt:    time.Now(),
 	}

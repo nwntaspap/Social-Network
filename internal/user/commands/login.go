@@ -10,7 +10,7 @@ import (
 	"social-network/internal/user"
 )
 
-var ErrInvalidCredentials = errors.New("invalid email or password")
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type LoginCommand struct {
 	Identifier string

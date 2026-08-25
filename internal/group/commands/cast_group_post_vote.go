@@ -2,8 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
+	"log"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type CastGroupPostVoteCommand struct {
@@ -13,11 +17,13 @@ type CastGroupPostVoteCommand struct {
 }
 
 type CastGroupPostVoteHandler struct {
-	repo group.PostRepository
+	repo  group.PostRepository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewCastGroupPostVoteHandler(repo group.PostRepository) *CastGroupPostVoteHandler {
-	return &CastGroupPostVoteHandler{repo: repo}
+func NewCastGroupPostVoteHandler(repo group.PostRepository, bus eventbus.EventBus, users user.Repository) *CastGroupPostVoteHandler {
+	return &CastGroupPostVoteHandler{repo: repo, bus: bus, users: users}
 }
 
 func (h *CastGroupPostVoteHandler) Execute(ctx context.Context, cmd CastGroupPostVoteCommand) error {
@@ -31,5 +37,41 @@ func (h *CastGroupPostVoteHandler) Execute(ctx context.Context, cmd CastGroupPos
 		return group.ErrInvalidVoteValue
 	}
 
-	return h.repo.CastPostVote(ctx, cmd.UserID, cmd.PostID, cmd.ReactionType)
+	post, err := h.repo.GetPostByID(ctx, cmd.PostID)
+	if err != nil {
+		return err
+	}
+
+	err = h.repo.CastPostVote(ctx, cmd.UserID, cmd.PostID, cmd.ReactionType)
+	if err != nil {
+		return err
+	}
+
+	if post.AuthorID == cmd.UserID {
+		return nil
+	}
+
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return err
+	}
+
+	eventType := eventbus.EventPostLiked
+	if cmd.ReactionType != 1 {
+		eventType = eventbus.EventPostDisliked
+	}
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventType,
+		RecipientID:  post.AuthorID,
+		ActorID:      actor.ID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   cmd.PostID,
+		ContentText:  post.Content,
+	})
+	log.Printf("group post vote notification: type=%s post=%s actor=%s", eventType, cmd.PostID, actor.ID)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
+
+	return nil
 }

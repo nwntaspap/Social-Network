@@ -20,6 +20,7 @@ type registerRequest struct {
 	Nickname    string
 	DateOfBirth string
 	Gender      string
+	AboutMe     string
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +44,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Nickname:    r.FormValue("nickname"),
 		DateOfBirth: r.FormValue("dateOfBirth"),
 		Gender:      r.FormValue("gender"),
+		AboutMe:     r.FormValue("aboutMe"),
 	}
 
 	dob, err := time.Parse(time.RFC3339, req.DateOfBirth)
@@ -69,6 +71,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Nickname:       req.Nickname,
 		DateOfBirth:    dob,
 		Gender:         req.Gender,
+		AboutMe:        req.AboutMe,
 		AvatarData:     avatarData,
 		AvatarFileName: avatarFileName,
 	})

@@ -268,6 +268,8 @@ export type NotificationType =
   | 'group_join_request'
   | 'group_join_accept'
   | 'group_join_declined'
+  | 'group_invite_accepted'
+  | 'group_invite_declined'
   | 'event'
   | 'post'
   | 'comment'

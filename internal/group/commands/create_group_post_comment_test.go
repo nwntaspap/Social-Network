@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 var (
@@ -46,6 +48,35 @@ func (s *createGroupPostCommentStub) CreatePostComment(_ context.Context, _ *gro
 	return s.createErr
 }
 
+type commentNoopBus struct{}
+
+func (commentNoopBus) Publish(_ string, _ string, _ []byte) error { return nil }
+func (commentNoopBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+func (commentNoopBus) InitTopology(_ context.Context) error { return nil }
+
+type commentNoopUserRepo struct{}
+
+func (commentNoopUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (commentNoopUserRepo) GetByID(_ context.Context, _ string) (*user.User, error) {
+	return &user.User{ID: "stub", Nickname: "stub"}, nil
+}
+
+func (commentNoopUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, user.ErrUserNotFound
+}
+
+func (commentNoopUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, user.ErrUserNotFound
+}
+func (commentNoopUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (commentNoopUserRepo) Delete(_ context.Context, _ string) error                { return nil }
+func (commentNoopUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (commentNoopUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
+
 func memberStub() *createGroupPostCommentStub {
 	return &createGroupPostCommentStub{
 		post:     &group.Post{ID: "p1", GroupID: "g1"},
@@ -55,7 +86,7 @@ func memberStub() *createGroupPostCommentStub {
 
 func TestCreateGroupPostComment_WithValidImage(t *testing.T) {
 	store := &groupCommentStorage{}
-	h := NewCreateGroupPostCommentHandler(memberStub(), store)
+	h := NewCreateGroupPostCommentHandler(memberStub(), store, commentNoopBus{}, commentNoopUserRepo{})
 
 	c, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{
 		PostID:        "p1",
@@ -82,7 +113,7 @@ func TestCreateGroupPostComment_WithValidImage(t *testing.T) {
 }
 
 func TestCreateGroupPostComment_InvalidImage(t *testing.T) {
-	h := NewCreateGroupPostCommentHandler(memberStub(), &groupCommentStorage{})
+	h := NewCreateGroupPostCommentHandler(memberStub(), &groupCommentStorage{}, commentNoopBus{}, commentNoopUserRepo{})
 
 	_, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{
 		PostID:        "p1",
@@ -98,7 +129,7 @@ func TestCreateGroupPostComment_InvalidImage(t *testing.T) {
 
 func TestCreateGroupPostComment_NoImage(t *testing.T) {
 	store := &groupCommentStorage{}
-	h := NewCreateGroupPostCommentHandler(memberStub(), store)
+	h := NewCreateGroupPostCommentHandler(memberStub(), store, commentNoopBus{}, commentNoopUserRepo{})
 
 	c, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{
 		PostID:   "p1",
@@ -117,7 +148,7 @@ func TestCreateGroupPostComment_NoImage(t *testing.T) {
 }
 
 func TestCreateGroupPostComment_Validation(t *testing.T) {
-	h := NewCreateGroupPostCommentHandler(memberStub(), &groupCommentStorage{})
+	h := NewCreateGroupPostCommentHandler(memberStub(), &groupCommentStorage{}, commentNoopBus{}, commentNoopUserRepo{})
 
 	if _, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{AuthorID: "u1", Content: "x"}); err == nil {
 		t.Error("expected error for missing post id")
@@ -132,7 +163,7 @@ func TestCreateGroupPostComment_Validation(t *testing.T) {
 
 func TestCreateGroupPostComment_PostNotFound(t *testing.T) {
 	h := NewCreateGroupPostCommentHandler(
-		&createGroupPostCommentStub{postErr: group.ErrPostNotFound}, &groupCommentStorage{},
+		&createGroupPostCommentStub{postErr: group.ErrPostNotFound}, &groupCommentStorage{}, commentNoopBus{}, commentNoopUserRepo{},
 	)
 
 	_, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{PostID: "missing", AuthorID: "u1", Content: "x"})
@@ -146,7 +177,7 @@ func TestCreateGroupPostComment_NonMemberDenied(t *testing.T) {
 		&createGroupPostCommentStub{
 			post:     &group.Post{ID: "p1", GroupID: "g1"},
 			isMember: false,
-		}, &groupCommentStorage{},
+		}, &groupCommentStorage{}, commentNoopBus{}, commentNoopUserRepo{},
 	)
 
 	_, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{PostID: "p1", AuthorID: "outsider", Content: "x"})
@@ -160,7 +191,7 @@ func TestCreateGroupPostComment_RepoError(t *testing.T) {
 		post:      &group.Post{ID: "p1", GroupID: "g1"},
 		isMember:  true,
 		createErr: errors.New("db fail"),
-	}, &groupCommentStorage{})
+	}, &groupCommentStorage{}, commentNoopBus{}, commentNoopUserRepo{})
 
 	_, err := h.Execute(context.Background(), CreateGroupPostCommentCommand{
 		PostID:   "p1",

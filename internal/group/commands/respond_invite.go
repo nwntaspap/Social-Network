@@ -48,11 +48,36 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 		return "", err
 	}
 
+	g, err := h.repo.GetGroupByID(ctx, cmd.GroupID)
+	if err != nil {
+		return "", err
+	}
+
 	if deleteErr := h.repo.DeleteInvitation(ctx, cmd.GroupID, cmd.InviteeID); deleteErr != nil {
 		return "", deleteErr
 	}
 
+	// Delete the original group_invite notification from the invitee.
+	delBody, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventGroupInvitation,
+		RecipientID:  cmd.InviteeID,
+		ActorID:      inv.InviterID,
+		ResourceType: eventbus.ResourceGroup,
+		ResourceID:   cmd.GroupID,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, delBody)
+
 	if !cmd.Accept {
+		// Notify the invitee that the invite was declined.
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventGroupInviteDeclined,
+			RecipientID:  cmd.InviteeID,
+			ActorID:      inv.InviterID,
+			ResourceType: eventbus.ResourceGroup,
+			ResourceID:   cmd.GroupID,
+			ContentText:  g.Title,
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 		return "", nil
 	}
 
@@ -67,6 +92,16 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 		if addErr := h.repo.AddMember(ctx, cmd.GroupID, cmd.InviteeID, group.RoleMember); addErr != nil {
 			return "", addErr
 		}
+		// Notify the invitee that they joined the group.
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventGroupInviteAccepted,
+			RecipientID:  cmd.InviteeID,
+			ActorID:      inv.InviterID,
+			ResourceType: eventbus.ResourceGroup,
+			ResourceID:   cmd.GroupID,
+			ContentText:  g.Title,
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 		return RespondInviteMember, nil
 	}
 
@@ -93,15 +128,16 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 		}
 	}
 
-	// i didnt add a notification for the accept or decline
+	// Non-creator invite: notify invitee that acceptance is pending approval.
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventGroupInvitation,
+		Type:         eventbus.EventGroupInviteAccepted,
 		RecipientID:  cmd.InviteeID,
 		ActorID:      inv.InviterID,
 		ResourceType: eventbus.ResourceGroup,
 		ResourceID:   cmd.GroupID,
+		ContentText:  g.Title,
 	})
-	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return RespondInvitePending, nil
 }

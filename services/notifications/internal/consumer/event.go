@@ -64,6 +64,10 @@ func mapEventType(eventType string) string {
 		return "group_join_accept"
 	case eventbus.EventGroupJoinDeclined:
 		return "group_join_declined"
+	case eventbus.EventGroupInviteAccepted:
+		return "group_invite_accepted"
+	case eventbus.EventGroupInviteDeclined:
+		return "group_invite_declined"
 	default:
 		return eventType
 	}

@@ -26,6 +26,7 @@ export interface RegisterBody {
   gender: Gender;
   email: string;
   password: string;
+  aboutMe?: string;
 }
 
 export default function RegisterPage() {
@@ -66,6 +67,7 @@ function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [avatar, setAvatar] = useState<File | null>(null);
+  const [aboutMe, setAboutMe] = useState('');
 
   // Field errors
   const [nicknameError, setNicknameError] = useState('');
@@ -97,6 +99,7 @@ function RegisterForm() {
     setEmail('');
     setPassword('');
     setAvatar(null);
+    setAboutMe('');
     setShowPassword(false);
     clearAllErrors();
   }
@@ -167,6 +170,7 @@ function RegisterForm() {
       gender,
       email,
       password,
+      ...(aboutMe ? { aboutMe } : {}),
     };
 
     setSubmitting(true);
@@ -323,6 +327,19 @@ function RegisterForm() {
                   }}
                 />
                 {avatarError && <span className="error-message">{avatarError}</span>}
+              </div>
+
+              <div className="input-box">
+                <label htmlFor="aboutMe">About Me (optional)</label>
+                <textarea
+                  id="aboutMe"
+                  name="aboutMe"
+                  className="form-input"
+                  placeholder="Tell us about yourself"
+                  rows={3}
+                  value={aboutMe}
+                  onChange={(e) => setAboutMe(e.target.value)}
+                />
               </div>
 
               <div className="input-box">

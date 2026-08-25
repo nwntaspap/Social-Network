@@ -217,6 +217,9 @@ export async function register(body: RegisterBody, avatar?: File | null): Promis
   form.append('nickname', body.nickname);
   form.append('dateOfBirth', body.dateOfBirth);
   form.append('gender', body.gender);
+  if (body.aboutMe) {
+    form.append('aboutMe', body.aboutMe);
+  }
   if (avatar) {
     form.append('avatar', avatar);
   }

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/pkg/imgutil"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type CreateGroupPostCommentCommand struct {
@@ -20,12 +23,14 @@ type CreateGroupPostCommentCommand struct {
 }
 
 type CreateGroupPostCommentHandler struct {
-	repo group.Repository
-	img  group.ImageStorage
+	repo  group.Repository
+	img   group.ImageStorage
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewCreateGroupPostCommentHandler(repo group.Repository, img group.ImageStorage) *CreateGroupPostCommentHandler {
-	return &CreateGroupPostCommentHandler{repo: repo, img: img}
+func NewCreateGroupPostCommentHandler(repo group.Repository, img group.ImageStorage, bus eventbus.EventBus, users user.Repository) *CreateGroupPostCommentHandler {
+	return &CreateGroupPostCommentHandler{repo: repo, img: img, bus: bus, users: users}
 }
 
 func (h *CreateGroupPostCommentHandler) Execute(ctx context.Context, cmd CreateGroupPostCommentCommand) (*group.PostComment, error) {
@@ -67,6 +72,21 @@ func (h *CreateGroupPostCommentHandler) Execute(ctx context.Context, cmd CreateG
 
 	if err := h.repo.CreatePostComment(ctx, c); err != nil {
 		return nil, err
+	}
+
+	if post.AuthorID != cmd.AuthorID {
+		actor, _ := h.users.GetByID(ctx, cmd.AuthorID)
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventComment,
+			RecipientID:  post.AuthorID,
+			ActorID:      actor.ID,
+			ActorName:    actor.Nickname,
+			ActorAvatar:  actor.AvatarPath,
+			ResourceType: eventbus.ResourcePost,
+			ResourceID:   cmd.PostID,
+			ContentText:  post.Content,
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 	}
 
 	return c, nil

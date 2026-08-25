@@ -10,12 +10,13 @@ import {
   createGroupPostComment,
   respondToEvent,
   getEventRSVPs,
+  getGroupMembers,
 } from '@/lib/api';
 import PostCard from '@/components/features/home/PostCard';
 import EditEventForm from './EditEventForm';
 import GroupChatPanel from './GroupChatPanel';
 import { formatRelativeDate, getDisplayName, getFileUrl } from '@/lib/helpers';
-import type { Comment, Event, EventRSVPOption, Post } from '@/lib/types';
+import type { Comment, Event, EventRSVPOption, GroupMember, Post } from '@/lib/types';
 import { tabView } from './GroupDetail';
 
 interface GroupContentProps {
@@ -41,6 +42,8 @@ export default function GroupContent({
         <PostsTab groupId={groupId} />
       ) : activeTab === 'chat' ? (
         <ChatTab groupId={groupId} />
+      ) : activeTab === 'members' ? (
+        <MembersTab groupId={groupId} />
       ) : (
         <EventsTab
           groupId={groupId}
@@ -55,6 +58,81 @@ export default function GroupContent({
 
 function ChatTab({ groupId }: { groupId: string }) {
   return <GroupChatPanel groupId={groupId} />;
+}
+
+function MembersTab({ groupId }: { groupId: string }) {
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+    getGroupMembers(groupId, 1, 100)
+      .then((response) => {
+        if (!ignore) setMembers(response.data);
+      })
+      .catch(() => {
+        if (!ignore) setError('Failed to load members.');
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [groupId]);
+
+  if (loading) return <p className="group-empty-state">Loading members...</p>;
+  if (error) return <p className="group-empty-state">{error}</p>;
+  if (members.length === 0) return <p className="group-empty-state">No members yet.</p>;
+
+  const creators = members.filter((m) => m.role === 'creator');
+  const admins = members.filter((m) => m.role === 'admin');
+  const regular = members.filter((m) => m.role === 'member');
+
+  function renderRow(m: GroupMember) {
+    return (
+      <div key={m.userId} className="group-member-row">
+        <Link href={`/profile/${m.userId}`} className="group-member-link">
+          <Image
+            src={getFileUrl(m.user?.avatarUrl)}
+            alt={getDisplayName(m.user)}
+            width={40}
+            height={40}
+            className="group-member-avatar"
+          />
+          <div className="group-member-info">
+            <span className="group-member-name">{getDisplayName(m.user)}</span>
+            <span className="group-member-username">@{m.user?.username}</span>
+          </div>
+        </Link>
+        {m.role !== 'member' && <span className="group-member-role">{m.role}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="group-members">
+      {creators.length > 0 && (
+        <>
+          <h4 className="group-members-section-title">Creator</h4>
+          {creators.map(renderRow)}
+        </>
+      )}
+      {admins.length > 0 && (
+        <>
+          <h4 className="group-members-section-title">Admins</h4>
+          {admins.map(renderRow)}
+        </>
+      )}
+      {regular.length > 0 && (
+        <>
+          <h4 className="group-members-section-title">Members</h4>
+          {regular.map(renderRow)}
+        </>
+      )}
+    </div>
+  );
 }
 
 function PostsTab({ groupId }: { groupId: string }) {
