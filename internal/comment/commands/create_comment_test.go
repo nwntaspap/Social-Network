@@ -124,10 +124,16 @@ var (
 
 type mockBus struct {
 	routingKey string
+	calls      []mockBusCall
 }
 
-func (m *mockBus) Publish(_ string, routingKey string, _ []byte) error {
+type mockBusCall struct {
+	routingKey string
+}
+
+func (m *mockBus) Publish(exchange string, routingKey string, _ []byte) error {
 	m.routingKey = routingKey
+	m.calls = append(m.calls, mockBusCall{routingKey: routingKey})
 	return nil
 }
 

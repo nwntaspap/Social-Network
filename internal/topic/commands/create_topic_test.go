@@ -116,14 +116,21 @@ func (m *mockTopicRepo) GetVoteCount(_ context.Context, _ string) (int, error) {
 type mockEventBus struct {
 	routingKey string
 	eventType  string
+	calls      []mockPublishCall
 }
 
-func (m *mockEventBus) Publish(_ string, routingKey string, body []byte) error {
+type mockPublishCall struct {
+	routingKey string
+	eventType  string
+}
+
+func (m *mockEventBus) Publish(exchange string, routingKey string, body []byte) error {
 	m.routingKey = routingKey
 	var n eventbus.Notification
 	if err := json.Unmarshal(body, &n); err == nil {
 		m.eventType = n.Type
 	}
+	m.calls = append(m.calls, mockPublishCall{routingKey: routingKey, eventType: n.Type})
 	return nil
 }
 

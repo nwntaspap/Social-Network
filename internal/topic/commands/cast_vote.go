@@ -70,6 +70,16 @@ func (h *CastVoteHandler) Execute(ctx context.Context, cmd CastVoteCommand) erro
 		return err
 	}
 
+	// Remove any stale vote notification (like ↔ dislike) for this actor on
+	// this post before creating the new one, so the recipient never sees both.
+	delBody, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventPostVoteDeleted,
+		ActorID:      actor.ID,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   strconv.Itoa(cmd.TopicID),
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, delBody)
+
 	eventType := eventbus.EventPostLiked
 	if cmd.ReactionType != 1 {
 		eventType = eventbus.EventPostDisliked

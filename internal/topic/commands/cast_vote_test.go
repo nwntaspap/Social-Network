@@ -105,6 +105,35 @@ func TestCastVote_RepoError(t *testing.T) {
 	}
 }
 
+func TestCastVote_ChangeVote(t *testing.T) {
+	bus := &mockEventBus{}
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
+
+	err := h.Execute(context.Background(), CastVoteCommand{
+		UserID:       "u2",
+		TopicID:      1,
+		ReactionType: -1,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(bus.calls) < 2 {
+		t.Fatalf("expected at least 2 publish calls, got %d", len(bus.calls))
+	}
+	if bus.calls[0].routingKey != "deleted" {
+		t.Errorf("first call routingKey = %q, want %q", bus.calls[0].routingKey, "deleted")
+	}
+	if bus.calls[0].eventType != "post.vote.deleted" {
+		t.Errorf("first call eventType = %q, want %q", bus.calls[0].eventType, "post.vote.deleted")
+	}
+	if bus.calls[1].routingKey != "created" {
+		t.Errorf("second call routingKey = %q, want %q", bus.calls[1].routingKey, "created")
+	}
+	if bus.calls[1].eventType != "post.disliked" {
+		t.Errorf("second call eventType = %q, want %q", bus.calls[1].eventType, "post.disliked")
+	}
+}
+
 func TestCastVote_ToggleOff(t *testing.T) {
 	bus := &mockEventBus{}
 	repo := &mockTopicRepo{

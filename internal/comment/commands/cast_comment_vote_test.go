@@ -162,6 +162,29 @@ func TestCastCommentVote_RepoError(t *testing.T) {
 	}
 }
 
+func TestCastCommentVote_ChangeVote(t *testing.T) {
+	bus := &mockBus{}
+	repo := &mockVoteRepo{}
+	h := NewCastCommentVoteHandler(repo, bus, &commentUserRepo{})
+	err := h.Execute(context.Background(), CastCommentVoteCommand{
+		UserID:       "u1",
+		CommentID:    1,
+		ReactionType: -1,
+	})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if len(bus.calls) < 2 {
+		t.Fatalf("expected at least 2 publish calls, got %d", len(bus.calls))
+	}
+	if bus.calls[0].routingKey != eventbus.RoutingDeleted {
+		t.Errorf("first call routingKey = %q, want %q", bus.calls[0].routingKey, eventbus.RoutingDeleted)
+	}
+	if bus.calls[1].routingKey != eventbus.RoutingCreated {
+		t.Errorf("second call routingKey = %q, want %q", bus.calls[1].routingKey, eventbus.RoutingCreated)
+	}
+}
+
 func TestCastCommentVote_ToggleOff(t *testing.T) {
 	bus := &mockBus{}
 	repo := &mockVoteRepo{castVoteChange: comment.VoteChangeRemoved}
