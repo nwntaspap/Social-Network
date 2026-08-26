@@ -69,7 +69,7 @@ func (h *CreateGroupPostHandler) Execute(ctx context.Context, cmd CreateGroupPos
 		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
 			return nil, err
 		}
-		p.ImagePath = filepath.Join("/static/images/uploads", cmd.ImageFileName)
+		p.ImagePath = filepath.Join("/uploads", cmd.ImageFileName)
 		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
 			return nil, err
 		}

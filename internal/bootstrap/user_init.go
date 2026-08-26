@@ -6,14 +6,14 @@ import (
 
 	commentstore "social-network/internal/comment/store"
 	"social-network/internal/core/middleware"
-	coresession "social-network/internal/core/session"
+	coresessionstore "social-network/internal/core/session/store"
 	followstore "social-network/internal/follow/store"
-	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/pkg/bcrypt"
 	"social-network/internal/pkg/uuid"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/platform/logger"
+	localstorage "social-network/internal/platform/storage/local"
 	topicstore "social-network/internal/topic/store"
 	usercommands "social-network/internal/user/commands"
 	userqueries "social-network/internal/user/queries"
@@ -21,7 +21,7 @@ import (
 	usertransport "social-network/internal/user/transport"
 )
 
-func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, isOnline func(string) bool, bus eventbus.EventBus, logger logger.Logger) *usertransport.Handler {
+func initUser(db database.DB, sessionStore *coresessionstore.Store, cookies *middleware.SessionCookies, isOnline func(string) bool, bus eventbus.EventBus, log logger.Logger) *usertransport.Handler {
 	userStore := userstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	topicStore := topicstore.NewSQLiteStore(db)
@@ -35,15 +35,15 @@ func initUser(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewar
 	return usertransport.NewHandler(
 		&authUserExtractor{},
 		usercommands.NewRegisterHandler(userStore, uuidProvider, bcryptProvider, localstorage.NewLocalStorage()),
-		usercommands.NewLoginHandler(userStore, bcryptProvider, sessionMgr),
-		usercommands.NewLogoutHandler(sessionMgr),
+		usercommands.NewLoginHandler(userStore, bcryptProvider, sessionStore),
+		usercommands.NewLogoutHandler(sessionStore),
 		usercommands.NewUpdateProfileHandler(userStore, bus),
 		usercommands.NewTogglePrivacyHandler(userStore),
 		userqueries.NewGetProfileResolver(userStore, fc, followStore),
 		userqueries.NewGetActivityResolver(userStore, topicStore, commentStore, topicStore, followStore),
 		userqueries.NewListUsersResolver(userStore, isOnline),
 		cookies,
-		logger,
+		log,
 	)
 }
 
@@ -66,37 +66,3 @@ func (a *followCheckerAdapter) IsFollowing(ctx context.Context, followerID, targ
 }
 
 var _ userqueries.FollowChecker = (*followCheckerAdapter)(nil)
-
-type coreSessionAdapter struct {
-	inner sessionManager
-}
-
-func (a *coreSessionAdapter) Create(ctx context.Context, userID string) (*coresession.Session, error) {
-	sess, err := a.inner.CreateSession(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	return &coresession.Session{
-		Token:     sess.AccessToken,
-		UserID:    sess.UserID,
-		ExpiresAt: sess.Expiry,
-	}, nil
-}
-
-func (a *coreSessionAdapter) Get(_ context.Context, token string) (*coresession.Session, error) {
-	sess, err := a.inner.GetSession(token)
-	if err != nil {
-		return nil, err
-	}
-	return &coresession.Session{
-		Token:     sess.AccessToken,
-		UserID:    sess.UserID,
-		ExpiresAt: sess.Expiry,
-	}, nil
-}
-
-func (a *coreSessionAdapter) Revoke(_ context.Context, token string) error {
-	return a.inner.DeleteSession(token)
-}
-
-var _ coresession.Manager = (*coreSessionAdapter)(nil)

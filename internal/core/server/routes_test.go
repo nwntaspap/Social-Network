@@ -23,32 +23,21 @@ func TestRoutes_HealthEndpoint(t *testing.T) {
 	}
 }
 
-func TestRoutes_StaticFileAccessible(t *testing.T) {
+func TestRoutes_UploadsDirectory(t *testing.T) {
 	srv := New(testConfig())
 
-	rec, req := newRecorder(), httptestNewRequest("/static/")
+	rec, req := newRecorder(), httptestNewRequest("/uploads/")
 	srv.Handler().ServeHTTP(rec, req)
 
 	if rec.code != http.StatusOK && rec.code != http.StatusNotFound {
-		t.Errorf("static: unexpected status %d (OK or 404 both acceptable)", rec.code)
+		t.Errorf("uploads: unexpected status %d (OK or 404 both acceptable)", rec.code)
 	}
 	if rec.code == http.StatusOK {
-		t.Log("static files served (frontend/static/ exists)")
+		t.Log("uploads directory served (uploads/ exists)")
 	}
 }
 
-func TestRoutes_SPACatchAll_ServesIndexForNonAPIPaths(t *testing.T) {
-	srv := New(testConfig())
-
-	rec, req := newRecorder(), httptestNewRequest("/some-client-route")
-	srv.Handler().ServeHTTP(rec, req)
-
-	if rec.code != http.StatusOK && rec.code != http.StatusNotFound {
-		t.Errorf("SPA catch-all: expected 200 or 404, got %d", rec.code)
-	}
-}
-
-func TestRoutes_SPACatchAll_NotFoundForAPIPaths(t *testing.T) {
+func TestRoutes_APINotFound(t *testing.T) {
 	srv := New(testConfig())
 
 	rec, req := newRecorder(), httptestNewRequest("/api/v1/nonexistent")
@@ -59,7 +48,7 @@ func TestRoutes_SPACatchAll_NotFoundForAPIPaths(t *testing.T) {
 	}
 }
 
-func TestRoutes_SPACatchAll_NotFoundForStaticPaths(t *testing.T) {
+func TestRoutes_StaticRouteNotFound(t *testing.T) {
 	srv := New(testConfig())
 
 	rec, req := newRecorder(), httptestNewRequest("/static/nonexistent.css")

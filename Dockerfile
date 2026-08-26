@@ -36,16 +36,14 @@ WORKDIR /app
 COPY --from=builder /bin/server /app/server
 
 # Copy application assets
-COPY --chown=appuser:appuser frontend/ /app/frontend/
 COPY --chown=appuser:appuser db/migrations/ /app/db/migrations/
 COPY --chown=appuser:appuser db/seeds/ /app/db/seeds/
-COPY --chown=appuser:appuser cmd/client/data/ /app/cmd/client/data/
 COPY --chown=appuser:appuser certs/ /app/certs/
 COPY --chown=appuser:appuser go.mod /app/go.mod
 
 # Create directories for persistent data
-RUN mkdir -p /app/db/data /app/frontend/static/images/uploads && \
-    chown -R appuser:appuser /app/db/data /app/frontend/static/images/uploads
+RUN mkdir -p /app/db/data /app/uploads && \
+    chown -R appuser:appuser /app/db/data /app/uploads
 
 # Switch to non-root user
 USER appuser

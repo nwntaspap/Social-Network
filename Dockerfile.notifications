@@ -44,4 +44,6 @@ ENV NOTIFICATIONS_HOST=0.0.0.0 \
 EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/api/v1/notifications/unread-count || exit 1CMD ["/app/notifications"]
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/api/v1/notifications/unread-count || exit 1
+
+CMD ["/app/notifications"]

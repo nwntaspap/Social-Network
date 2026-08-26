@@ -29,7 +29,7 @@ func (m *mockCreateGroupPostComment) Execute(_ context.Context, cmd commands.Cre
 }
 
 func TestCreateGroupPostComment_WithImage(t *testing.T) {
-	created := &group.PostComment{ID: "c1", PostID: "p1", AuthorID: "u1", Content: "pic", ImagePath: "/static/images/uploads/pic.png", CreatedAt: time.Now()}
+	created := &group.PostComment{ID: "c1", PostID: "p1", AuthorID: "u1", Content: "pic", ImagePath: "/uploads/pic.png", CreatedAt: time.Now()}
 	mock := &mockCreateGroupPostComment{result: created}
 	h := newGroupTestHandler(
 		func(_ *http.Request) (string, bool) { return "u1", true },
@@ -89,8 +89,8 @@ func TestCreateGroupPostComment_WithImage(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got, ok := body.Data["imageUrl"].(string); !ok || got != "/static/images/uploads/pic.png" {
-		t.Errorf("imageUrl = %#v, want /static/images/uploads/pic.png", body.Data["imageUrl"])
+	if got, ok := body.Data["imageUrl"].(string); !ok || got != "/uploads/pic.png" {
+		t.Errorf("imageUrl = %#v, want /uploads/pic.png", body.Data["imageUrl"])
 	}
 }
 

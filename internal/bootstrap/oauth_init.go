@@ -7,6 +7,7 @@ import (
 
 	"social-network/internal/config"
 	"social-network/internal/core/middleware"
+	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/oauth"
 	oauthcommands "social-network/internal/oauth/commands"
 	oauthstore "social-network/internal/oauth/store"
@@ -20,7 +21,7 @@ import (
 
 const stateManagerDefaultLimit = 10
 
-func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string, logger logger.Logger) (*oauthtransport.Handler, *pkgoauth.OAuth) {
+func initOAuth(db database.DB, sessionStore *coresessionstore.Store, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string, log logger.Logger) *oauthtransport.Handler {
 	store := oauthstore.NewSQLiteStore(db)
 	sm := pkgoauth.NewStateManager(stateManagerDefaultLimit * time.Minute)
 
@@ -45,7 +46,7 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewa
 		},
 	}
 
-	sc := &sessionCreatorAdapter{sessions: sessionMgr}
+	sc := &sessionCreatorAdapter{store: sessionStore}
 
 	initiateHandler := oauthcommands.NewInitiateHandler(
 		&stateManagerAdapter{inner: sm},
@@ -77,20 +78,14 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cookies *middlewa
 		return uid, true
 	}
 
-	legacyOAuth := &pkgoauth.OAuth{
-		StateManager:   sm,
-		GithubProvider: githubRaw,
-		GoogleProvider: googleRaw,
-	}
-
 	return oauthtransport.NewHandler(
 		initiateHandler,
 		callbacks,
 		&cookieSetterAdapter{cookies: cookies},
 		extractUser,
 		frontendURL,
-		logger,
-	), legacyOAuth
+		log,
+	)
 }
 
 type providerRegistryImpl struct {
@@ -180,18 +175,17 @@ func (a *callbackProviderAdapter) GetUserInfo(ctx context.Context, accessToken s
 }
 
 type sessionCreatorAdapter struct {
-	sessions *coreSessionAdapter
+	store *coresessionstore.Store
 }
 
 func (a *sessionCreatorAdapter) CreateSession(ctx context.Context, userID string) (*oauth.Session, error) {
-	sess, err := a.sessions.inner.CreateSession(ctx, userID)
+	sess, err := a.store.Create(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	return &oauth.Session{
-		AccessToken:  sess.AccessToken,
-		RefreshToken: sess.RefreshToken,
-		ExpiresAt:    sess.Expiry,
+		AccessToken: sess.Token,
+		ExpiresAt:   sess.ExpiresAt,
 	}, nil
 }
 

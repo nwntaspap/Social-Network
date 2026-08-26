@@ -11,15 +11,13 @@ import (
 	chattransport "social-network/internal/chat/transport"
 	"social-network/internal/core/middleware"
 	"social-network/internal/core/realtime"
-	domainuser "social-network/internal/domain/user"
 	followstore "social-network/internal/follow/store"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/logger"
-	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository, logger logger.Logger) *chattransport.Handler {
+func initChat(db database.DB, hub *realtime.Hub, logger logger.Logger) *chattransport.Handler {
 	store := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
 	userStore := userstore.NewSQLiteStore(db)
@@ -29,16 +27,14 @@ func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository,
 	}
 	ua := &chat.UserAdapter{
 		GetAllFn: func(ctx context.Context) ([]*chat.UserRef, error) {
-			users, err := userRepo.GetAll(ctx)
+			users, err := userStore.ListAll(ctx)
 			if err != nil {
 				return nil, err
 			}
 			result := make([]*chat.UserRef, len(users))
 			for i, u := range users {
 				ref := &chat.UserRef{ID: u.ID, Nickname: u.Nickname}
-				if u.AvatarURL != nil {
-					ref.AvatarURL = *u.AvatarURL
-				}
+				ref.AvatarURL = u.AvatarPath
 				result[i] = ref
 			}
 			return result, nil
@@ -70,7 +66,7 @@ func initChat(db database.DB, hub *realtime.Hub, userRepo domainuser.Repository,
 }
 
 type chatUserLookupAdapter struct {
-	repo user.Repository
+	repo *userstore.SQLiteStore
 }
 
 func (a *chatUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*chattransport.UserResult, error) {

@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"social-network/internal/core/middleware"
-	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/platform/logger"
+	localstorage "social-network/internal/platform/storage/local"
 	topiccommands "social-network/internal/topic/commands"
 	topicqueries "social-network/internal/topic/queries"
 	topicstore "social-network/internal/topic/store"

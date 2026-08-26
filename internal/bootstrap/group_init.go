@@ -12,10 +12,10 @@ import (
 	groupqueries "social-network/internal/group/queries"
 	groupstore "social-network/internal/group/store"
 	grouptransport "social-network/internal/group/transport"
-	localstorage "social-network/internal/infra/storage/local"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/eventbus"
 	"social-network/internal/platform/logger"
+	localstorage "social-network/internal/platform/storage/local"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )

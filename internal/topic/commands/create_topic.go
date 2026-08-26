@@ -53,7 +53,7 @@ func (h *CreateTopicHandler) Execute(ctx context.Context, cmd CreateTopicCommand
 		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
 			return nil, err
 		}
-		t.ImagePath = filepath.Join("/static/images/uploads", cmd.ImageFileName)
+		t.ImagePath = filepath.Join("/uploads", cmd.ImageFileName)
 		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
 			return nil, fmt.Errorf("upload image: %w", err)
 		}

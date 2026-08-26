@@ -5,7 +5,7 @@ export PATH := $(GOBIN):$(PATH)
 MODULE := $(shell go list -m)
 
 NEW_DIRS := internal/user internal/follow internal/topic internal/comment \
-            internal/group internal/event internal/chat internal/notification \
+            internal/group internal/event internal/chat \
             internal/oauth internal/core internal/platform internal/bootstrap \
             internal/config internal/gates cmd/gates cmd/server
 
@@ -64,10 +64,6 @@ install: ## Install all dependencies (deterministic, like npm ci)
 		echo "==> Installing frontend-next dependencies..."; \
 		command -v bun >/dev/null 2>&1 || { echo "Error: bun not found. Install from https://bun.sh"; exit 1; }; \
 		cd frontend-next && bun install; \
-	elif [ -f frontend/package.json ]; then \
-		echo "==> Installing frontend dependencies..."; \
-		command -v bun >/dev/null 2>&1 || { echo "Error: bun not found. Install from https://bun.sh"; exit 1; }; \
-		cd frontend && bun install; \
 	else \
 		echo "==> [skip] frontend not scaffolded yet"; \
 	fi
@@ -195,9 +191,6 @@ fe-ci: ## Frontend CI (lint, format:check, typecheck, test)
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
 		echo "==> Running frontend CI (frontend-next)..."; \
 		cd frontend-next && bun run lint && bun run format:check && bun x tsc --noEmit && bun run test; \
-	elif [ -d frontend ] && [ -f frontend/package.json ]; then \
-		echo "==> Running frontend CI (frontend)..."; \
-		cd frontend && bun run lint && bun run format:check && bun run test; \
 	else \
 		echo "==> Skipping frontend CI: no frontend scaffolded yet."; \
 	fi
@@ -274,19 +267,15 @@ run-broker: ## Start the message broker container
 	if [ "$$ok" != "1" ]; then echo "❌ Broker did not become ready"; exit 1; fi
 	@echo "✅ Broker ready on port 5672 (PID: $$(docker inspect -f '{{.State.Pid}}' social-network-broker 2>/dev/null || echo 'running'))"
 
-run-frontend: ## Run frontend natively (Next.js or legacy)
+run-frontend: ## Run frontend natively
 	@if [ -d frontend-next ] && [ -f frontend-next/package.json ]; then \
 		echo "==> Running frontend (Next.js)..."; \
 		cd frontend-next && NEXT_PUBLIC_NOTIFICATIONS_ORIGIN=http://localhost:8081 bun run dev; \
-	elif [ -d frontend ] && [ -f frontend/package.json ]; then \
-		echo "==> Running frontend (Next.js)..."; \
-		cd frontend && bun run dev; \
 	else \
-		echo "Running legacy frontend client..."; \
-		go run cmd/client/main.go; \
+		echo "==> No frontend found"; \
 	fi
 
-run: ## Run backend + frontend concurrently (native)
+run: ## Run backend + notifications + frontend concurrently (native)
 	@trap 'kill 0' EXIT; \
 	$(MAKE) -s run-broker && \
 	{ $(MAKE) -s run-notifications & \
@@ -332,7 +321,6 @@ help: ## Show this help message
 	ci-mod be-ci be-ci-new fe-ci ci ci-new gates check-arch \
 	ci-bench bench-compare bench-profile bench-flame bench-clean \
 	build-backend build-frontend build \
-	run-backend run-frontend run run-all \
-	run-backend run-frontend run run-broker run-all \
+	run-backend run-notifications run-frontend run run-broker run-all \
 	docker-clean docker-db \
 	db-clean db-reset seed clean help

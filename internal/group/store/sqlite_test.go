@@ -203,7 +203,7 @@ func TestCreatePost_ThenGetPostsByGroupID_ReturnsIt(t *testing.T) {
 		AuthorID:  "u1",
 		Title:     "Hello Group",
 		Content:   "A new group post",
-		ImagePath: "/static/images/uploads/pic.png",
+		ImagePath: "/uploads/pic.png",
 	}
 	if err := s.CreatePost(ctx, p); err != nil {
 		t.Fatalf("CreatePost: %v", err)

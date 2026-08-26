@@ -36,7 +36,7 @@ var allowedGenders = map[string]bool{
 	"prefer_not_to_say": true,
 }
 
-const uploadsURLPrefix = "/static/images/uploads/"
+const uploadsURLPrefix = "/uploads/"
 
 type RegisterCommand struct {
 	Email          string
