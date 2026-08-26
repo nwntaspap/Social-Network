@@ -13,7 +13,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend-next/ .
 
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG BACKEND_ORIGIN=https://localhost:8080
+ARG NOTIFICATIONS_ORIGIN=http://localhost:8081
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    BACKEND_ORIGIN=$BACKEND_ORIGIN \
+    NOTIFICATIONS_ORIGIN=$NOTIFICATIONS_ORIGIN
 RUN bun run build
 
 # Stage 3: Minimal runtime
