@@ -35,6 +35,9 @@ services:
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_WINDOW_SECONDS: 60
 
+      # CORS — allow the Next.js frontend origin
+      ALLOWED_ORIGINS: http://localhost:3001,http://localhost:8080
+
       # Message broker (eventbus) inside the compose network
       NOTIFICATIONS_BROKER_URL: broker:5672
 
