@@ -388,7 +388,7 @@ function RegisterForm() {
                   id="aboutMe"
                   name="aboutMe"
                   className="form-input"
-                  placeholder="Tell us about yourself"
+                  placeholder="Write a short bio so others can get to know you..."
                   rows={3}
                   value={aboutMe}
                   onChange={(e) => setAboutMe(e.target.value)}
