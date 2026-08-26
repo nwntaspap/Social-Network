@@ -103,7 +103,9 @@ func (s *getGroupStub) GetPostsByGroupID(_ context.Context, _, _ string, _, _ in
 	return nil, 0, nil
 }
 
-func (s *getGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) error { return nil }
+func (s *getGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) (group.VoteChange, error) {
+	return group.VoteChangeAdded, nil
+}
 
 func (s *getGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
 	return &group.VoteCounts{}, nil

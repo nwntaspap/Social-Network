@@ -92,7 +92,11 @@ func (s *updateGroupStub) CreatePost(_ context.Context, _ *group.Post) error { r
 func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
 }
-func (s *updateGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) error { return nil }
+
+func (s *updateGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) (group.VoteChange, error) {
+	return group.VoteChangeAdded, nil
+}
+
 func (s *updateGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
 	return &group.VoteCounts{}, nil
 }

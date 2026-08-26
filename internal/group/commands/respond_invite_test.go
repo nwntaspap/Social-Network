@@ -108,7 +108,11 @@ func (s *respondInviteStub) CreatePost(_ context.Context, _ *group.Post) error {
 func (s *respondInviteStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
 }
-func (s *respondInviteStub) CastPostVote(_ context.Context, _, _ string, _ int) error { return nil }
+
+func (s *respondInviteStub) CastPostVote(_ context.Context, _, _ string, _ int) (group.VoteChange, error) {
+	return group.VoteChangeAdded, nil
+}
+
 func (s *respondInviteStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
 	return &group.VoteCounts{}, nil
 }

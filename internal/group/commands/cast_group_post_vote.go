@@ -42,7 +42,7 @@ func (h *CastGroupPostVoteHandler) Execute(ctx context.Context, cmd CastGroupPos
 		return err
 	}
 
-	err = h.repo.CastPostVote(ctx, cmd.UserID, cmd.PostID, cmd.ReactionType)
+	change, err := h.repo.CastPostVote(ctx, cmd.UserID, cmd.PostID, cmd.ReactionType)
 	if err != nil {
 		return err
 	}
@@ -55,6 +55,25 @@ func (h *CastGroupPostVoteHandler) Execute(ctx context.Context, cmd CastGroupPos
 	if err != nil {
 		return err
 	}
+
+	if change == group.VoteChangeRemoved {
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:         eventbus.EventPostVoteDeleted,
+			ActorID:      actor.ID,
+			ResourceType: eventbus.ResourcePost,
+			ResourceID:   cmd.PostID,
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
+		return nil
+	}
+
+	delBody, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventPostVoteDeleted,
+		ActorID:      actor.ID,
+		ResourceType: eventbus.ResourcePost,
+		ResourceID:   cmd.PostID,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, delBody)
 
 	eventType := eventbus.EventPostLiked
 	if cmd.ReactionType != 1 {

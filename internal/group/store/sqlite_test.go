@@ -285,8 +285,12 @@ func TestCastPostVote_Toggle(t *testing.T) {
 		t.Fatalf("seed group post: %v", err)
 	}
 
-	if err := s.CastPostVote(ctx, "u1", "p1", 1); err != nil {
+	change, err := s.CastPostVote(ctx, "u1", "p1", 1)
+	if err != nil {
 		t.Fatalf("CastPostVote(like): %v", err)
+	}
+	if change != group.VoteChangeAdded {
+		t.Errorf("first vote: change = %d, want VoteChangeAdded", change)
 	}
 	counts, err := s.GetPostVoteCounts(ctx, "p1")
 	if err != nil {
@@ -296,24 +300,36 @@ func TestCastPostVote_Toggle(t *testing.T) {
 		t.Errorf("after like: counts = %+v, want up=1 down=0 score=1", counts)
 	}
 
-	if err := s.CastPostVote(ctx, "u1", "p1", 1); err != nil {
+	change, err = s.CastPostVote(ctx, "u1", "p1", 1)
+	if err != nil {
 		t.Fatalf("CastPostVote(same like): %v", err)
+	}
+	if change != group.VoteChangeRemoved {
+		t.Errorf("toggle-off: change = %d, want VoteChangeRemoved", change)
 	}
 	counts, _ = s.GetPostVoteCounts(ctx, "p1")
 	if counts.Upvotes != 0 {
 		t.Errorf("after toggle-off: upvotes = %d, want 0", counts.Upvotes)
 	}
 
-	if err := s.CastPostVote(ctx, "u1", "p1", -1); err != nil {
+	change, err = s.CastPostVote(ctx, "u1", "p1", -1)
+	if err != nil {
 		t.Fatalf("CastPostVote(dislike): %v", err)
+	}
+	if change != group.VoteChangeAdded {
+		t.Errorf("dislike: change = %d, want VoteChangeAdded", change)
 	}
 	counts, _ = s.GetPostVoteCounts(ctx, "p1")
 	if counts.Downvotes != 1 || counts.Score != -1 {
 		t.Errorf("after dislike: counts = %+v, want down=1 score=-1", counts)
 	}
 
-	if err := s.CastPostVote(ctx, "u1", "p1", 1); err != nil {
+	change, err = s.CastPostVote(ctx, "u1", "p1", 1)
+	if err != nil {
 		t.Fatalf("CastPostVote(switch to like): %v", err)
+	}
+	if change != group.VoteChangeAdded {
+		t.Errorf("switch: change = %d, want VoteChangeAdded", change)
 	}
 	counts, _ = s.GetPostVoteCounts(ctx, "p1")
 	if counts.Upvotes != 1 || counts.Downvotes != 0 || counts.Score != 1 {
@@ -412,10 +428,10 @@ func TestGetPostsByGroupID_IncludesVoteState(t *testing.T) {
 		t.Fatalf("seed group post: %v", err)
 	}
 
-	if err := s.CastPostVote(ctx, "u1", "p1", 1); err != nil {
+	if _, err := s.CastPostVote(ctx, "u1", "p1", 1); err != nil {
 		t.Fatalf("CastPostVote: %v", err)
 	}
-	if err := s.CastPostVote(ctx, "u2", "p1", -1); err != nil {
+	if _, err := s.CastPostVote(ctx, "u2", "p1", -1); err != nil {
 		t.Fatalf("CastPostVote u2: %v", err)
 	}
 

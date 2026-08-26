@@ -7,7 +7,7 @@ import (
 	"social-network/internal/group"
 )
 
-func (s *SQLiteStore) CastPostVote(ctx context.Context, userID, postID string, reactionType int) error {
+func (s *SQLiteStore) CastPostVote(ctx context.Context, userID, postID string, reactionType int) (group.VoteChange, error) {
 	var existingReaction sql.NullInt32
 	checkQuery := `SELECT reaction_type FROM group_post_votes WHERE user_id = ? AND post_id = ?`
 	err := s.db.QueryRowContext(ctx, checkQuery, userID, postID).Scan(&existingReaction)
@@ -15,7 +15,10 @@ func (s *SQLiteStore) CastPostVote(ctx context.Context, userID, postID string, r
 	if err == nil && existingReaction.Valid && int(existingReaction.Int32) == reactionType {
 		deleteQuery := `DELETE FROM group_post_votes WHERE user_id = ? AND post_id = ?`
 		_, delErr := s.db.ExecContext(ctx, deleteQuery, userID, postID)
-		return delErr
+		if delErr != nil {
+			return group.VoteChangeAdded, delErr
+		}
+		return group.VoteChangeRemoved, nil
 	}
 
 	query := `
@@ -25,7 +28,7 @@ func (s *SQLiteStore) CastPostVote(ctx context.Context, userID, postID string, r
 			reaction_type = EXCLUDED.reaction_type,
 			created_at = CURRENT_TIMESTAMP`
 	_, err = s.db.ExecContext(ctx, query, userID, postID, reactionType)
-	return err
+	return group.VoteChangeAdded, err
 }
 
 func (s *SQLiteStore) GetPostVoteCounts(ctx context.Context, postID string) (*group.VoteCounts, error) {

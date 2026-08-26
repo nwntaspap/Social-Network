@@ -22,6 +22,13 @@ var (
 	ErrInvalidVoteValue    = errors.New("reaction_type must be 1 (like) or -1 (dislike)")
 )
 
+type VoteChange int
+
+const (
+	VoteChangeAdded VoteChange = iota
+	VoteChangeRemoved
+)
+
 type Role string
 
 const (
@@ -152,7 +159,7 @@ type PostRepository interface {
 	CreatePost(ctx context.Context, p *Post) error
 	GetPostByID(ctx context.Context, postID string) (*Post, error)
 	GetPostsByGroupID(ctx context.Context, groupID, userID string, page, size int) ([]Post, int, error)
-	CastPostVote(ctx context.Context, userID, postID string, reactionType int) error
+	CastPostVote(ctx context.Context, userID, postID string, reactionType int) (VoteChange, error)
 	GetPostVoteCounts(ctx context.Context, postID string) (*VoteCounts, error)
 }
 
