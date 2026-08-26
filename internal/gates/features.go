@@ -33,7 +33,7 @@ func isFeatureSlice(internalDir, name string) bool {
 // NewDirs lists all the target new codebase directories.
 var NewDirs = []string{
 	"internal/user", "internal/follow", "internal/topic", "internal/comment",
-	"internal/group", "internal/event", "internal/chat", "internal/notification",
+	"internal/group", "internal/event", "internal/chat",
 	"internal/oauth", "internal/core", "internal/platform", "internal/bootstrap",
 	"internal/config", "internal/gates", "cmd/gates", "cmd/server",
 }
@@ -41,7 +41,7 @@ var NewDirs = []string{
 // NewPkgs lists all the target Go packages for the new codebase.
 var NewPkgs = []string{
 	"social-network/internal/user", "social-network/internal/follow", "social-network/internal/topic", "social-network/internal/comment",
-	"social-network/internal/group", "social-network/internal/event", "social-network/internal/chat", "social-network/internal/notification",
+	"social-network/internal/group", "social-network/internal/event", "social-network/internal/chat",
 	"social-network/internal/oauth", "social-network/internal/core", "social-network/internal/platform", "social-network/internal/bootstrap",
 	"social-network/internal/config", "social-network/internal/gates", "social-network/cmd/gates", "social-network/cmd/server",
 }

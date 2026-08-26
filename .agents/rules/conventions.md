@@ -23,7 +23,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - **Module path**: `social-network`. **Entry point**: `cmd/server/main.go`.
 - **SQLite**: WAL mode, busy timeout, `db.SetMaxOpenConns(1)`. Tests use in-memory instances.
 - **Frontend**: Next.js, TailwindCSS, `shadcn/ui`, ESLint + Prettier. Vitest (planned) + React Testing Library + Playwright (planned).
-- **Ports**: BE `:8080`, FE `:3000`.
+- **Ports**: BE `:8080`, FE `:3001`.
 
 ## 2. Vertical Slices & Boundaries
 
@@ -37,7 +37,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
   - `transport/http.go`: imports own root + `commands/` + `queries/` + `core/session/`. MUST NOT import `store/`.
   - `store/sqlite.go`: imports own root + `platform/database`. MUST NOT import `transport/`, `commands/`, `queries/`. Add `// Used by: <Command/Query>` comments.
   - `bootstrap/bootstrap.go`: composition root — imports everything.
-- **D6 Dependency DAG** (acyclic): `user → follow/topic → comment/vote → group → event → chat → notification`. `notification` is pure subscriber — never imported.
+- **D6 Dependency DAG** (acyclic): `user → follow/topic → comment/vote → group → event → chat`.
 - **No cross-slice SQL joins**. Each slice owns its tables exclusively.
 - **Event Bus error isolation**: subscribers must `defer recover()`.
 - **Feature toggles** for incomplete work (e.g. `config.Features.Follow`).
@@ -82,6 +82,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - WebSocket: validate origin in `CheckOrigin` (never unconditional `true`). Timeouts: `writeWait=10s`, `pongWait=60s`, `pingPeriod=54s`, max msg 512KB.
 - Session cookies: `HttpOnly`, `Secure`, `SameSite=Lax`.
 - **Session isolation**: different browsers/profiles must maintain independent sessions. Non-logged-in browsers = guest.
+
 <!-- @section:rules-core:end -->
 
 <!-- @section:rules-fe — Frontend standards (needed by FE agents) -->
@@ -97,6 +98,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - Real-time notifications via SSE (`GET /api/notifications/stream`) with 15s polling fallback.
 - **Chat gate**: non-followed users cannot chat. Show: _"At least one user must follow the other to initiate a chat."_
 - Pre-commit: `gofumpt`/`goimports` (BE), `prettier --write`/`eslint` (FE). Pre-push: `go vet ./...` + `go test -short ./...` + `go build ./...` + `go-arch-lint check` (BE), `tsc --noEmit` + `bun run lint` + `bun run test` (FE).
+
 <!-- @section:rules-fe:end -->
 
 <!-- @section:rules-ci — CI gates, build commands (needed by gate-running agents) -->
@@ -129,21 +131,22 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
   grep -rn 'import' internal/*/transport/ internal/*/store/ | grep 'internal/' | grep -v 'platform/' | grep -v 'pkg/' | grep -v 'infra/'
   ```
 - **Go verification gates** (`cmd/gates/main.go`). See [README](../../internal/gates/README.md) for full catalog, file map, and architecture:
-  | Gate | Check | Tool/Fallback |
-  |------|-------|---------------|
-  | Stack | Go version ≥ 1.25, module path | go version / go.mod |
-  | Layout | target directory structure | os.Stat |
-  | Boundaries | D5 forbidden imports | golangci-lint depguard / AST |
-  | DAG | D6 acyclic dependencies | go-arch-lint / DFS |
-  | TDD | test file presence per command/query | os.Stat |
-  | Migrations | migration naming, delimiter | glob / grep |
-  | Security | SQL concat, WS CheckOrigin, bcrypt cost | gosec / custom AST |
-  | Branch | branch naming convention | regex |
-  | coverage-delta | test coverage >90% | git worktree + go test |
-  | scope-drift | unplanned file changes | git diff |
+  | Gate           | Check                                   | Tool/Fallback                |
+  | -------------- | --------------------------------------- | ---------------------------- |
+  | Stack          | Go version ≥ 1.25, module path          | go version / go.mod          |
+  | Layout         | target directory structure              | os.Stat                      |
+  | Boundaries     | D5 forbidden imports                    | golangci-lint depguard / AST |
+  | DAG            | D6 acyclic dependencies                 | go-arch-lint / DFS           |
+  | TDD            | test file presence per command/query    | os.Stat                      |
+  | Migrations     | migration naming, delimiter             | glob / grep                  |
+  | Security       | SQL concat, WS CheckOrigin, bcrypt cost | gosec / custom AST           |
+  | Branch         | branch naming convention                | regex                        |
+  | coverage-delta | test coverage >90%                      | git worktree + go test       |
+  | scope-drift    | unplanned file changes                  | git diff                     |
   - Flags: `--all`, `--gate=<name>`. JSON output.
 - **Performance gate**: `make ci-bench` each PR. Fail if regression > 10%.
 - Smoke test scenarios A1–D3: see `docs/sprints/general-instructions.md`.
+
 <!-- @section:rules-ci:end -->
 
 <!-- @section:rules-git — Branch naming, commits, PRs (needed by publish) -->
@@ -161,8 +164,9 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
     - `ekaramet/S1-BE-05-db-factory`
     - `dkotsi/S3-FE-14-follow-button`
     - `smichail/42-oauth-scan-fix`
-- **Commits**: Conventional Commits. Scopes: `user`, `topic`, `follow`, `group`, `event`, `chat`, `notification`, `oauth`, `core`, `platform`, `comment`, `dev`, `gates`. (`vote` absorbed into `topic/` and `comment/`.)
+- **Commits**: Conventional Commits. Scopes: `user`, `topic`, `follow`, `group`, `event`, `chat`, `oauth`, `core`, `platform`, `comment`, `dev`, `gates`. (`vote` absorbed into `topic/` and `comment/`.)
 - **PR template**: copy `.github/PULL_REQUEST_TEMPLATE.md` → `.git/PR_DESCRIPTION.md`, fill in.
+
 <!-- @section:rules-git:end -->
 
 <!-- @section:rules-dod — Definition of Done checklist (needed by review agents) -->
@@ -180,6 +184,7 @@ Refer to [general-instructions.md](../../docs/sprints/general-instructions.md) f
 - [ ] No dead code from your changes (unused imports/vars/functions removed).
 - [ ] PR description template filled.
 - [ ] Squash merged to `main`.
+
 <!-- @section:rules-dod:end -->
 
 ## 11. Infrastructure
