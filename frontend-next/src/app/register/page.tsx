@@ -330,19 +330,6 @@ function RegisterForm() {
               </div>
 
               <div className="input-box">
-                <label htmlFor="aboutMe">About Me (optional)</label>
-                <textarea
-                  id="aboutMe"
-                  name="aboutMe"
-                  className="form-input"
-                  placeholder="Tell us about yourself"
-                  rows={3}
-                  value={aboutMe}
-                  onChange={(e) => setAboutMe(e.target.value)}
-                />
-              </div>
-
-              <div className="input-box">
                 <label htmlFor="email">E-mail</label>
                 <input
                   type="email"
@@ -393,6 +380,19 @@ function RegisterForm() {
                   </button>
                 </div>
                 {passwordError && <span className="error-message">{passwordError}</span>}
+              </div>
+
+              <div className="input-box about-me">
+                <label htmlFor="aboutMe">About Me (optional)</label>
+                <textarea
+                  id="aboutMe"
+                  name="aboutMe"
+                  className="form-input"
+                  placeholder="Tell us about yourself"
+                  rows={3}
+                  value={aboutMe}
+                  onChange={(e) => setAboutMe(e.target.value)}
+                />
               </div>
             </div>
 

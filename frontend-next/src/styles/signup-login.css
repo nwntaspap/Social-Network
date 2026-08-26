@@ -143,10 +143,16 @@
 .input-box label {
   margin-left: 3px;
 }
-.input-box textarea.form-input {
+.input-box.about-me {
+  max-width: 320px;
+  margin: 0 auto;
+  width: 100%;
+}
+.input-box.about-me textarea.form-input {
   min-height: 80px;
-  resize: vertical;
+  resize: none;
   line-height: 1.5;
+  text-align: center;
 }
 .input-box input::placeholder {
   color: var(--grey-color);
