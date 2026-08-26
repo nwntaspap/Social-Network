@@ -15,7 +15,10 @@ export function getDisplayName(user: Partial<User>): string {
   if (user.firstName && user.lastName) {
     return getFullName(user.firstName, user.lastName);
   }
-  return `@${user.username || user.nickname || 'unknown'}`;
+  if (user.firstName) {
+    return user.firstName;
+  }
+  return user.username || user.nickname || 'unknown';
 }
 
 export function getInitials(firstName: string, lastName: string): string {
