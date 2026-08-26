@@ -80,6 +80,7 @@ services:
       args:
         BACKEND_ORIGIN: http://forum:8080
         NOTIFICATIONS_ORIGIN: http://notifications:8081
+        NEXT_PUBLIC_NOTIFICATIONS_ORIGIN: http://localhost:8081
     container_name: forum-frontend
     restart: unless-stopped
     ports:
@@ -87,6 +88,7 @@ services:
     environment:
       BACKEND_ORIGIN: http://forum:8080
       NOTIFICATIONS_ORIGIN: http://notifications:8081
+      NEXT_PUBLIC_NOTIFICATIONS_ORIGIN: http://localhost:8081
       SESSION_SECURE_COOKIE: "true"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
