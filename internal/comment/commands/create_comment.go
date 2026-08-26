@@ -72,9 +72,20 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		return nil, err
 	}
 
-	actor, _ := h.users.GetByID(ctx, cmd.UserID)
-	topic, _ := h.topics.GetTopicByID(ctx, cmd.TopicID, nil)
+	h.notifyCommentCreated(ctx, cmd)
 
+	return c, nil
+}
+
+func (h *CreateCommentHandler) notifyCommentCreated(ctx context.Context, cmd CreateCommentCommand) {
+	actor, err := h.users.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		return
+	}
+	topic, err := h.topics.GetTopicByID(ctx, cmd.TopicID, nil)
+	if err != nil || topic == nil {
+		return
+	}
 	body, _ := json.Marshal(eventbus.Notification{
 		Type:         eventbus.EventComment,
 		RecipientID:  topic.UserID,
@@ -87,6 +98,4 @@ func (h *CreateCommentHandler) Execute(ctx context.Context, cmd CreateCommentCom
 		ImageURL:     topic.ImagePath,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
-
-	return c, nil
 }

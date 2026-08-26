@@ -277,3 +277,28 @@ func TestCreateComment_NoImageAllowed(t *testing.T) {
 		t.Errorf("ImagePath = %q, want empty", c.ImagePath)
 	}
 }
+
+type nilTopicRepo struct {
+	mockTopicRepo
+}
+
+func (m *nilTopicRepo) GetTopicByID(_ context.Context, _ int, _ *string) (*topic.Topic, error) {
+	return nil, errors.New("not found")
+}
+
+func TestCreateComment_TopicNotFound_NoPanic(t *testing.T) {
+	repo := &mockRepo{}
+	h := NewCreateCommentHandler(repo, &mockBus{}, &mockUserRepo{}, &nilTopicRepo{}, &mockStorage{})
+
+	c, err := h.Execute(context.Background(), CreateCommentCommand{
+		UserID:  "u1",
+		TopicID: 999,
+		Content: "orphan comment",
+	})
+	if err != nil {
+		t.Fatalf("Execute() should not error, got %v", err)
+	}
+	if c == nil {
+		t.Fatal("expected comment returned even when topic not found")
+	}
+}
