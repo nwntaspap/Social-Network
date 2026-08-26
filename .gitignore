@@ -48,7 +48,7 @@ coverage/
 out/
 
 # User uploaded content (handled via Docker volume in production)
-frontend/static/images/uploads/
+uploads/
 
 # Logs
 *.log

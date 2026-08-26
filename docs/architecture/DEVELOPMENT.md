@@ -81,7 +81,7 @@ We support Docker Compose configurations for both hot-reloading development and 
 
 ### Start Dev Services (With Hot-Reload)
 
-Starts the backend on port `8080` and frontend on port `3000` with volume mounts to reload on code changes:
+Starts the backend on port `8080` and frontend on port `3001` with volume mounts to reload on code changes:
 
 ```bash
 make docker-dev
@@ -147,7 +147,7 @@ If you prefer to run services natively on your host OS:
    ```bash
    cd frontend && bun run dev
    ```
-   _(By default, the server runs on `http://localhost:3000`)_
+   _(By default, the server runs on `http://localhost:3001`)_
 
 > If you skipped `make install`, run `bun install` inside `frontend/` first.
 
@@ -294,4 +294,4 @@ For migrating legacy endpoints, follow the Strangler Fig approach:
 3. Verify contract tests pass on the new slice (identical behavior).
 4. Swap routing in `bootstrap.go` (one-line change).
 5. Monitor via tests + manual smoke (confidence window).
-6. Delete old directories (`domain/`, `app/`, `infra/`).
+6. Delete old code only after full verification.

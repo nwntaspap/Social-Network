@@ -34,8 +34,8 @@ const nextConfig: NextConfig = {
         destination: `${backendOrigin}/api/:path*`,
       },
       {
-        source: '/static/:path*',
-        destination: `${backendOrigin}/static/:path*`,
+        source: '/uploads/:path*',
+        destination: `${backendOrigin}/uploads/:path*`,
       },
       {
         // Client paths already carry /api/v1 (see NOTIFICATIONS_BASE), so the

@@ -31,7 +31,7 @@
 >   group post comments (previously dead backend code — now routed via
 >   `GET`/`POST /groups/posts/{postId}/comments`, paginated, response includes `imageUrl`),
 >   comment creation (`POST /comments/create` now multipart with optional `image`; same for
->   `POST /groups/posts/{postId}/comments`; image files are written to `frontend/static/images/uploads/`
+>   `POST /groups/posts/{postId}/comments`; image files are written to `uploads/`
 >   and served via `imageUrl`),
 >   group invitation accept/decline (previously dead end-to-end: `RespondInvite` existed but was
 >   unregistered and the invitee had no UI. Now routed via `POST /groups/{groupId}/invite/respond`

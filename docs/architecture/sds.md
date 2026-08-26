@@ -1,7 +1,5 @@
 # Software Design Specification (SDS)
 
-> **Target architecture.** The current codebase uses a layered structure under `internal/domain/`, `internal/app/`, `internal/infra/`. This document describes the vertical-slice target state after all refactoring phases. See [target-architecture-with-phases.md](target-architecture-with-phases.md) for the migration plan.
-
 This Software Design Specification (SDS) defines the technical architecture, data model, component communication patterns, and detailed interface structures for the Social Network application.
 
 ---
@@ -789,7 +787,7 @@ A multi-tiered testing and validation pipeline ensures security, correctness, an
 Two Docker images are built via `docker-compose.yml`:
 
 - **backend**: Go server on port `8080`, SQLite volume mounted at `./data:/app/data`
-- **frontend**: Next.js app on port `3000`
+- **frontend**: Next.js app on port `3001`
 
 ### 8.2 Build Script (Bonus Feature)
 

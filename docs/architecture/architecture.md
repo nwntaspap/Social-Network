@@ -1,7 +1,5 @@
 # High-Level Architecture & Code Organization
 
-> **Target architecture.** The current codebase uses a layered structure under `internal/domain/`, `internal/app/`, `internal/infra/`. This document describes the vertical-slice target state after all refactoring phases. See [target-architecture-with-phases.md](target-architecture-with-phases.md) for the migration plan.
-
 This document provides a concise, high-level overview of the architectural patterns, code organization, and structural boundaries governing the Social Network application.
 
 ---
@@ -23,10 +21,8 @@ The project is structured around self-contained vertical slices inside `internal
 ├── cmd/
 │   ├── server/
 │   │   └── main.go         # Application entry point & service bootstrap configuration
-│   ├── gates/
-│   │   └── main.go         # CLI runner for verification gates
-│   └── client/
-│       └── main.go         # CLI client for testing/ops
+│   └── gates/
+│       └── main.go         # CLI runner for verification gates
 ├── db/
 │   └── migrations/         # Numbered database up/down migration SQL scripts (includes optional seed data via 000009_seed_data)
 ├── internal/
@@ -172,7 +168,7 @@ Quick-reference for all tools used across the software development lifecycle.
 | --------------------------------- | ----------------------------- | ------------------------------------ |
 | Build                             | `go build`                    | `Dockerfile` (multi-stage)           |
 | Testing                           | `go test -race -coverprofile` | `Makefile` `test`                    |
-| Linting (aggregator, 30+ linters) | `golangci-lint` v2.2.1        | `.golangci.yml`                      |
+| Linting (aggregator, 30+ linters) | `golangci-lint` v2.12.2       | `.golangci.yml`                      |
 | Linting (static analysis)         | `staticcheck`                 | `Makefile` `lint`                    |
 | Linting (official)                | `go vet`                      | `.golangci.yml`, CLI                 |
 | Formatting                        | `gofmt -s`, `gofumpt`         | `Makefile` `format`, `.golangci.yml` |
