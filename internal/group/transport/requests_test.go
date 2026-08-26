@@ -36,6 +36,7 @@ func newRequestsTestHandler(extractUser UserExtractor, pending GetPendingJoinReq
 		pending,
 		nil,
 		nil,
+		nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 }

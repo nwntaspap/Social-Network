@@ -108,6 +108,7 @@ func RegisterRoutes(s *Server) {
 		s.mux.HandleFunc("GET "+api+"/groups/posts/{postId}/comments", require(h.GetGroupPostComments))
 		s.mux.HandleFunc("POST "+api+"/groups/posts/{postId}/comments", require(h.CreateGroupPostComment))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/members", require(h.GetGroupMembers))
+		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/invitations/sent", require(h.GetSentInvitationIDs))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/requests/pending", require(h.GetPendingJoinRequests))
 		s.mux.HandleFunc("GET "+api+"/groups/{groupId}/chat/messages", require(h.GetGroupChat))
 	}

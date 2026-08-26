@@ -100,6 +100,10 @@ func (s *deleteGroupStub) HasPendingRequest(_ context.Context, _, _ string) (boo
 func (s *deleteGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([]group.JoinRequest, error) {
 	return nil, nil
 }
+
+func (s *deleteGroupStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
 func (s *deleteGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
 func (s *deleteGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil

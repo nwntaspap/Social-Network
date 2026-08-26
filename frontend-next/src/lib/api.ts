@@ -480,6 +480,10 @@ export async function inviteToGroup(groupId: string, userId: string): Promise<vo
   return api.post<void>(`/groups/${groupId}/invite`, { userId });
 }
 
+export async function getSentInvitationIds(groupId: string): Promise<string[]> {
+  return api.get<string[]>(`/groups/${groupId}/invitations/sent`);
+}
+
 export async function getMyGroupInvitations(): Promise<GroupInvitation[]> {
   return api.get<GroupInvitation[]>('/groups/invitations/pending');
 }

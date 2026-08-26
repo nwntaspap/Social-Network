@@ -97,6 +97,10 @@ func (s *getGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([]gr
 	return nil, nil
 }
 
+func (s *getGroupStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *getGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
 
 func (s *getGroupStub) GetPostsByGroupID(_ context.Context, _, _ string, _, _ int) ([]group.Post, int, error) {

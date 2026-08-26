@@ -144,6 +144,7 @@ type InvitationRepository interface {
 	GetInvitation(ctx context.Context, groupID, inviteeID string) (*Invitation, error)
 	IsInvited(ctx context.Context, groupID, inviteeID string) (bool, error)
 	GetPendingInvitations(ctx context.Context, userID string) ([]Invitation, error)
+	GetSentInvitationInviteeIDs(ctx context.Context, groupID, inviterID string) ([]string, error)
 }
 
 type JoinRequestRepository interface {

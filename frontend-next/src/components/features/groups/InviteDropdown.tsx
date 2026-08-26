@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getGroupMembers, getFollowers, inviteToGroup } from '@/lib/api';
+import { getGroupMembers, getFollowers, inviteToGroup, getSentInvitationIds } from '@/lib/api';
 import type { User } from '@/lib/types';
 import Image from 'next/image';
 import { getDisplayName, getFileUrl } from '@/lib/helpers';
@@ -28,14 +28,16 @@ export default function InviteDropdown({ groupId, onClose }: InviteDropdownProps
     let ignore = false;
     async function fetchData() {
       try {
-        const [membersResponse, followers] = await Promise.all([
+        const [membersResponse, followers, sentIds] = await Promise.all([
           getGroupMembers(groupId),
           user ? getFollowers(user.id) : Promise.resolve<User[]>([]),
+          getSentInvitationIds(groupId),
         ]);
         if (ignore) return;
         setMemberIds(new Set(membersResponse.data.map((m) => m.userId)));
         const memberSet = new Set(membersResponse.data.map((m) => m.userId));
         setCandidates(followers.filter((f) => f.id !== user?.id && !memberSet.has(f.id)));
+        setPendingInviteIds(new Set(sentIds));
       } catch (err) {
         console.error('Failed to fetch invite candidates:', err);
       } finally {

@@ -96,6 +96,10 @@ type GetPendingJoinRequestsResolver interface {
 	Resolve(ctx context.Context, q queries.GetPendingJoinRequestsQuery) (*queries.GetPendingJoinRequestsResult, error)
 }
 
+type GetSentInvitationIDsResolver interface {
+	Resolve(ctx context.Context, q queries.GetSentInvitationIDsQuery) (*queries.GetSentInvitationIDsResult, error)
+}
+
 type ListMyGroupsResolver interface {
 	Resolve(ctx context.Context, q queries.ListMyGroupsQuery) (*queries.ListMyGroupsResult, error)
 }
@@ -124,6 +128,7 @@ type Handler struct {
 	getGroupMembers        GetGroupMembersResolver
 	getPendingInvitations  GetPendingInvitationsResolver
 	getPendingJoinRequests GetPendingJoinRequestsResolver
+	getSentInvitationIDs   GetSentInvitationIDsResolver
 	listMyGroups           ListMyGroupsResolver
 	getGroupPresence       GetGroupPresenceResolver
 	userLookup             UserLookup
@@ -153,6 +158,7 @@ func NewHandler(
 	getGroupMembers GetGroupMembersResolver,
 	getPendingInvitations GetPendingInvitationsResolver,
 	getPendingJoinRequests GetPendingJoinRequestsResolver,
+	getSentInvitationIDs GetSentInvitationIDsResolver,
 	listMyGroups ListMyGroupsResolver,
 	getGroupPresence GetGroupPresenceResolver,
 	logger logger.Logger,
@@ -177,6 +183,7 @@ func NewHandler(
 		getGroupMembers:        getGroupMembers,
 		getPendingInvitations:  getPendingInvitations,
 		getPendingJoinRequests: getPendingJoinRequests,
+		getSentInvitationIDs:   getSentInvitationIDs,
 		listMyGroups:           listMyGroups,
 		getGroupPresence:       getGroupPresence,
 		userLookup:             userLookup,

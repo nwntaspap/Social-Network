@@ -104,6 +104,10 @@ func (s *respondInviteStub) GetPendingJoinRequests(_ context.Context, _ string) 
 	return nil, nil
 }
 
+func (s *respondInviteStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *respondInviteStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
 func (s *respondInviteStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil

@@ -51,6 +51,7 @@ func presenceTestHandler(listMyGroups ListMyGroupsResolver, presence GetGroupPre
 		&mockGroupMembers{total: 5},
 		nil,
 		nil,
+		nil,
 		listMyGroups,
 		presence,
 		logger.New(io.Discard, logger.LevelOff),

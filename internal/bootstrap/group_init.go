@@ -57,6 +57,7 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 		groupqueries.NewGetGroupMembersResolver(store),
 		groupqueries.NewGetPendingInvitationsResolver(store),
 		groupqueries.NewGetPendingJoinRequestsResolver(store),
+		groupqueries.NewGetSentInvitationIDsResolver(store),
 		groupqueries.NewListMyGroupsResolver(store),
 		groupqueries.NewGetGroupPresenceResolver(store, isOnline),
 		logger,

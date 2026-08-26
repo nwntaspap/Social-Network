@@ -56,7 +56,7 @@ func TestVoteGroupPost_CapturesReaction(t *testing.T) {
 				&mockGroupUserLookup{},
 				nil, nil, nil, nil, nil, nil, nil,
 				mock,
-				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 				logger.New(io.Discard, logger.LevelOff),
 			)
 			srv := httptest.NewServer(groupRoutesMux(h))
@@ -89,7 +89,7 @@ func TestVoteGroupPost_UnauthorizedWithoutUser(t *testing.T) {
 	h := NewHandler(
 		func(_ *http.Request) (string, bool) { return "", false },
 		&mockGroupUserLookup{},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))
@@ -122,7 +122,7 @@ func TestCreateGroupPost_CapturesCommandFromMultipart(t *testing.T) {
 		&mockGroupUserLookup{},
 		nil, nil, nil, nil, nil,
 		mock,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))
@@ -173,7 +173,7 @@ func TestCreateGroupPost_UnauthorizedWithoutUser(t *testing.T) {
 	h := NewHandler(
 		func(_ *http.Request) (string, bool) { return "", false },
 		&mockGroupUserLookup{},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 	srv := httptest.NewServer(groupRoutesMux(h))

@@ -72,6 +72,7 @@ func newInvitationTestHandler(
 		nil,
 		nil,
 		nil,
+		nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 }

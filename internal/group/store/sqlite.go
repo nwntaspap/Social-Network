@@ -388,6 +388,26 @@ func (s *SQLiteStore) GetPendingInvitations(ctx context.Context, userID string) 
 	return invitations, rows.Err()
 }
 
+func (s *SQLiteStore) GetSentInvitationInviteeIDs(ctx context.Context, groupID, inviterID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT invitee_id FROM group_invitations WHERE group_id = ? AND inviter_id = ?`,
+		groupID, inviterID)
+	if err != nil {
+		return nil, fmt.Errorf("list sent invitation invitee ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan invitee id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *SQLiteStore) GetPendingJoinRequests(ctx context.Context, groupID string) ([]group.JoinRequest, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, group_id, requester_id, created_at

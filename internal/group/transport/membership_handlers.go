@@ -287,3 +287,31 @@ func (h *Handler) GetGroupMembers(w http.ResponseWriter, r *http.Request) {
 	}
 	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(members, res.Total, pagination.Page, pagination.Limit))
 }
+
+func (h *Handler) GetSentInvitationIDs(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.extractUser(r)
+	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	groupID := r.PathValue("groupId")
+	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
+		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
+		return
+	}
+
+	res, err := h.getSentInvitationIDs.Resolve(r.Context(), queries.GetSentInvitationIDsQuery{
+		GroupID:   groupID,
+		InviterID: userID,
+	})
+	if err != nil {
+		h.logger.PrintError(err, nil)
+		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, res.InviteeIDs)
+}

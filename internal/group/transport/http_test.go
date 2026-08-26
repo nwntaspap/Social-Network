@@ -91,6 +91,7 @@ func newGroupTestHandler(extractUser UserExtractor, list ListGroupsResolver, mem
 		nil,
 		nil,
 		nil,
+		nil,
 		logger.New(io.Discard, logger.LevelOff),
 	)
 }

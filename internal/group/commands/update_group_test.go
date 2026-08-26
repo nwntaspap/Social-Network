@@ -88,6 +88,10 @@ func (s *updateGroupStub) HasPendingRequest(_ context.Context, _, _ string) (boo
 func (s *updateGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([]group.JoinRequest, error) {
 	return nil, group.ErrGroupNotFound
 }
+
+func (s *updateGroupStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
 func (s *updateGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
 func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
