@@ -191,10 +191,10 @@ func TestPrivateAccessRevokedOnUnfollow(t *testing.T) {
 	}
 }
 
-// TestPrivateAuthorPostsHiddenFromNonFollowers verifies the author-privacy
-// guard: when an author's profile is private, ALL their posts (including
-// public ones) are invisible to non-followers, in both feed and profile queries.
-func TestPrivateAuthorPostsHiddenFromNonFollowers(t *testing.T) {
+// TestPrivateAuthorPublicPostsVisibleToNonFollowers verifies that public posts
+// are always visible regardless of the author's profile privacy setting.
+// Followers-only and private posts remain restricted to followers.
+func TestPrivateAuthorPublicPostsVisibleToNonFollowers(t *testing.T) {
 	s := setupTopicStore(t)
 	seedVisibilityTopics(t, s)
 
@@ -204,26 +204,30 @@ func TestPrivateAuthorPostsHiddenFromNonFollowers(t *testing.T) {
 		t.Fatalf("set private: %v", err)
 	}
 
-	// Non-follower sees none of the private-profile author's posts.
+	// Non-follower sees only the public post from the private-profile author.
 	topics, count, err := s.GetTopicsByUserID(context.Background(), "u1", "stranger", 1, 10)
 	if err != nil {
 		t.Fatalf("GetTopicsByUserID stranger: %v", err)
 	}
-	if len(topics) != 0 || count != 0 {
-		t.Errorf("stranger profile view = %d/%d, want 0/0", len(topics), count)
+	assertTitles(t, topicTitles(topics), "Public")
+	if count != 1 {
+		t.Errorf("stranger profile view = %d, want 1", count)
 	}
-	feedTopics, count, err := s.GetFeed(context.Background(), "stranger", 1, 10, "created_at", "DESC", "")
+
+	// Non-follower sees the public post in the feed.
+	feedTopics, _, err := s.GetFeed(context.Background(), "stranger", 1, 10, "created_at", "DESC", "")
 	if err != nil {
 		t.Fatalf("GetFeed stranger: %v", err)
 	}
+	var seen []string
 	for _, tpc := range feedTopics {
 		if tpc.UserID == "u1" {
-			t.Errorf("feed leaked post %q from private-profile author to non-follower", tpc.Title)
+			seen = append(seen, tpc.Title)
 		}
 	}
-	_ = count
+	assertTitles(t, seen, "Public")
 
-	// Follower still sees public + followers-only posts.
+	// Follower still sees public + followers-only posts (but not private unless allowed).
 	topics, count, err = s.GetTopicsByUserID(context.Background(), "u1", "u3", 1, 10)
 	if err != nil {
 		t.Fatalf("GetTopicsByUserID follower: %v", err)

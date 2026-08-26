@@ -316,31 +316,37 @@ func (s *SQLiteStore) getAllowedUsers(ctx context.Context, topicID int) ([]strin
 // posts when the requester follows the author, and private posts when the
 // requester is on the topic's allowed-user list AND still follows the author
 // (unfollowing revokes private-post access). An empty requesterID (anonymous)
-// only sees public posts. Additionally, ALL posts of an author with a private
-// profile are hidden unless the requester is the author or follows them.
+// only sees public posts. Public posts (visibility=0) are always visible
+// regardless of the author's profile privacy. Author profile privacy only
+// restricts followers-only and private posts from non-followers.
 func visibilityGuard(requesterID string) (string, []any) {
 	guard := `(t.user_id = ? OR (
-		NOT (
-			EXISTS(SELECT 1 FROM users au WHERE au.id = t.user_id AND au.is_private = 1)
-			AND t.user_id != ?
-			AND NOT EXISTS(
-				SELECT 1 FROM follows f2
-				WHERE f2.follower_id = ? AND f2.followee_id = t.user_id
+		t.visibility = 0
+		OR
+		(
+			t.visibility IN (1, 2)
+			AND NOT (
+				EXISTS(SELECT 1 FROM users au WHERE au.id = t.user_id AND au.is_private = 1)
+				AND t.user_id != ?
+				AND NOT EXISTS(
+					SELECT 1 FROM follows f2
+					WHERE f2.follower_id = ? AND f2.followee_id = t.user_id
+				)
 			)
-		)
-		AND (
-			t.visibility = 0 OR
-			(t.visibility = 1 AND EXISTS(
-				SELECT 1 FROM follows f
-				WHERE f.follower_id = ? AND f.followee_id = t.user_id
-			)) OR
-			(t.visibility = 2 AND EXISTS(
-				SELECT 1 FROM topic_allowed_users a
-				WHERE a.topic_id = t.id AND a.user_id = ?
-			) AND EXISTS(
-				SELECT 1 FROM follows f
-				WHERE f.follower_id = ? AND f.followee_id = t.user_id
-			))
+			AND (
+				(t.visibility = 1 AND EXISTS(
+					SELECT 1 FROM follows f
+					WHERE f.follower_id = ? AND f.followee_id = t.user_id
+				))
+				OR
+				(t.visibility = 2 AND EXISTS(
+					SELECT 1 FROM topic_allowed_users a
+					WHERE a.topic_id = t.id AND a.user_id = ?
+				) AND EXISTS(
+					SELECT 1 FROM follows f
+					WHERE f.follower_id = ? AND f.followee_id = t.user_id
+				))
+			)
 		)
 	))`
 	return guard, []any{requesterID, requesterID, requesterID, requesterID, requesterID, requesterID}
