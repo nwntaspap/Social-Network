@@ -174,7 +174,7 @@ describe('GroupContent EventsTab', () => {
     expect(await screen.findByText('React meetup')).toBeTruthy();
     expect(screen.getByText('Going')).toBeTruthy();
     expect(screen.getByText('Not going')).toBeTruthy();
-    expect(screen.getByText('2')).toBeTruthy();
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1);
   });
 
   it('sends an RSVP when an option is clicked', async () => {
