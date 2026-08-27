@@ -3,6 +3,7 @@ import { Rubik, Poppins } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ChatWidget from '@/components/features/chat/ChatWidget';
 import '../styles/base.css';
 import '../styles/layout.css';
 import '../styles/navbar.css';
@@ -70,6 +71,9 @@ export default function RootLayout({
           <div id="footer-root">
             <Footer />
           </div>
+
+          {/* Floating chat popup (only shows for authenticated users) */}
+          <ChatWidget />
         </AuthProvider>
       </body>
     </html>

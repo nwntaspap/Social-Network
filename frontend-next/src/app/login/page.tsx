@@ -12,13 +12,21 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError, loginEmail, loginUsername } from '@/lib/api';
 import { User } from '@/lib/types';
 
 type LoginType = 'username' | 'email';
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  email_exists:
+    'An account already exists for this email. Try a different provider or sign in with your password.',
+  errorAtOauthLogin: 'Something went wrong while signing in with the provider. Please try again.',
+  errorCreatingSession: 'Something went wrong while creating your session. Please try again.',
+  flowNotRecognized: 'Something went wrong with the sign-in flow. Please try again.',
+};
 
 export default function LoginPage() {
   const { user, loading, setUser } = useAuth();
@@ -47,6 +55,7 @@ export default function LoginPage() {
 
 function LoginForm({ setUser }: { setUser: (u: User) => void }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [loginType, setLoginType] = useState<LoginType>('username');
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +70,13 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
   const [nicknameError, setNicknameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  // OAuth error surfaced from the provider callback redirect (?error=...)
+  const oauthError = searchParams.get('error');
+  const oauthProvider = searchParams.get('provider');
+  const oauthErrorMessage = oauthError
+    ? (OAUTH_ERROR_MESSAGES[oauthError] ?? 'Something went wrong during sign-in. Please try again.')
+    : '';
 
   // Focus the active input when loginType switches — mirrors updateVisibility()
   const nicknameRef = useRef<HTMLInputElement>(null);
@@ -116,22 +132,26 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
 
     setSubmitting(true);
     try {
-      let me: User;
+      let res: Awaited<ReturnType<typeof loginEmail>>;
       if (loginType === 'email') {
-        me = await loginEmail(email, password);
+        res = await loginEmail(email, password);
       } else {
         // Backend reads field "username" — mirrors the old api.post call
-        me = await loginUsername(nickname, password);
+        res = await loginUsername(nickname, password);
       }
 
       // Update auth context so Navbar re-renders immediately
-      setUser(me);
+      setUser(res.user);
       router.push('/');
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : String(err);
       const lower = msg.toLowerCase();
 
-      if (lower.includes('email')) {
+      // Bad credentials are shown on the password field — it exists in both
+      // sign-in modes, unlike the email/nickname inputs.
+      if (err instanceof ApiError && err.isUnauthorized) {
+        setPasswordError(msg);
+      } else if (lower.includes('email')) {
         setEmailError(msg);
       } else if (
         lower.includes('nickname') ||
@@ -162,11 +182,11 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
 
           {/* OAuth providers */}
           <div className="btn-box">
-            <a className="signup-provider-btn google" href="/api/v1/auth/google/login">
+            <a className="signup-provider-btn google" href="/api/v1/auth/oauth/google/init">
               <Image src="/images/icons/google-logo.png" alt="Google Logo" width={20} height={20} />
               <p>Continue with Google</p>
             </a>
-            <a className="signup-provider-btn github" href="/api/v1/auth/github/login">
+            <a className="signup-provider-btn github" href="/api/v1/auth/oauth/github/init">
               <Image
                 src="/images/icons/github-white-logo.png"
                 alt="Github Logo"
@@ -176,6 +196,19 @@ function LoginForm({ setUser }: { setUser: (u: User) => void }) {
               <p>Continue with Github</p>
             </a>
           </div>
+
+          {oauthErrorMessage && (
+            <div className="oauth-error-banner" role="alert">
+              {oauthProvider ? (
+                <>
+                  Sign-in with {oauthProvider.charAt(0).toUpperCase() + oauthProvider.slice(1)}{' '}
+                  failed. {oauthErrorMessage}
+                </>
+              ) : (
+                oauthErrorMessage
+              )}
+            </div>
+          )}
 
           <div className="border">
             <span className="border-text">or</span>

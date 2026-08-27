@@ -3,9 +3,11 @@ package commands
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 
 	"social-network/internal/group"
+	"social-network/internal/pkg/imgutil"
 	"social-network/internal/pkg/uuid"
 )
 
@@ -15,19 +17,22 @@ var (
 )
 
 type CreateGroupPostCommand struct {
-	GroupID   string
-	AuthorID  string
-	Title     string
-	Content   string
-	ImagePath string
+	GroupID       string
+	AuthorID      string
+	Title         string
+	Content       string
+	ImageData     []byte
+	ImageFileName string
+	ImagePath     string
 }
 
 type CreateGroupPostHandler struct {
 	repo group.Repository
+	img  group.ImageStorage
 }
 
-func NewCreateGroupPostHandler(repo group.Repository) *CreateGroupPostHandler {
-	return &CreateGroupPostHandler{repo: repo}
+func NewCreateGroupPostHandler(repo group.Repository, img group.ImageStorage) *CreateGroupPostHandler {
+	return &CreateGroupPostHandler{repo: repo, img: img}
 }
 
 func (h *CreateGroupPostHandler) Execute(ctx context.Context, cmd CreateGroupPostCommand) (*group.Post, error) {
@@ -58,6 +63,16 @@ func (h *CreateGroupPostHandler) Execute(ctx context.Context, cmd CreateGroupPos
 		Title:     title,
 		Content:   cmd.Content,
 		ImagePath: cmd.ImagePath,
+	}
+
+	if len(cmd.ImageData) > 0 && cmd.ImageFileName != "" {
+		if err := imgutil.ValidateImageHeader(cmd.ImageData); err != nil {
+			return nil, err
+		}
+		p.ImagePath = filepath.Join("/uploads", cmd.ImageFileName)
+		if err := h.img.Upload(ctx, cmd.ImageData, cmd.ImageFileName); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := h.repo.CreatePost(ctx, p); err != nil {

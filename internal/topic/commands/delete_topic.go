@@ -2,8 +2,11 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
 
+	"social-network/internal/platform/eventbus"
 	"social-network/internal/topic"
 )
 
@@ -14,17 +17,12 @@ type DeleteTopicCommand struct {
 
 type DeleteTopicHandler struct {
 	repo topic.Repository
-	bus  topic.EventBus
+	bus  eventbus.EventBus
 	img  topic.ImageStorage
 }
 
-func NewDeleteTopicHandler(repo topic.Repository, bus topic.EventBus, img topic.ImageStorage) *DeleteTopicHandler {
+func NewDeleteTopicHandler(repo topic.Repository, bus eventbus.EventBus, img topic.ImageStorage) *DeleteTopicHandler {
 	return &DeleteTopicHandler{repo: repo, bus: bus, img: img}
-}
-
-type TopicDeletedEvent struct {
-	TopicID int
-	UserID  string
 }
 
 func (h *DeleteTopicHandler) Execute(ctx context.Context, cmd DeleteTopicCommand) error {
@@ -44,7 +42,11 @@ func (h *DeleteTopicHandler) Execute(ctx context.Context, cmd DeleteTopicCommand
 		return fmt.Errorf("delete topic: %w", err)
 	}
 
-	_ = h.bus.Publish(ctx, "post.deleted", TopicDeletedEvent(cmd))
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:       eventbus.EventPost,
+		ResourceID: strconv.Itoa(cmd.TopicID),
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
 
 	return nil
 }

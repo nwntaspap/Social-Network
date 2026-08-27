@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"social-network/internal/comment"
+	"social-network/internal/topic"
 )
 
 func TestGetCommentsByTopicWithVotesResolver_Success(t *testing.T) {
@@ -14,9 +15,9 @@ func TestGetCommentsByTopicWithVotesResolver_Success(t *testing.T) {
 		{ID: 2, TopicID: 1, UserID: "u2", Content: "b", UpvoteCount: 1},
 	}
 	repo := &mockRepo{getResultWV: expected}
-	r := NewGetCommentsByTopicWithVotesResolver(repo)
+	r := NewGetCommentsByTopicWithVotesResolver(repo, &fakeTopicChecker{})
 
-	result, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, UserID: "u2"})
+	result, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, RequesterID: "u2"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -30,9 +31,9 @@ func TestGetCommentsByTopicWithVotesResolver_Success(t *testing.T) {
 
 func TestGetCommentsByTopicWithVotesResolver_Empty(t *testing.T) {
 	repo := &mockRepo{getResultWV: []comment.Comment{}}
-	r := NewGetCommentsByTopicWithVotesResolver(repo)
+	r := NewGetCommentsByTopicWithVotesResolver(repo, &fakeTopicChecker{})
 
-	result, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, UserID: "u2"})
+	result, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, RequesterID: "u2"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -43,10 +44,20 @@ func TestGetCommentsByTopicWithVotesResolver_Empty(t *testing.T) {
 
 func TestGetCommentsByTopicWithVotesResolver_Error(t *testing.T) {
 	repo := &mockRepo{getErrWV: errors.New("db down")}
-	r := NewGetCommentsByTopicWithVotesResolver(repo)
+	r := NewGetCommentsByTopicWithVotesResolver(repo, &fakeTopicChecker{})
 
-	_, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, UserID: "u2"})
+	_, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, RequesterID: "u2"})
 	if err == nil {
 		t.Fatal("Resolve() expected error, got nil")
+	}
+}
+
+func TestGetCommentsByTopicWithVotesResolver_HiddenTopicDenied(t *testing.T) {
+	repo := &mockRepo{getResultWV: []comment.Comment{{ID: 1, TopicID: 1}}}
+	r := NewGetCommentsByTopicWithVotesResolver(repo, &fakeTopicChecker{err: topic.ErrTopicNotFound})
+
+	_, err := r.Resolve(context.Background(), GetCommentsByTopicWithVotesQuery{TopicID: 1, RequesterID: "u2"})
+	if !errors.Is(err, topic.ErrTopicNotFound) {
+		t.Errorf("Resolve() error = %v, want ErrTopicNotFound", err)
 	}
 }

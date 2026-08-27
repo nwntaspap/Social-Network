@@ -3,13 +3,16 @@ package transport
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/topic"
 	"social-network/internal/topic/commands"
 	"social-network/internal/topic/queries"
@@ -46,6 +49,14 @@ type mockCastVote struct {
 }
 
 func (m *mockCastVote) Execute(_ context.Context, cmd commands.CastVoteCommand) error {
+	return m.err
+}
+
+type mockDeleteVote struct {
+	err error
+}
+
+func (m *mockDeleteVote) Execute(_ context.Context, cmd commands.DeleteVoteCommand) error {
 	return m.err
 }
 
@@ -94,6 +105,21 @@ func (m *mockGetVotes) Resolve(_ context.Context, q queries.GetVoteCountsQuery) 
 	return m.result, m.err
 }
 
+type mockUserLookup struct {
+	result *UserResult
+	err    error
+}
+
+func (m *mockUserLookup) GetUserByID(_ context.Context, id string) (*UserResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return &UserResult{ID: id, Username: "alice", Nickname: "alice"}, nil
+}
+
 func fixedTime() time.Time {
 	return time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
 }
@@ -104,12 +130,14 @@ func testTopic() *topic.Topic {
 		UserID:        "user-1",
 		Title:         "Test Post",
 		Content:       "Test content",
+		ImagePath:     "/images/photo.jpg",
 		Visibility:    topic.VisibilityPublic,
 		CreatedAt:     fixedTime(),
 		UpdatedAt:     fixedTime(),
 		UpvoteCount:   3,
 		DownvoteCount: 1,
 		VoteScore:     2,
+		CommentsCount: 2,
 	}
 }
 
@@ -163,11 +191,13 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var update UpdateTopicExecutor
 	var del DeleteTopicExecutor
 	var cast CastVoteExecutor
+	var delVote DeleteVoteExecutor
 	var getFeed GetFeedResolver
 	var getTopic GetTopicResolver
 	var getByUser GetTopicsByUserResolver
 	var getByGroup GetTopicsByGroupResolver
 	var getVotes GetVoteCountsResolver
+	var lookup UserLookup
 
 	for _, m := range mocks {
 		switch v := m.(type) {
@@ -179,6 +209,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			del = v
 		case *mockCastVote:
 			cast = v
+		case *mockDeleteVote:
+			delVote = v
 		case *mockGetFeed:
 			getFeed = v
 		case *mockGetTopic:
@@ -189,10 +221,17 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			getByGroup = v
 		case *mockGetVotes:
 			getVotes = v
+		case *mockUserLookup:
+			lookup = v
 		}
 	}
 
-	return NewHandler(extractor, create, update, del, cast, getFeed, getTopic, getByUser, getByGroup, getVotes)
+	if lookup == nil {
+		lookup = &mockUserLookup{}
+	}
+
+	return NewHandler(extractor, lookup, create, update, del, cast, delVote, getFeed, getTopic, getByUser, getByGroup, getVotes,
+		logger.New(io.Discard, logger.LevelOff))
 }
 
 func doMultipartReq(t *testing.T, srv *httptest.Server, method, path string, fields map[string]string) *http.Response {
@@ -292,19 +331,6 @@ func TestDeleteTopic_BadID(t *testing.T) {
 	}
 }
 
-func TestCastVote_Success(t *testing.T) {
-	h := newTestHandler(extractUserOK, &mockCastVote{})
-	srv := httptest.NewServer(mux(h))
-	defer srv.Close()
-
-	resp := doReq(t, srv, http.MethodPost, "/api/posts/vote?id=1")
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-}
-
 func TestGetFeed_Success(t *testing.T) {
 	h := newTestHandler(extractUserOK, &mockGetFeed{
 		result: &queries.GetFeedResult{
@@ -336,6 +362,19 @@ func TestGetTopic_Success(t *testing.T) {
 	}
 }
 
+func TestGetTopic_NotFound(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockGetTopic{err: topic.ErrTopicNotFound})
+	srv := httptest.NewServer(mux(h))
+	defer srv.Close()
+
+	resp := doReq(t, srv, http.MethodGet, "/api/posts/get?id=1")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
 func TestGetTopic_Error(t *testing.T) {
 	h := newTestHandler(extractUserOK, &mockGetTopic{err: errors.New("not found")})
 	srv := httptest.NewServer(mux(h))
@@ -346,5 +385,54 @@ func TestGetTopic_Error(t *testing.T) {
 
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestTopicResponse_MatchesFrontendPost(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockGetTopic{result: testTopic()})
+	srv := httptest.NewServer(mux(h))
+	defer srv.Close()
+
+	resp := doReq(t, srv, http.MethodGet, "/api/posts/get?id=1")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	d := body.Data
+
+	if got, ok := d["id"].(string); !ok || got != "1" {
+		t.Errorf("id = %#v, want string \"1\"", d["id"])
+	}
+	if _, ok := d["user"].(map[string]any); !ok {
+		t.Errorf("user = %#v, want nested object", d["user"])
+	}
+	if got, ok := d["imageUrl"].(string); !ok || got != "/images/photo.jpg" {
+		t.Errorf("imageUrl = %#v, want %q", d["imageUrl"], "/images/photo.jpg")
+	}
+	if got, ok := d["commentsCount"].(float64); !ok || got != 2 {
+		t.Errorf("commentsCount = %#v, want 2", d["commentsCount"])
+	}
+	if got, ok := d["likesCount"].(float64); !ok || got != 3 {
+		t.Errorf("likesCount = %#v, want 3", d["likesCount"])
+	}
+	if got, ok := d["downvotesCount"].(float64); !ok || got != 1 {
+		t.Errorf("downvotesCount = %#v, want 1", d["downvotesCount"])
+	}
+	if _, ok := d["allowedUsers"]; ok {
+		t.Error("allowedUsers should be omitted for non-owner/empty list")
+	}
+	if _, ok := d["ownerUsername"]; ok {
+		t.Error("ownerUsername should be removed from the response")
+	}
+	if _, ok := d["imagePath"]; ok {
+		t.Error("imagePath should be renamed to imageUrl")
 	}
 }

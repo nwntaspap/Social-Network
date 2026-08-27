@@ -2,11 +2,17 @@ package transport
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"social-network/internal/oauth"
 	"social-network/internal/oauth/commands"
+	"social-network/internal/platform/logger"
 )
+
+const routesPrefix = "/api/v1/auth/oauth/"
 
 // UserExtractor extracts the authenticated user ID from the request.
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -23,30 +29,34 @@ type CallbackExecutor interface {
 
 // Handler holds the OAuth HTTP transport.
 type Handler struct {
-	initiate    *commands.InitiateHandler
-	callback    *commands.CallbackHandler
-	extractUser UserExtractor
-	frontendURL string
+	initiate     *commands.InitiateHandler
+	callbacks    map[string]*commands.CallbackHandler
+	extractUser  UserExtractor
+	frontendURL  string
+	cookieSetter oauth.CookieSetter
+	logger       logger.Logger
 }
 
 // NewHandler creates a new OAuth HTTP handler.
-func NewHandler(initiate *commands.InitiateHandler, callback *commands.CallbackHandler, extractUser UserExtractor, frontendURL string) *Handler {
+// callbacks maps a provider name (e.g. "github", "google") to its callback handler.
+func NewHandler(initiate *commands.InitiateHandler, callbacks map[string]*commands.CallbackHandler, cookieSetter oauth.CookieSetter, extractUser UserExtractor, frontendURL string, logger logger.Logger) *Handler {
 	return &Handler{
-		initiate:    initiate,
-		callback:    callback,
-		extractUser: extractUser,
-		frontendURL: frontendURL,
+		initiate:     initiate,
+		callbacks:    callbacks,
+		cookieSetter: cookieSetter,
+		extractUser:  extractUser,
+		frontendURL:  frontendURL,
+		logger:       logger,
 	}
 }
 
 // RegisterRoutes registers OAuth routes on the provided mux.
-// NOTE: Not wired into bootstrap until S5-BE-83.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/auth/oauth/", h.route)
+	mux.HandleFunc(routesPrefix, h.route)
 }
 
 func (h *Handler) route(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/auth/oauth/")
+	path := strings.TrimPrefix(r.URL.Path, routesPrefix)
 	parts := strings.Split(path, "/")
 
 	if len(parts) < 2 {
@@ -71,6 +81,7 @@ func (h *Handler) route(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provider, flow string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -80,6 +91,7 @@ func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provide
 		Flow:     flow,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -89,12 +101,14 @@ func (h *Handler) handleInitiate(w http.ResponseWriter, r *http.Request, provide
 
 func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, provider string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -105,6 +119,7 @@ func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, pro
 		UserID:   userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -112,9 +127,17 @@ func (h *Handler) handleInitiateLink(w http.ResponseWriter, r *http.Request, pro
 	http.Redirect(w, r, result.RedirectURL, http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, _ string) {
+func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, provider string) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	callback, ok := h.callbacks[provider]
+	if !ok {
+		h.logger.PrintError(errors.New("unknown oauth provider: "+provider), nil)
+		http.NotFound(w, r)
 		return
 	}
 
@@ -122,26 +145,51 @@ func (h *Handler) handleCallback(w http.ResponseWriter, r *http.Request, _ strin
 	state := r.URL.Query().Get("state")
 
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
+		h.logger.PrintError(errors.New("oauth error: "+errParam), nil)
 		http.Error(w, "OAuth error: "+errParam, http.StatusInternalServerError)
 		return
 	}
 
-	result, err := h.callback.Execute(r.Context(), commands.CallbackCommand{
+	result, err := callback.Execute(r.Context(), commands.CallbackCommand{
 		Code:        code,
 		State:       state,
 		FrontendURL: h.frontendURL,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if result.Session != nil {
-		// Session cookie setting will be handled by the cookie adapter in bootstrap
-		// For now, redirect to frontend with success params
-		http.Redirect(w, r, result.FrontendURL, http.StatusTemporaryRedirect)
+	if result.Session != nil && h.cookieSetter != nil {
+		h.cookieSetter.SetCookies(w, result.Session)
+	}
+
+	if result.FrontendURL == "" {
+		h.logger.PrintError(errors.New("missing redirect target"), nil)
+		http.Error(w, "missing redirect target", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, result.FrontendURL, http.StatusTemporaryRedirect)
+	redirectWithHtml(w, result.FrontendURL)
+}
+
+// redirectWithHtml sends a 200 HTML page that navigates to target.
+// The OAuth callback must not answer with a 3xx redirect: the Next.js rewrite
+// proxy that sits in front of the backend on the frontend origin (localhost:3001)
+// drops Set-Cookie headers on 3xx responses, so a redirect would lose the session
+// cookie. Returning 200 lets the Set-Cookie header ride on a normal response (which
+// the proxy forwards), and the script below bounces the browser to the frontend.
+func redirectWithHtml(w http.ResponseWriter, target string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Redirecting...</title>
+<script>window.location.replace(%q);</script>
+</head>
+<body>Redirecting...</body>
+</html>`, target)
 }

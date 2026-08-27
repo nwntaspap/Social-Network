@@ -19,6 +19,14 @@ var (
 	ErrInvitationNotFound  = errors.New("invitation not found")
 	ErrJoinRequestNotFound = errors.New("join request not found")
 	ErrPostNotFound        = errors.New("group post not found")
+	ErrInvalidVoteValue    = errors.New("reaction_type must be 1 (like) or -1 (dislike)")
+)
+
+type VoteChange int
+
+const (
+	VoteChangeAdded VoteChange = iota
+	VoteChangeRemoved
 )
 
 type Role string
@@ -30,12 +38,14 @@ const (
 )
 
 type Group struct {
-	ID          string
-	Title       string
-	Description string
-	CreatorID   string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID               string
+	Title            string
+	Description      string
+	CreatorID        string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	MembershipStatus string
+	UnreadCount      int
 }
 
 type Member struct {
@@ -46,29 +56,40 @@ type Member struct {
 }
 
 type Invitation struct {
-	ID        string
-	GroupID   string
-	InviterID string
-	InviteeID string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	InviterID string    `json:"inviter_id"`
+	InviteeID string    `json:"invitee_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type JoinRequest struct {
-	ID          string
-	GroupID     string
-	RequesterID string
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	GroupID     string    `json:"group_id"`
+	RequesterID string    `json:"requester_id"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Post struct {
-	ID        string
-	GroupID   string
-	AuthorID  string
-	Title     string
-	Content   string
-	ImagePath string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            string
+	GroupID       string
+	AuthorID      string
+	Title         string
+	Content       string
+	ImagePath     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UpvoteCount   int
+	DownvoteCount int
+	VoteScore     int
+	UserVote      *int
+	CommentsCount int
+}
+
+type VoteCounts struct {
+	Upvotes   int
+	Downvotes int
+	Score     int
 }
 
 type PostComment struct {
@@ -80,6 +101,15 @@ type PostComment struct {
 	CreatedAt time.Time
 }
 
+// ChatMessage is a message in a group chat room.
+type ChatMessage struct {
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	SenderID  string    `json:"sender_id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Repository interface {
 	Repo
 	MemberRepository
@@ -87,6 +117,7 @@ type Repository interface {
 	JoinRequestRepository
 	PostRepository
 	PostCommentRepository
+	ChatRepository
 }
 
 type Repo interface {
@@ -104,6 +135,7 @@ type MemberRepository interface {
 	GetMemberRole(ctx context.Context, groupID, userID string) (Role, error)
 	CountMembers(ctx context.Context, groupID string) (int, error)
 	GetGroupMembers(ctx context.Context, groupID string, page, size int) ([]Member, int, error)
+	GetGroupAdmins(ctx context.Context, groupID string) ([]string, error)
 }
 
 type InvitationRepository interface {
@@ -112,6 +144,7 @@ type InvitationRepository interface {
 	GetInvitation(ctx context.Context, groupID, inviteeID string) (*Invitation, error)
 	IsInvited(ctx context.Context, groupID, inviteeID string) (bool, error)
 	GetPendingInvitations(ctx context.Context, userID string) ([]Invitation, error)
+	GetSentInvitationInviteeIDs(ctx context.Context, groupID, inviterID string) ([]string, error)
 }
 
 type JoinRequestRepository interface {
@@ -125,7 +158,10 @@ type JoinRequestRepository interface {
 
 type PostRepository interface {
 	CreatePost(ctx context.Context, p *Post) error
-	GetPostsByGroupID(ctx context.Context, groupID string, page, size int) ([]Post, int, error)
+	GetPostByID(ctx context.Context, postID string) (*Post, error)
+	GetPostsByGroupID(ctx context.Context, groupID, userID string, page, size int) ([]Post, int, error)
+	CastPostVote(ctx context.Context, userID, postID string, reactionType int) (VoteChange, error)
+	GetPostVoteCounts(ctx context.Context, postID string) (*VoteCounts, error)
 }
 
 type PostCommentRepository interface {
@@ -134,10 +170,16 @@ type PostCommentRepository interface {
 	CountPostComments(ctx context.Context, postID string) (int, error)
 }
 
+type ChatRepository interface {
+	SendGroupChatMessage(ctx context.Context, msg *ChatMessage) error
+	GetGroupChatMessages(ctx context.Context, groupID string, limit int) ([]ChatMessage, error)
+	ListGroupMemberIDs(ctx context.Context, groupID string) ([]string, error)
+}
+
 type FollowChecker interface {
 	AreConnected(ctx context.Context, a, b string) (bool, error)
 }
 
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
+type ImageStorage interface {
+	Upload(ctx context.Context, data []byte, path string) error
 }

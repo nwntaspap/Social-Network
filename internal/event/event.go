@@ -12,18 +12,14 @@ var (
 	ErrRSVPNotFound   = errors.New("event RSVP not found")
 )
 
-type Bus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
-}
-
 type Event struct {
-	ID            string
-	GroupID       string
-	CreatorID     string
-	Title         string
-	Description   string
-	ScheduledTime time.Time
-	CreatedAt     time.Time
+	ID            string    `json:"id"`
+	GroupID       string    `json:"group_id"`
+	CreatorID     string    `json:"creator_id"`
+	Title         string    `json:"title"`
+	Description   string    `json:"description"`
+	ScheduledTime time.Time `json:"scheduled_time"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type Option struct {
@@ -48,6 +44,7 @@ type Repository interface {
 type Repo interface {
 	CreateEvent(ctx context.Context, e *Event) error
 	GetEvent(ctx context.Context, eventID string) (*Event, error)
+	UpdateEvent(ctx context.Context, e *Event) error
 	DeleteEvent(ctx context.Context, eventID string) error
 	ListGroupEvents(ctx context.Context, groupID, cursor string, size int) ([]Event, string, error)
 }

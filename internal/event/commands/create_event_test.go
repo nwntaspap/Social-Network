@@ -7,7 +7,29 @@ import (
 	"time"
 
 	"social-network/internal/event"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
+
+type fakeUserRepo struct{}
+
+func (m *fakeUserRepo) Create(_ context.Context, _ *user.User) error { return nil }
+func (m *fakeUserRepo) GetByID(_ context.Context, id string) (*user.User, error) {
+	return &user.User{Nickname: id + "-name", AvatarPath: ""}, nil
+}
+
+var errFakeUserNotFound = errors.New("user not found")
+
+func (m *fakeUserRepo) GetByEmail(_ context.Context, _ string) (*user.User, error) {
+	return nil, errFakeUserNotFound
+}
+
+func (m *fakeUserRepo) GetByUsername(_ context.Context, _ string) (*user.User, error) {
+	return nil, errFakeUserNotFound
+}
+func (m *fakeUserRepo) Update(_ context.Context, _ *user.User) error            { return nil }
+func (m *fakeUserRepo) TogglePrivacy(_ context.Context, _ string, _ bool) error { return nil }
+func (m *fakeUserRepo) ListAll(_ context.Context) ([]user.User, error)          { return nil, nil }
 
 type fakeMemberChecker struct {
 	isMember bool
@@ -18,13 +40,25 @@ func (f *fakeMemberChecker) IsMember(_ context.Context, _, _ string) (bool, erro
 	return f.isMember, f.err
 }
 
+func (f *fakeMemberChecker) GetGroupMembers(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 type fakeEventBus struct {
 	published bool
 }
 
-func (f *fakeEventBus) Publish(_ context.Context, _ string, _ any) error {
+func (f *fakeEventBus) Publish(_ string, _ string, _ []byte) error {
 	f.published = true
 	return nil
+}
+
+func (f *fakeEventBus) InitTopology(_ context.Context) error { return nil }
+
+func (f *fakeEventBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
 }
 
 type fakeRepo struct {
@@ -40,6 +74,9 @@ func newFakeRepo() *fakeRepo {
 }
 
 func (r *fakeRepo) CreateEvent(_ context.Context, e *event.Event) error {
+	if e == nil {
+		return errors.New("event is nil")
+	}
 	r.events[e.ID] = e
 	return nil
 }
@@ -50,6 +87,14 @@ func (r *fakeRepo) GetEvent(_ context.Context, id string) (*event.Event, error) 
 		return nil, event.ErrEventNotFound
 	}
 	return e, nil
+}
+
+func (r *fakeRepo) UpdateEvent(_ context.Context, e *event.Event) error {
+	if _, ok := r.events[e.ID]; !ok {
+		return event.ErrEventNotFound
+	}
+	r.events[e.ID] = e
+	return nil
 }
 
 func (r *fakeRepo) DeleteEvent(_ context.Context, id string) error {
@@ -100,7 +145,7 @@ func TestCreateEventHandler_Validation(t *testing.T) {
 	bus := &fakeEventBus{}
 	member := &fakeMemberChecker{isMember: true}
 	repo := newFakeRepo()
-	handler := NewCreateEventHandler(repo, member, bus)
+	handler := NewCreateEventHandler(repo, member, bus, &fakeUserRepo{})
 
 	t.Run("empty user ID", func(t *testing.T) {
 		_, _, err := handler.Execute(ctx, CreateEventCommand{GroupID: "g1", Title: "T", Description: "D", ScheduledTime: time.Now().Add(time.Hour), Options: []string{"a", "b"}})
@@ -153,7 +198,7 @@ func TestCreateEventHandler_Validation(t *testing.T) {
 
 	t.Run("not group member", func(t *testing.T) {
 		m := &fakeMemberChecker{isMember: false}
-		h := NewCreateEventHandler(repo, m, bus)
+		h := NewCreateEventHandler(repo, m, bus, &fakeUserRepo{})
 		_, _, err := h.Execute(ctx, CreateEventCommand{UserID: "u1", GroupID: "g1", Title: "T", Description: "D", ScheduledTime: time.Now().Add(time.Hour), Options: []string{"a", "b"}})
 		if !errors.Is(err, ErrNotGroupMember) {
 			t.Errorf("expected ErrNotGroupMember, got %v", err)
@@ -179,10 +224,11 @@ func TestCreateEventHandler_Validation(t *testing.T) {
 
 func TestRSVPHandler_Validation(t *testing.T) {
 	ctx := context.Background()
+	member := &fakeMemberChecker{isMember: true}
 
 	t.Run("empty event ID", func(t *testing.T) {
 		repo := newFakeRepo()
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, member)
 		err := handler.Execute(ctx, RSVPCommand{UserID: "u1", OptionID: "o1"})
 		if err == nil {
 			t.Error("expected error")
@@ -191,17 +237,27 @@ func TestRSVPHandler_Validation(t *testing.T) {
 
 	t.Run("event not found", func(t *testing.T) {
 		repo := newFakeRepo()
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, member)
 		err := handler.Execute(ctx, RSVPCommand{EventID: "nonexistent", UserID: "u1", OptionID: "o1"})
 		if !errors.Is(err, event.ErrEventNotFound) {
 			t.Errorf("expected ErrEventNotFound, got %v", err)
 		}
 	})
 
+	t.Run("not group member", func(t *testing.T) {
+		repo := newFakeRepo()
+		repo.events["evt-1"] = &event.Event{ID: "evt-1", GroupID: "g1"}
+		handler := NewRSVPHandler(repo, &fakeMemberChecker{isMember: false})
+		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "o1"})
+		if !errors.Is(err, ErrNotGroupMember) {
+			t.Errorf("expected ErrNotGroupMember, got %v", err)
+		}
+	})
+
 	t.Run("option not found", func(t *testing.T) {
 		repo := newFakeRepo()
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, member)
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "nonexistent"})
 		if !errors.Is(err, event.ErrOptionNotFound) {
 			t.Errorf("expected ErrOptionNotFound, got %v", err)
@@ -213,7 +269,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
 		repo.events["evt-2"] = &event.Event{ID: "evt-2"}
 		repo.options["evt-2"] = []event.Option{{ID: "opt-2", EventID: "evt-2", Label: "going"}}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, member)
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "opt-2"})
 		if !errors.Is(err, ErrInvalidOption) {
 			t.Errorf("expected ErrInvalidOption, got %v", err)
@@ -224,7 +280,7 @@ func TestRSVPHandler_Validation(t *testing.T) {
 		repo := newFakeRepo()
 		repo.events["evt-1"] = &event.Event{ID: "evt-1"}
 		repo.options["evt-1"] = []event.Option{{ID: "opt-1", EventID: "evt-1", Label: "going"}}
-		handler := NewRSVPHandler(repo)
+		handler := NewRSVPHandler(repo, member)
 		err := handler.Execute(ctx, RSVPCommand{EventID: "evt-1", UserID: "u1", OptionID: "opt-1"})
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

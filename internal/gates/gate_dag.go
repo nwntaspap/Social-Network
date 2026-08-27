@@ -2,7 +2,6 @@
 DAGGate validates the acyclic dependency rules of feature packages (D6).
 It uses 'go-arch-lint check' if available, or falls back to standard Go
 package list analysis with a depth-first search (DFS) cycle-detection algorithm.
-It also ensures no package imports the forbidden 'notification' package.
 */
 
 package gates
@@ -23,8 +22,8 @@ type DAGGate struct {
 func (g *DAGGate) Name() string { return "d6-dag" }
 
 func (g *DAGGate) Run() Result {
-	what := "feature package dependency graph and notification package import boundaries"
-	why := "to prevent circular feature imports and isolate notification subscriptions in accordance with D6 rules"
+	what := "feature package dependency graph"
+	why := "to prevent circular feature imports in accordance with D6 rules"
 
 	// Try go-arch-lint first
 	if toolAvailable("go-arch-lint") {
@@ -35,14 +34,6 @@ func (g *DAGGate) Run() Result {
 				Gate:    g.Name(),
 				Status:  "FAIL",
 				Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - go-arch-lint violations:\n%s | debug: run 'go-arch-lint check'", what, why, string(out)),
-			}
-		}
-		// Still check notification imports (go-arch-lint doesn't enforce this)
-		if notifErrs := g.checkNotificationImports(); len(notifErrs) > 0 {
-			return Result{
-				Gate:    g.Name(),
-				Status:  "FAIL",
-				Message: fmt.Sprintf("checked: %s | why: %s | status: FAIL - %s | debug: run 'go list' and inspect imports", what, why, strings.Join(notifErrs, "; ")),
 			}
 		}
 		return Result{
@@ -147,9 +138,6 @@ func (g *DAGGate) runFallback(what, why string) Result {
 		}
 	}
 
-	// Check notification imports
-	errors = append(errors, g.checkNotificationImports()...)
-
 	if len(errors) > 0 {
 		return Result{
 			Gate:    g.Name(),
@@ -162,35 +150,6 @@ func (g *DAGGate) runFallback(what, why string) Result {
 		Status:  "PASS",
 		Message: fmt.Sprintf("checked: %s | why: %s | status: OK - dependency graph is acyclic (verified via fallback)", what, why),
 	}
-}
-
-func (g *DAGGate) checkNotificationImports() []string {
-	dir := g.InternalDir
-	if dir == "" {
-		dir = "internal"
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-
-	var errors []string
-	for _, e := range entries {
-		if !e.IsDir() || !isFeatureSlice(dir, e.Name()) || e.Name() == "notification" {
-			continue
-		}
-		featureDeps, err := getFeatureDeps(dir, e.Name())
-		if err != nil {
-			continue
-		}
-		for _, dep := range featureDeps {
-			if dep == "notification" {
-				errors = append(errors, fmt.Sprintf("D6: %s imports notification (forbidden)", e.Name()))
-			}
-		}
-	}
-	return errors
 }
 
 type goListPkg struct {

@@ -1,14 +1,11 @@
-version: '3.8'
-
 services:
   forum:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: forum-app
+    container_name: forum-backend
     restart: unless-stopped
     ports:
-      - "3001:3001"  # Frontend client
       - "8080:8080"  # Backend API
     environment:
       # Server Configuration
@@ -19,16 +16,8 @@ services:
       SERVER_READ_TIMEOUT: 10
       SERVER_WRITE_TIMEOUT: 20
       SERVER_IDLE_TIMEOUT: 30
-      SERVER_TLS_CERT_FILE: certs/localhost+2.pem
-      SERVER_TLS_KEY_FILE: certs/localhost+2-key.pem
-      
-      # Client Configuration
-      CLIENT_HOST: 0.0.0.0
-      CLIENT_PORT: 3001
-      CLIENT_ENVIRONMENT: development
-      CLIENT_TLS_CERT_FILE: certs/localhost+2.pem
-      CLIENT_TLS_KEY_FILE: certs/localhost+2-key.pem
-      BACKEND_URL: https://localhost:8080/api/v1
+      SERVER_TLS_CERT_FILE: ""
+      SERVER_TLS_KEY_FILE: ""
       
       # Database Configuration
       DB_DRIVER: sqlite3
@@ -45,28 +34,34 @@ services:
       RATE_LIMIT_ENABLED: "true"
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_WINDOW_SECONDS: 60
-      
+
+      # CORS — allow the Next.js frontend origin
+      ALLOWED_ORIGINS: http://localhost:3001,http://localhost:8080
+
+      # Message broker (eventbus) inside the compose network
+      NOTIFICATIONS_BROKER_URL: broker:5672
+
       # OAuth (optional - add your credentials)
       GITHUB_CLIENT_ID: "{ INSERT HERE YOUR GITHUB CLIENT ID }"
       GITHUB_CLIENT_SECRET: "{ INSERT HERE YOUR GITHUB CLIENT SECRET }"
-      GITHUB_REDIRECT_URL: https://localhost:8080/api/v1/auth/github/callback
+      GITHUB_REDIRECT_URL: http://localhost:3001/api/v1/auth/oauth/github/callback
       GITHUB_SCOPES: user,email
-      FRONTEND_GITHUB_CALLBACK_URL: https://localhost:3001/auth/callback
+      FRONTEND_GITHUB_CALLBACK_URL: http://localhost:3001/auth/callback
       GOOGLE_CLIENT_ID: "{ INSERT HERE YOUR GOOGLE CLIENT ID }"
       GOOGLE_CLIENT_SECRET: "{ INSERT HERE YOUR GOOGLE CLIENT SECRET }"
-      GOOGLE_REDIRECT_URL: https://localhost:8080/api/v1/auth/google/callback
+      GOOGLE_REDIRECT_URL: http://localhost:3001/api/v1/auth/oauth/google/callback
       GOOGLE_SCOPES: https://www.googleapis.com/auth/userinfo.profile,https://www.googleapis.com/auth/userinfo.email
       GOOGLE_TOKEN_URL: https://oauth2.googleapis.com/token
-      FRONTEND_GOOGLE_CALLBACK_URL: https://localhost:3001/auth/callback
+      FRONTEND_GOOGLE_CALLBACK_URL: http://localhost:3001/auth/callback
     
     volumes:
       # Persistent database storage
       - forum-db:/app/db/data
-      # Persistent user uploads
-      - forum-uploads:/app/frontend/static/images/uploads
+      # User-uploaded files
+      - forum-uploads:/app/uploads
     
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:8080/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -77,15 +72,81 @@ services:
         condition: service_started
     networks:
       - forum-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        BACKEND_ORIGIN: http://forum:8080
+        NOTIFICATIONS_ORIGIN: http://notifications:8081
+        NEXT_PUBLIC_NOTIFICATIONS_ORIGIN: http://localhost:8081
+    container_name: forum-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # Next.js frontend
+    environment:
+      BACKEND_ORIGIN: http://forum:8080
+      NOTIFICATIONS_ORIGIN: http://notifications:8081
+      NEXT_PUBLIC_NOTIFICATIONS_ORIGIN: http://localhost:8081
+      SESSION_SECURE_COOKIE: "true"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      forum:
+        condition: service_started
+    networks:
+      - forum-network
+
   broker:
     image: danielkotsi/golangmq:latest
     ports:
       - "5672:5672"
+    networks:
+      - forum-network
+
+  notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile.notifications
+    container_name: forum-notifications
+    restart: unless-stopped
+    ports:
+      - "8081:8081"  # Notifications API + SSE stream
+    environment:
+      # Where the service verifies session cookies against the backend.
+      NOTIFICATIONS_BACKEND_URL: http://forum:8080/api/v1
+      NOTIFICATIONS_ALLOWED_ORIGINS: http://localhost:3001,https://localhost:3001
+      # Broker address inside the compose network.
+      NOTIFICATIONS_BROKER_URL: broker:5672
+      # SSE streams are long-lived — disable the write timeout.
+      NOTIFICATIONS_WRITE_TIMEOUT: "0"
+    volumes:
+      - notifications-db:/app/db/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/api/v1/notifications/unread-count"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      forum:
+        condition: service_started
+      broker:
+        condition: service_started
+    networks:
+      - forum-network
 
 volumes:
   forum-db:
     driver: local
   forum-uploads:
+    driver: local
+  notifications-db:
     driver: local
 
 networks:

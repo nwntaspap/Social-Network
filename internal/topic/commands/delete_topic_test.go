@@ -11,7 +11,12 @@ import (
 func TestDeleteTopic_Success(t *testing.T) {
 	bus := &mockEventBus{}
 	img := &mockImageStorage{}
-	h := NewDeleteTopicHandler(&mockTopicRepo{}, bus, img)
+	repo := &mockTopicRepo{
+		getByIDFn: func(_ context.Context, id int, _ *string) (*topic.Topic, error) {
+			return &topic.Topic{ID: id, UserID: "author-1"}, nil
+		},
+	}
+	h := NewDeleteTopicHandler(repo, bus, img)
 
 	err := h.Execute(context.Background(), DeleteTopicCommand{
 		TopicID: 1,
@@ -20,8 +25,8 @@ func TestDeleteTopic_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.deleted" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.deleted")
+	if bus.routingKey != "deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "deleted")
 	}
 }
 
@@ -57,7 +62,7 @@ func TestDeleteTopic_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from repo")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
 	}
 }

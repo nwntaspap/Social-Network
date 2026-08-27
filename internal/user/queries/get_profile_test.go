@@ -56,7 +56,7 @@ func (m *mockFollowCounter) GetFollowingCount(_ context.Context, _ string) (int,
 func TestGetProfileResolver_PublicProfile(t *testing.T) {
 	u := &user.User{ID: "u1", Nickname: "nick", AboutMe: "hello"}
 	repo := &mockUserRepoQ{getByIDUser: u}
-	fc := &mockFollowChecker{}
+	fc := &mockFollowChecker{isFollowing: true}
 	counter := &mockFollowCounter{followerCount: 5, followingCount: 3}
 	r := NewGetProfileResolver(repo, fc, counter)
 
@@ -75,6 +75,9 @@ func TestGetProfileResolver_PublicProfile(t *testing.T) {
 	}
 	if result.FollowingCount != 3 {
 		t.Errorf("FollowingCount = %d, want 3", result.FollowingCount)
+	}
+	if !result.IsFollowing {
+		t.Error("IsFollowing = false, want true")
 	}
 }
 
@@ -97,6 +100,9 @@ func TestGetProfileResolver_PrivateProfile_Following(t *testing.T) {
 	}
 	if result.FollowerCount != 2 {
 		t.Errorf("FollowerCount = %d, want 2", result.FollowerCount)
+	}
+	if !result.IsFollowing {
+		t.Error("IsFollowing = false, want true (private profile, following)")
 	}
 }
 
@@ -122,6 +128,29 @@ func TestGetProfileResolver_PrivateProfile_NotFollowing(t *testing.T) {
 	if result.FollowerCount != 0 {
 		t.Errorf("FollowerCount = %d, want 0 (limited profile)", result.FollowerCount)
 	}
+	if !result.User.IsPrivate {
+		t.Error("User.IsPrivate = false, want true (locked profile must keep privacy flag)")
+	}
+}
+
+func TestGetProfileResolver_PrivateProfile_RequesterAnonymous(t *testing.T) {
+	u := &user.User{ID: "u1", Nickname: "nick", IsPrivate: true}
+	repo := &mockUserRepoQ{getByIDUser: u}
+	r := NewGetProfileResolver(repo, &mockFollowChecker{}, &mockFollowCounter{})
+
+	result, err := r.Resolve(context.Background(), GetProfileQuery{
+		TargetID:    "u1",
+		RequesterID: "",
+	})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if !result.User.IsPrivate {
+		t.Error("User.IsPrivate = false, want true (locked profile, anonymous requester)")
+	}
+	if result.IsFollowing {
+		t.Error("IsFollowing = true, want false (anonymous requester)")
+	}
 }
 
 func TestGetProfileResolver_OwnProfile(t *testing.T) {
@@ -138,6 +167,9 @@ func TestGetProfileResolver_OwnProfile(t *testing.T) {
 	}
 	if result.FollowerCount != 10 {
 		t.Errorf("FollowerCount = %d, want 10 (own profile, full access)", result.FollowerCount)
+	}
+	if result.IsFollowing {
+		t.Error("IsFollowing = true, want false (own profile)")
 	}
 }
 

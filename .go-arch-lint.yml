@@ -14,7 +14,6 @@ components:
   group_slice:        { in: group/** }
   event_slice:        { in: event/** }
   chat_slice:         { in: chat/** }
-  notification_slice: { in: notification/** }
   oauth_slice:        { in: oauth/** }
 
   # Cross-cutting
@@ -24,21 +23,15 @@ components:
   config:     { in: config/** }
   gates:      { in: gates/** }
 
-  # Legacy layers (being migrated to slices)
-  infra:      { in: infra/** }
-  domain:     { in: domain/** }
-  app:        { in: app/** }
-
 deps:
   # D6 dependency DAG
   user_slice:         { mayDependOn: [user_slice, core, platform, pkg, follow_slice, topic_slice, comment_slice] }
-  follow_slice:       { mayDependOn: [follow_slice, core, platform, pkg] }
-  topic_slice:        { mayDependOn: [topic_slice, core, platform, pkg] }
-  comment_slice:      { mayDependOn: [comment_slice, core, platform, pkg] }
-  group_slice:        { mayDependOn: [group_slice, core, platform, pkg] }
-  event_slice:        { mayDependOn: [event_slice, group_slice, core, platform, pkg] }
-  chat_slice:         { mayDependOn: [chat_slice, core, platform, pkg] }
-  notification_slice: { mayDependOn: [core, platform, pkg] }
+  follow_slice:       { mayDependOn: [follow_slice, user_slice, core, platform, pkg] }
+  topic_slice:        { mayDependOn: [topic_slice, user_slice, core, platform, pkg] }
+  comment_slice:      { mayDependOn: [comment_slice, user_slice, topic_slice, core, platform, pkg] }
+  group_slice:        { mayDependOn: [group_slice, user_slice, core, platform, pkg] }
+  event_slice:        { mayDependOn: [event_slice, user_slice, group_slice, core, platform, pkg] }
+  chat_slice:         { mayDependOn: [chat_slice, user_slice, core, platform, pkg] }
   oauth_slice:        { mayDependOn: [oauth_slice, core, platform, pkg], anyVendorDeps: true }
 
   # Shared layers
@@ -47,8 +40,3 @@ deps:
   pkg:        { anyProjectDeps: true, anyVendorDeps: true }
   config:     { anyProjectDeps: true, anyVendorDeps: true }
   gates:      { anyProjectDeps: true, anyVendorDeps: true }
-
-  # Legacy layers — unrestricted
-  infra:      { anyProjectDeps: true, anyVendorDeps: true }
-  domain:     { anyProjectDeps: true, anyVendorDeps: true }
-  app:        { anyProjectDeps: true, anyVendorDeps: true }

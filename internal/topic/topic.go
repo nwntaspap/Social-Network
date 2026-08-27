@@ -28,6 +28,7 @@ type Topic struct {
 	UpvoteCount   int
 	DownvoteCount int
 	VoteScore     int
+	CommentsCount int
 	UserVote      *int
 	AllowedUsers  []string
 }
@@ -38,15 +39,18 @@ type VoteCounts struct {
 	Score     int
 }
 
+type VoteChange int
+
+const (
+	VoteChangeAdded VoteChange = iota
+	VoteChangeRemoved
+)
+
 var (
 	ErrTopicNotFound    = errors.New("topic not found")
 	ErrUnauthorized     = errors.New("user not authorized")
 	ErrInvalidVoteValue = errors.New("reaction_type must be 1 (like) or -1 (dislike)")
 )
-
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
-}
 
 type ImageStorage interface {
 	Upload(ctx context.Context, data []byte, path string) error
@@ -69,7 +73,7 @@ type Repository interface {
 	GetTopicsByUserID(ctx context.Context, ownerID, requesterID string, page, size int) ([]Topic, int, error)
 	GetTopicsByGroupID(ctx context.Context, groupID string, page, size int) ([]Topic, int, error)
 
-	CastVote(ctx context.Context, userID string, topicID int, reactionType int) error
+	CastVote(ctx context.Context, userID string, topicID int, reactionType int) (VoteChange, error)
 	DeleteVote(ctx context.Context, userID string, topicID int) error
 	GetVoteCounts(ctx context.Context, topicID int) (*VoteCounts, error)
 	GetPostCount(ctx context.Context, userID string) (int, error)

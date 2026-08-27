@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
 )
 
 type deleteGroupStub struct {
@@ -50,6 +51,22 @@ func (s *deleteGroupStub) GetGroupMembers(_ context.Context, _ string, _, _ int)
 	return nil, 0, group.ErrGroupNotFound
 }
 
+func (s *deleteGroupStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
+type mockBus struct{}
+
+func (m *mockBus) Publish(_ string, _ string, _ []byte) error { return nil }
+
+func (m *mockBus) Subscribe(_ context.Context, _ string) (<-chan eventbus.Message, error) {
+	ch := make(chan eventbus.Message)
+	close(ch)
+	return ch, nil
+}
+
+func (m *mockBus) InitTopology(_ context.Context) error { return nil }
+
 func (s *deleteGroupStub) CreateInvitation(_ context.Context, _ *group.Invitation) error { return nil }
 
 func (s *deleteGroupStub) DeleteInvitation(_ context.Context, _, _ string) error { return nil }
@@ -83,9 +100,21 @@ func (s *deleteGroupStub) HasPendingRequest(_ context.Context, _, _ string) (boo
 func (s *deleteGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([]group.JoinRequest, error) {
 	return nil, nil
 }
+
+func (s *deleteGroupStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
 func (s *deleteGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
-func (s *deleteGroupStub) GetPostsByGroupID(_ context.Context, _ string, _, _ int) ([]group.Post, int, error) {
+func (s *deleteGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
+}
+
+func (s *deleteGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) (group.VoteChange, error) {
+	return group.VoteChangeAdded, nil
+}
+
+func (s *deleteGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
+	return &group.VoteCounts{}, nil
 }
 
 func (s *deleteGroupStub) CreatePostComment(_ context.Context, _ *group.PostComment) error {
@@ -98,11 +127,23 @@ func (s *deleteGroupStub) GetPostComments(_ context.Context, _ string, _, _ int)
 
 func (s *deleteGroupStub) CountPostComments(_ context.Context, _ string) (int, error) { return 0, nil }
 
+func (s *deleteGroupStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *deleteGroupStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *deleteGroupStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func TestDeleteGroupHandler_Execute(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns error when user ID is empty", func(t *testing.T) {
-		handler := NewDeleteGroupHandler(&deleteGroupStub{})
+		handler := NewDeleteGroupHandler(&deleteGroupStub{}, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "",
 			GroupID: "group-1",
@@ -113,7 +154,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 	})
 
 	t.Run("returns error when group ID is empty", func(t *testing.T) {
-		handler := NewDeleteGroupHandler(&deleteGroupStub{})
+		handler := NewDeleteGroupHandler(&deleteGroupStub{}, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "user-1",
 			GroupID: "",
@@ -129,7 +170,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 				return group.RoleAdmin, nil
 			},
 		}
-		handler := NewDeleteGroupHandler(stub)
+		handler := NewDeleteGroupHandler(stub, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "user-1",
 			GroupID: "group-1",
@@ -150,7 +191,7 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 				return nil
 			},
 		}
-		handler := NewDeleteGroupHandler(stub)
+		handler := NewDeleteGroupHandler(stub, &mockBus{})
 		err := handler.Execute(ctx, DeleteGroupCommand{
 			UserID:  "creator-1",
 			GroupID: "group-1",
@@ -162,4 +203,8 @@ func TestDeleteGroupHandler_Execute(t *testing.T) {
 			t.Error("expected DeleteGroup to be called")
 		}
 	})
+}
+
+func (s *deleteGroupStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
 }

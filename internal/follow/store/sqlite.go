@@ -17,7 +17,7 @@ func NewSQLiteStore(db database.DB) *SQLiteStore {
 
 func (s *SQLiteStore) CreateFollow(ctx context.Context, f *follow.Follow) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO follows (follower_id, followee_id) VALUES (?, ?)`,
 		f.FollowerID, f.FolloweeID)
 	return err
 }
@@ -71,7 +71,7 @@ func (s *SQLiteStore) GetFollowing(ctx context.Context, userID string) ([]follow
 
 func (s *SQLiteStore) CreateFollowRequest(ctx context.Context, req *follow.Request) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`,
 		req.FollowerID, req.FolloweeID)
 	return err
 }
@@ -85,7 +85,7 @@ func (s *SQLiteStore) DeleteFollowRequest(ctx context.Context, followerID, follo
 
 func (s *SQLiteStore) GetPendingRequests(ctx context.Context, userID string) ([]follow.Request, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT follower_id, followee_id FROM follow_requests WHERE followee_id = ?`,
+		`SELECT follower_id, followee_id, created_at FROM follow_requests WHERE followee_id = ?`,
 		userID)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (s *SQLiteStore) GetPendingRequests(ctx context.Context, userID string) ([]
 	var requests []follow.Request
 	for rows.Next() {
 		var r follow.Request
-		if err := rows.Scan(&r.FollowerID, &r.FolloweeID); err != nil {
+		if err := rows.Scan(&r.FollowerID, &r.FolloweeID, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		requests = append(requests, r)

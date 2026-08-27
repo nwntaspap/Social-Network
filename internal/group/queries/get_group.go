@@ -31,20 +31,32 @@ func (r *GetGroupResolver) Resolve(ctx context.Context, q GetGroupQuery) (*GetGr
 		return nil, err
 	}
 
-	status := r.computeMembershipStatus(ctx, q.GroupID, q.UserID)
+	status := computeMembershipStatus(ctx, r.repo, q.GroupID, q.UserID)
+
+	count, err := r.repo.CountMembers(ctx, q.GroupID)
+	if err != nil {
+		return nil, err
+	}
 
 	return &GetGroupResult{
 		Group:            *g,
+		MembersCount:     count,
 		MembershipStatus: status,
 	}, nil
 }
 
-func (r *GetGroupResolver) computeMembershipStatus(ctx context.Context, groupID, userID string) string {
+type membershipChecker interface {
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+	IsInvited(ctx context.Context, groupID, userID string) (bool, error)
+	HasPendingRequest(ctx context.Context, groupID, userID string) (bool, error)
+}
+
+func computeMembershipStatus(ctx context.Context, repo membershipChecker, groupID, userID string) string {
 	if userID == "" {
 		return "none"
 	}
 
-	isMember, err := r.repo.IsMember(ctx, groupID, userID)
+	isMember, err := repo.IsMember(ctx, groupID, userID)
 	if err != nil || isMember {
 		if isMember {
 			return "member"
@@ -52,7 +64,7 @@ func (r *GetGroupResolver) computeMembershipStatus(ctx context.Context, groupID,
 		return "none"
 	}
 
-	isInvited, err := r.repo.IsInvited(ctx, groupID, userID)
+	isInvited, err := repo.IsInvited(ctx, groupID, userID)
 	if err != nil || isInvited {
 		if isInvited {
 			return "pending"
@@ -60,7 +72,7 @@ func (r *GetGroupResolver) computeMembershipStatus(ctx context.Context, groupID,
 		return "none"
 	}
 
-	hasPending, _ := r.repo.HasPendingRequest(ctx, groupID, userID)
+	hasPending, _ := repo.HasPendingRequest(ctx, groupID, userID)
 	if hasPending {
 		return "pending"
 	}

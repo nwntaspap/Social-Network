@@ -1,35 +1,19 @@
 'use client';
 
-/**
- * components/features/groups/GroupCard.tsx
- *
- * Single group card with:
- *   - group name (link to /groups/:id)
- *   - description
- *   - member count
- *   - join / pending / leave button
- *
- * Button states:
- *   Join     → not a member, not requested
- *   Pending  → request sent, waiting for approval (disabled)
- *   Leave    → already a member
- */
-
-// interface GroupCardProps {
-//   group: Group;
-//   onStatusChange?: (groupId: string, newStatus: MembershipStatus) => void;
-// }
-
+import { useState } from 'react';
 import Link from 'next/link';
-import { formatRelativeDate, truncateText } from '@/lib/helpers';
+import { requestToJoinGroup, leaveGroup } from '@/lib/api';
+import { formatRelativeDate, getDisplayName, truncateText } from '@/lib/helpers';
 import type { Group, MembershipStatus } from '@/lib/types';
 
-// { group, onStatusChange }: GroupCardProps later for props
-export default function GroupCard({ group }: { group: Group }) {
-  // TODO: Wire to real API when backend is ready
-  // const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
-  // const [isLoading, setIsLoading] = useState(false);
-  const status: MembershipStatus = group.membershipStatus || 'none';
+interface GroupCardProps {
+  group: Group;
+  onStatusChange?: (groupId: string, newStatus: MembershipStatus) => void;
+}
+
+export default function GroupCard({ group, onStatusChange }: GroupCardProps) {
+  const [status, setStatus] = useState<MembershipStatus>(group.membershipStatus || 'none');
+  const [isLoading, setIsLoading] = useState(false);
 
   const buttonConfig = {
     none: { label: 'Join', className: 'group-btn--join', disabled: false },
@@ -39,35 +23,33 @@ export default function GroupCard({ group }: { group: Group }) {
 
   const { label, className, disabled } = buttonConfig[status];
 
-  // async function handleJoin() {
-  //   try {
-  //     setIsLoading(true);
-  //     await requestToJoinGroup(group.id);
-  //     setStatus('pending');
-  //     onStatusChange?.(group.id, 'pending');
-  //   } catch (error) {
-  //     console.error('Failed to request join:', error);
-  //     // Optionally show error toast notification
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // }
+  async function handleJoin() {
+    try {
+      setIsLoading(true);
+      await requestToJoinGroup(group.id);
+      setStatus('pending');
+      onStatusChange?.(group.id, 'pending');
+    } catch (error) {
+      console.error('Failed to request join:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-  // async function handleLeave() {
-  //   try {
-  //     setIsLoading(true);
-  //     await leaveGroup(group.id);
-  //     setStatus('none');
-  //     onStatusChange?.(group.id, 'none');
-  //   } catch (error) {
-  //     console.error('Failed to leave group:', error);
-  //     // Optionally show error toast notification
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // }
+  async function handleLeave() {
+    try {
+      setIsLoading(true);
+      await leaveGroup(group.id);
+      setStatus('none');
+      onStatusChange?.(group.id, 'none');
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-  // const handleClick = status === 'member' ? handleLeave : handleJoin;
+  const handleClick = status === 'member' ? handleLeave : handleJoin;
 
   return (
     <div className="group-card">
@@ -80,7 +62,8 @@ export default function GroupCard({ group }: { group: Group }) {
             <h3 className="group-card-title">{group.title}</h3>
           </Link>
           <span className="group-card-meta">
-            {group.membersCount} members · {formatRelativeDate(group.createdAt)}
+            {group.membersCount} members · Created by {getDisplayName(group.creator)} ·{' '}
+            {formatRelativeDate(group.createdAt)}
           </span>
         </div>
       </div>
@@ -88,9 +71,11 @@ export default function GroupCard({ group }: { group: Group }) {
       <p className="group-card-desc">{truncateText(group.description, 120)}</p>
 
       <div className="group-card-footer">
-        {/* TODO: Add onClick handler when backend is ready */}
-        {/* onClick={handleClick} */}
-        <button className={`group-btn ${className}`} disabled={disabled}>
+        <button
+          className={`group-btn ${className}`}
+          disabled={disabled || isLoading}
+          onClick={handleClick}
+        >
           {label}
         </button>
       </div>

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"social-network/internal/comment"
 	"social-network/internal/platform/database"
@@ -231,7 +232,7 @@ func (s *SQLiteStore) GetCommentsByTopicIDWithVotes(ctx context.Context, topicID
 	return comments, rows.Err()
 }
 
-func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error {
+func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) (comment.VoteChange, error) {
 	var existingReaction sql.NullInt32
 	checkQuery := `SELECT reaction_type FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`
 	err := s.db.QueryRowContext(ctx, checkQuery, userID, commentID).Scan(&existingReaction)
@@ -239,7 +240,10 @@ func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commen
 	if err == nil && existingReaction.Valid && int(existingReaction.Int32) == reactionType {
 		deleteQuery := `DELETE FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`
 		_, delErr := s.db.ExecContext(ctx, deleteQuery, userID, commentID)
-		return delErr
+		if delErr != nil {
+			return comment.VoteChangeRemoved, fmt.Errorf("delete comment vote: %w", delErr)
+		}
+		return comment.VoteChangeRemoved, nil
 	}
 
 	query := `
@@ -250,7 +254,24 @@ func (s *SQLiteStore) CastCommentVote(ctx context.Context, userID string, commen
 			created_at = CURRENT_TIMESTAMP`
 	_, err = s.db.ExecContext(ctx, query, userID, commentID, reactionType)
 	if err != nil {
-		return err
+		return comment.VoteChangeAdded, err
+	}
+	return comment.VoteChangeAdded, nil
+}
+
+func (s *SQLiteStore) DeleteCommentVote(ctx context.Context, userID string, commentID int) error {
+	result, err := s.db.ExecContext(ctx,
+		`DELETE FROM votes WHERE user_id = ? AND comment_id = ? AND topic_id IS NULL`,
+		userID, commentID)
+	if err != nil {
+		return fmt.Errorf("delete comment vote: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return comment.ErrVoteNotFound
 	}
 	return nil
 }

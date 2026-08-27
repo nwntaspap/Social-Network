@@ -36,6 +36,8 @@ vi.mock('@/lib/api', () => ({
     isPublic: true,
     createdAt: '2024-01-01',
   }),
+  getFeed: vi.fn().mockResolvedValue({ data: [], totalPages: 1 }),
+  searchUsers: vi.fn().mockResolvedValue({ data: [] }),
   ApiError: class ApiError extends Error {
     status: number;
     constructor(status: number, message: string) {

@@ -45,6 +45,25 @@ func (s *SQLiteStore) GetEvent(ctx context.Context, eventID string) (*event.Even
 	return &e, nil
 }
 
+func (s *SQLiteStore) UpdateEvent(ctx context.Context, e *event.Event) error {
+	res, err := s.db.ExecContext(
+		ctx,
+		`UPDATE events SET title = ?, description = ?, event_time = ? WHERE id = ?`,
+		e.Title, e.Description, e.ScheduledTime, e.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("update event: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update event rows affected: %w", err)
+	}
+	if affected == 0 {
+		return event.ErrEventNotFound
+	}
+	return nil
+}
+
 func (s *SQLiteStore) DeleteEvent(ctx context.Context, eventID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE id = ?`, eventID)
 	return err

@@ -22,14 +22,16 @@ type UserResult struct {
 }
 
 type GroupResponse struct {
-	ID           string      `json:"id"`
-	Title        string      `json:"title"`
-	Description  string      `json:"description"`
-	CreatorID    string      `json:"creatorId"`
-	Creator      *UserResult `json:"creator"`
-	MembersCount int         `json:"membersCount"`
-	CreatedAt    string      `json:"createdAt"`
-	UpdatedAt    string      `json:"updatedAt"`
+	ID               string      `json:"id"`
+	Title            string      `json:"title"`
+	Description      string      `json:"description"`
+	CreatorID        string      `json:"creatorId"`
+	Creator          *UserResult `json:"creator"`
+	MembersCount     int         `json:"membersCount"`
+	MembershipStatus string      `json:"membershipStatus"`
+	UnreadCount      int         `json:"unreadCount"`
+	CreatedAt        string      `json:"createdAt"`
+	UpdatedAt        string      `json:"updatedAt"`
 }
 
 type GroupDetailResponse struct {
@@ -55,7 +57,9 @@ type GroupPostResponse struct {
 	Privacy       string      `json:"privacy"`
 	CommentsCount int         `json:"commentsCount"`
 	LikesCount    int         `json:"likesCount"`
+	DislikesCount int         `json:"dislikesCount"`
 	IsLiked       bool        `json:"isLiked"`
+	UserVote      *int        `json:"userVote"`
 	CreatedAt     string      `json:"createdAt"`
 	UpdatedAt     string      `json:"updatedAt"`
 }
@@ -73,6 +77,7 @@ type GroupPostCommentResponse struct {
 type InvitationResponse struct {
 	ID        string      `json:"id"`
 	GroupID   string      `json:"groupId"`
+	Group     *GroupBrief `json:"group,omitempty"`
 	InviterID string      `json:"inviterId"`
 	Inviter   *UserResult `json:"inviter"`
 	InviteeID string      `json:"inviteeId"`
@@ -102,16 +107,18 @@ type GroupBrief struct {
 	Title string `json:"title"`
 }
 
-func toGroupResponse(g *group.Group, creator *UserResult, membersCount int) GroupResponse {
+func toGroupResponse(g *group.Group, creator *UserResult, membersCount int, membershipStatus string) GroupResponse {
 	return GroupResponse{
-		ID:           g.ID,
-		Title:        g.Title,
-		Description:  g.Description,
-		CreatorID:    g.CreatorID,
-		Creator:      creator,
-		MembersCount: membersCount,
-		CreatedAt:    formatTime(g.CreatedAt),
-		UpdatedAt:    formatTime(g.UpdatedAt),
+		ID:               g.ID,
+		Title:            g.Title,
+		Description:      g.Description,
+		CreatorID:        g.CreatorID,
+		Creator:          creator,
+		MembersCount:     membersCount,
+		MembershipStatus: membershipStatus,
+		UnreadCount:      g.UnreadCount,
+		CreatedAt:        formatTime(g.CreatedAt),
+		UpdatedAt:        formatTime(g.UpdatedAt),
 	}
 }
 
@@ -129,7 +136,8 @@ func toGroupDetailResponse(res *queries.GetGroupResult, creator *UserResult) Gro
 	}
 }
 
-func toGroupPostResponse(p *group.Post, user *UserResult, commentsCount int) GroupPostResponse {
+func toGroupPostResponse(p *group.Post, user *UserResult) GroupPostResponse {
+	isLiked := p.UserVote != nil && *p.UserVote == 1
 	return GroupPostResponse{
 		ID:            p.ID,
 		GroupID:       p.GroupID,
@@ -139,9 +147,11 @@ func toGroupPostResponse(p *group.Post, user *UserResult, commentsCount int) Gro
 		Content:       p.Content,
 		ImageURL:      p.ImagePath,
 		Privacy:       "public",
-		CommentsCount: commentsCount,
-		LikesCount:    0,
-		IsLiked:       false,
+		CommentsCount: p.CommentsCount,
+		LikesCount:    p.UpvoteCount,
+		DislikesCount: p.DownvoteCount,
+		IsLiked:       isLiked,
+		UserVote:      p.UserVote,
 		CreatedAt:     formatTime(p.CreatedAt),
 		UpdatedAt:     formatTime(p.UpdatedAt),
 	}
@@ -159,10 +169,11 @@ func toGroupPostCommentResponse(c *group.PostComment, user *UserResult) GroupPos
 	}
 }
 
-func toInvitationResponse(inv *group.Invitation, inviter, invitee *UserResult) InvitationResponse {
+func toInvitationResponse(inv *group.Invitation, inviter, invitee *UserResult, group *GroupBrief) InvitationResponse {
 	return InvitationResponse{
 		ID:        inv.ID,
 		GroupID:   inv.GroupID,
+		Group:     group,
 		InviterID: inv.InviterID,
 		Inviter:   inviter,
 		InviteeID: inv.InviteeID,

@@ -143,7 +143,8 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 			COALESCE(t.visibility, 0), t.group_id,
 			t.created_at, t.updated_at,
 			COALESCE(u.username, ''),
-			COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0)`
+			COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0),
+			COALESCE(cc.comments_count, 0)`
 
 	if userID != nil {
 		query += `, uv.reaction_type`
@@ -158,32 +159,41 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 				COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes,
 				COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score
 			FROM votes WHERE comment_id IS NULL GROUP BY topic_id
-		) vc ON t.id = vc.topic_id`
+		) vc ON t.id = vc.topic_id
+		LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id`
 
 	if userID != nil {
 		query += `
 		LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL`
 	}
 
-	query += ` WHERE t.id = ?`
+	requester := ""
+	if userID != nil {
+		requester = *userID
+	}
+	guard, guardArgs := visibilityGuard(requester)
+	query += ` WHERE t.id = ? AND ` + guard
 
 	args := make([]any, 0)
 	if userID != nil {
 		args = append(args, *userID)
 	}
 	args = append(args, topicID)
+	args = append(args, guardArgs...)
 
 	var t topic.Topic
 	var userVote sql.NullInt32
 	var groupID sql.NullString
+	var imagePath sql.NullString
 	var updatedAt sql.NullTime
 
 	scanFields := []any{
-		&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
+		&t.ID, &t.UserID, &t.Title, &t.Content, &imagePath,
 		&t.Visibility, &groupID,
 		&t.CreatedAt, &updatedAt,
 		&t.OwnerUsername,
 		&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
+		&t.CommentsCount,
 	}
 	if userID != nil {
 		scanFields = append(scanFields, &userVote)
@@ -200,13 +210,16 @@ func (s *SQLiteStore) GetTopicByID(ctx context.Context, topicID int, userID *str
 	if groupID.Valid {
 		t.GroupID = &groupID.String
 	}
+	t.ImagePath = imagePath.String
 	t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
 	if userID != nil && userVote.Valid {
 		v := int(userVote.Int32)
 		t.UserVote = &v
 	}
 
-	t.AllowedUsers, _ = s.getAllowedUsers(ctx, topicID)
+	if userID != nil && *userID == t.UserID {
+		t.AllowedUsers, _ = s.getAllowedUsers(ctx, topicID)
+	}
 	return &t, nil
 }
 

@@ -2,9 +2,12 @@ package transport
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"testing"
+	"time"
 
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	"social-network/internal/user/commands"
 	"social-network/internal/user/queries"
@@ -13,9 +16,11 @@ import (
 type stubRegister struct {
 	user *user.User
 	err  error
+	got  commands.RegisterCommand
 }
 
-func (s *stubRegister) Execute(_ context.Context, _ commands.RegisterCommand) (*user.User, error) {
+func (s *stubRegister) Execute(_ context.Context, cmd commands.RegisterCommand) (*user.User, error) {
+	s.got = cmd
 	return s.user, s.err
 }
 
@@ -38,9 +43,13 @@ func (s *stubLogout) Execute(_ context.Context, _ commands.LogoutCommand) error 
 
 type stubUpdateProfile struct {
 	err error
+	got *commands.UpdateProfileCommand
 }
 
-func (s *stubUpdateProfile) Execute(_ context.Context, _ commands.UpdateProfileCommand) error {
+func (s *stubUpdateProfile) Execute(_ context.Context, cmd commands.UpdateProfileCommand) error {
+	if s.got == nil {
+		s.got = &cmd
+	}
 	return s.err
 }
 
@@ -73,9 +82,11 @@ func (s *stubGetActivity) Resolve(_ context.Context, _ queries.GetActivityQuery)
 type stubListUsers struct {
 	result *queries.ListUsersResult
 	err    error
+	got    queries.ListUsersQuery
 }
 
-func (s *stubListUsers) Resolve(_ context.Context, _ queries.ListUsersQuery) (*queries.ListUsersResult, error) {
+func (s *stubListUsers) Resolve(_ context.Context, q queries.ListUsersQuery) (*queries.ListUsersResult, error) {
+	s.got = q
 	return s.result, s.err
 }
 
@@ -86,6 +97,23 @@ type stubAuth struct {
 
 func (s *stubAuth) Extract(_ *http.Request) (string, bool) {
 	return s.userID, s.ok
+}
+
+type stubCookieWriter struct {
+	setToken     string
+	setExpiry    time.Time
+	setCalled    bool
+	deleteCalled bool
+}
+
+func (s *stubCookieWriter) SetAccessCookie(_ http.ResponseWriter, token string, expiresAt time.Time) {
+	s.setToken = token
+	s.setExpiry = expiresAt
+	s.setCalled = true
+}
+
+func (s *stubCookieWriter) DeleteAccessCookie(_ http.ResponseWriter) {
+	s.deleteCalled = true
 }
 
 func newTestHandler(opts ...func(*Handler)) *Handler {
@@ -124,6 +152,12 @@ func withDefaults(h *Handler) {
 	if h.listUsers == nil {
 		h.listUsers = &stubListUsers{}
 	}
+	if h.sessionCookies == nil {
+		h.sessionCookies = &stubCookieWriter{}
+	}
+	if h.logger == nil {
+		h.logger = logger.New(io.Discard, logger.LevelOff)
+	}
 }
 
 func TestNewHandler(t *testing.T) {
@@ -132,6 +166,8 @@ func TestNewHandler(t *testing.T) {
 		&stubRegister{}, &stubLogin{}, &stubLogout{},
 		&stubUpdateProfile{}, &stubTogglePrivacy{},
 		&stubGetProfile{}, &stubGetActivity{}, &stubListUsers{},
+		&stubCookieWriter{},
+		logger.New(io.Discard, logger.LevelOff),
 	)
 	if h == nil {
 		t.Fatal("NewHandler() returned nil")

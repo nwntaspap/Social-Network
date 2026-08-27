@@ -13,15 +13,19 @@ import (
 )
 
 func TestUpdateProfile_Success(t *testing.T) {
-	h := newTestHandler()
+	h := newTestHandler(func(h *Handler) {
+		h.updateProfile = &stubUpdateProfile{}
+	})
 	withDefaults(h)
 	h.auth = &stubAuth{userID: "u1", ok: true}
 
 	body, _ := json.Marshal(map[string]string{
-		"firstName": "Jane",
-		"lastName":  "Doe",
-		"nickname":  "jane",
-		"aboutMe":   "hello",
+		"firstName":   "Jane",
+		"lastName":    "Doe",
+		"nickname":    "jane",
+		"aboutMe":     "hello",
+		"dateOfBirth": "2000-05-17",
+		"gender":      "female",
 	})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/profile", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -30,7 +34,36 @@ func TestUpdateProfile_Success(t *testing.T) {
 	h.UpdateProfile(rr, req)
 
 	if rr.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", rr.Code, http.StatusOK)
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	stub, ok := h.updateProfile.(*stubUpdateProfile)
+	if !ok || stub.got == nil {
+		t.Fatal("UpdateProfile was never executed with a stubUpdateProfile")
+	}
+	got := stub.got
+	if got.DateOfBirth.Format(dateOnlyLayout) != "2000-05-17" {
+		t.Errorf("DateOfBirth = %v, want 2000-05-17", got.DateOfBirth)
+	}
+	if got.Gender != "female" {
+		t.Errorf("Gender = %q, want %q", got.Gender, "female")
+	}
+}
+
+func TestUpdateProfile_InvalidDOB(t *testing.T) {
+	h := newTestHandler()
+	withDefaults(h)
+	h.auth = &stubAuth{userID: "u1", ok: true}
+
+	body, _ := json.Marshal(map[string]string{"dateOfBirth": "not-a-date"})
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/profile", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.UpdateProfile(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadRequest)
 	}
 }
 

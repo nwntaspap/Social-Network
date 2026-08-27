@@ -7,6 +7,7 @@ import (
 
 	"social-network/internal/config"
 	"social-network/internal/core/middleware"
+	coresessionstore "social-network/internal/core/session/store"
 	"social-network/internal/oauth"
 	oauthcommands "social-network/internal/oauth/commands"
 	oauthstore "social-network/internal/oauth/store"
@@ -15,11 +16,12 @@ import (
 	"social-network/internal/pkg/oAuth/githubclient"
 	"social-network/internal/pkg/oAuth/googleclient"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/logger"
 )
 
 const stateManagerDefaultLimit = 10
 
-func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthConfig, frontendURL string) (*oauthtransport.Handler, *pkgoauth.OAuth) {
+func initOAuth(db database.DB, sessionStore *coresessionstore.Store, cookies *middleware.SessionCookies, cfg config.OAuthConfig, frontendURL string, log logger.Logger) *oauthtransport.Handler {
 	store := oauthstore.NewSQLiteStore(db)
 	sm := pkgoauth.NewStateManager(stateManagerDefaultLimit * time.Minute)
 
@@ -44,20 +46,29 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthC
 		},
 	}
 
-	sc := &sessionCreatorAdapter{sessions: sessionMgr}
+	sc := &sessionCreatorAdapter{store: sessionStore}
 
 	initiateHandler := oauthcommands.NewInitiateHandler(
 		&stateManagerAdapter{inner: sm},
 		registry,
 	)
 
-	githubCallback := oauthcommands.NewCallbackHandler(
-		store,
-		&stateVerifierAdapter{inner: sm},
-		&callbackProviderAdapter{raw: githubRaw, name: "github"},
-		sc,
-		"github",
-	)
+	callbacks := map[string]*oauthcommands.CallbackHandler{
+		"github": oauthcommands.NewCallbackHandler(
+			store,
+			&stateVerifierAdapter{inner: sm},
+			&callbackProviderAdapter{raw: githubRaw, name: "github"},
+			sc,
+			"github",
+		),
+		"google": oauthcommands.NewCallbackHandler(
+			store,
+			&stateVerifierAdapter{inner: sm},
+			&callbackProviderAdapter{raw: googleRaw, name: "google"},
+			sc,
+			"google",
+		),
+	}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -67,18 +78,14 @@ func initOAuth(db database.DB, sessionMgr *coreSessionAdapter, cfg config.OAuthC
 		return uid, true
 	}
 
-	legacyOAuth := &pkgoauth.OAuth{
-		StateManager:   sm,
-		GithubProvider: githubRaw,
-		GoogleProvider: googleRaw,
-	}
-
 	return oauthtransport.NewHandler(
 		initiateHandler,
-		githubCallback,
+		callbacks,
+		&cookieSetterAdapter{cookies: cookies},
 		extractUser,
 		frontendURL,
-	), legacyOAuth
+		log,
+	)
 }
 
 type providerRegistryImpl struct {
@@ -168,16 +175,24 @@ func (a *callbackProviderAdapter) GetUserInfo(ctx context.Context, accessToken s
 }
 
 type sessionCreatorAdapter struct {
-	sessions *coreSessionAdapter
+	store *coresessionstore.Store
 }
 
 func (a *sessionCreatorAdapter) CreateSession(ctx context.Context, userID string) (*oauth.Session, error) {
-	sess, err := a.sessions.inner.CreateSession(ctx, userID)
+	sess, err := a.store.Create(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	return &oauth.Session{
-		AccessToken:  sess.AccessToken,
-		RefreshToken: sess.RefreshToken,
+		AccessToken: sess.Token,
+		ExpiresAt:   sess.ExpiresAt,
 	}, nil
+}
+
+type cookieSetterAdapter struct {
+	cookies *middleware.SessionCookies
+}
+
+func (a *cookieSetterAdapter) SetCookies(w http.ResponseWriter, session *oauth.Session) {
+	a.cookies.SetAccessCookie(w, session.AccessToken, session.ExpiresAt)
 }

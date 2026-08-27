@@ -434,15 +434,15 @@ internal/
     store/
       sqlite.go                          # All notification SQL
 
-  oauth/                                 # Entities: OAuthState
-    oauth.go                             # Entity: OAuthState, Provider enum, Repository iface
+  oauth/                                 # Entities: Provider, User, Session
+    oauth.go                             # Entity: Provider enum, User, Session, Repository iface, CookieSetter, StateVerifier/Generator
     commands/
       initiate.go                        # Generate state + redirect URL
       callback.go                        # Exchange code, upsert user, create session
     transport/
-      http.go                            # OAuth HTTP handlers
+      http.go                            # OAuth HTTP handlers (init/link/callback under /api/v1/auth/oauth/)
     store/
-      sqlite.go                          # OAuth SQL
+      sqlite.go                          # OAuth SQL (oauth_providers table)
 
   # ─── Cross-cutting Core ───
   core/
@@ -524,7 +524,7 @@ Migration files follow the numbered up/down format per spec requirements. The cu
 
 Create numbered migration scripts:
 
-- `000001_initial_schema.up.sql` — Current tables (users, topics, comments, categories, votes, sessions, chats, notifications, oauth_states)
+- `000001_initial_schema.up.sql` — Current tables (users, topics, comments, categories, votes, sessions, chats, notifications, oauth_providers)
 - `000001_initial_schema.down.sql` — Drop all
 - `000002_user_profile_fields.up.sql` — Add `date_of_birth`, `about_me`, `is_private` to users; drop `age`
 - `000002_user_profile_fields.down.sql` — Reverse
@@ -537,6 +537,11 @@ Create numbered migration scripts:
 - `000008_migrate_chats.up.sql` — Create `chats`, `messages` and migrate legacy chats
 - `000009_seed_data.up.sql` — Optional seed demo data (users, posts, groups, follows) — bonus feature
 - `000009_seed_data.down.sql` — Remove seed data
+- `000010_migrate_group_topics.up.sql` — Backfill group_posts from group topics (topics with `group_id`) + matching down script
+- `000011_group_post_votes.up.sql` — Create `group_post_votes` (reaction_type CHECK IN (-1,1), UNIQUE(user_id, post_id)) + matching down script
+- `000012_chat_pair_unique.up.sql` — Deduplicate 1:1 chats per pair + add `UNIQUE` index `idx_chats_pair` + matching down script
+- `000013_group_chat_reads.up.sql` — Create `group_chat_reads` (per-user read markers for group chat unread) + matching down script
+- `000014_user_gender.up.sql` — Add `gender` column to users (`male`/`female`/`other`/`prefer_not_to_say`) + matching down script
 
 **Verify**: Run migrations on fresh DB. `go vet ./...`.
 

@@ -6,6 +6,11 @@ import (
 	"social-network/internal/event"
 )
 
+// GroupMembershipChecker reports whether a user belongs to a group.
+type GroupMembershipChecker interface {
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+}
+
 type RSVPCommand struct {
 	EventID  string
 	UserID   string
@@ -13,11 +18,15 @@ type RSVPCommand struct {
 }
 
 type RSVPHandler struct {
-	repo event.Repository
+	repo   event.Repository
+	member GroupMembershipChecker
 }
 
-func NewRSVPHandler(repo event.Repository) *RSVPHandler {
-	return &RSVPHandler{repo: repo}
+func NewRSVPHandler(repo event.Repository, member GroupMembershipChecker) *RSVPHandler {
+	return &RSVPHandler{
+		repo:   repo,
+		member: member,
+	}
 }
 
 func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
@@ -31,9 +40,17 @@ func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
 		return ErrInvalidOption
 	}
 
-	_, err := h.repo.GetEvent(ctx, cmd.EventID)
+	e, err := h.repo.GetEvent(ctx, cmd.EventID)
 	if err != nil {
 		return err
+	}
+
+	isMember, err := h.member.IsMember(ctx, e.GroupID, cmd.UserID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return ErrNotGroupMember
 	}
 
 	opt, err := h.repo.GetOption(ctx, cmd.OptionID)
@@ -49,5 +66,6 @@ func (h *RSVPHandler) Execute(ctx context.Context, cmd RSVPCommand) error {
 		UserID:   cmd.UserID,
 		OptionID: cmd.OptionID,
 	}
+
 	return h.repo.UpsertRSVP(ctx, rsvp)
 }

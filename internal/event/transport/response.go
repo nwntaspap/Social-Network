@@ -39,6 +39,12 @@ type EventResponse struct {
 	Options     []OptionResponse `json:"options"`
 }
 
+type EventRSVPOptionResponse struct {
+	OptionID    string        `json:"optionId"`
+	OptionLabel string        `json:"optionLabel"`
+	Users       []*UserResult `json:"users"`
+}
+
 func toEventResponse(e *event.Event, creator *UserResult, opts []queries.OptionWithTally) EventResponse {
 	optResp := make([]OptionResponse, len(opts))
 	for i, o := range opts {
@@ -59,6 +65,14 @@ func toEventResponse(e *event.Event, creator *UserResult, opts []queries.OptionW
 		CreatedAt:   formatTime(e.CreatedAt),
 		Options:     optResp,
 	}
+}
+
+func toOptionsWithTally(opts []event.Option) []queries.OptionWithTally {
+	result := make([]queries.OptionWithTally, len(opts))
+	for i, o := range opts {
+		result[i] = queries.OptionWithTally{Option: o}
+	}
+	return result
 }
 
 func formatTime(t time.Time) string {

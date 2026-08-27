@@ -1,25 +1,21 @@
 'use client';
 
-/**
- * components/features/groups/CreateEventForm.tsx
- *
- * Simple form to create an event with title and description.
- *
- * TODO: Wire to createEvent API when backend is ready.
- */
-
 import { useState } from 'react';
+import { createEvent } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 
 interface CreateEventFormProps {
   groupId: string;
   onClose: () => void;
+  onCreated?: () => void;
 }
 
-export default function CreateEventForm({ groupId, onClose }: CreateEventFormProps) {
+export default function CreateEventForm({ groupId, onClose, onCreated }: CreateEventFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const [titleError, setTitleError] = useState('');
   const [descriptionError, setDescriptionError] = useState('');
@@ -42,15 +38,24 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
     }
 
     setSubmitting(true);
+    setError('');
 
-    // TODO: await createEvent(groupId, { title, description, eventDate });
-    console.log('create event', { groupId, title, description, eventDate });
-
-    setSubmitting(false);
-    setTitle('');
-    setDescription('');
-    setEventDate('');
-    onClose();
+    try {
+      await createEvent(groupId, {
+        title,
+        description,
+        eventDate: new Date(eventDate).toISOString(),
+        options: ['Going', 'Not going'],
+      });
+      setTitle('');
+      setDescription('');
+      setEventDate('');
+      onClose();
+      onCreated?.();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create event. Please try again.');
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -109,6 +114,8 @@ export default function CreateEventForm({ groupId, onClose }: CreateEventFormPro
           />
           {eventDateError && <p>{eventDateError}</p>}
         </div>
+
+        {error && <p className="create-post-error">{error}</p>}
 
         <button type="submit" className="group-action-btn" disabled={submitting}>
           {submitting ? 'Creating...' : 'Create Event'}

@@ -4,10 +4,14 @@ import SuggestedUsers from './SuggestedUsers';
 
 export default function HomeContent() {
   return (
-    <div className="home-container">
-      <SearchBar />
-      <Feed />
-      <SuggestedUsers />
+    <div className="home-layout">
+      <aside className="home-sidebar">
+        <SuggestedUsers />
+      </aside>
+      <div className="home-main">
+        <SearchBar />
+        <Feed />
+      </div>
     </div>
   );
 }

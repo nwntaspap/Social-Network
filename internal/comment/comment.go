@@ -26,16 +26,24 @@ type VoteCounts struct {
 	Score     int
 }
 
+type VoteChange int
+
+const (
+	VoteChangeAdded VoteChange = iota
+	VoteChangeRemoved
+)
+
 var (
 	ErrCommentNotFound  = errors.New("comment not found")
 	ErrVoteNotFound     = errors.New("vote not found")
 	ErrInvalidVoteValue = errors.New("reaction_type must be 1 (upvote) or -1 (downvote)")
 )
 
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
+type ImageStorage interface {
+	Upload(ctx context.Context, data []byte, path string) error
 }
 
+//nolint:interfacebloat
 type Repository interface {
 	CreateComment(ctx context.Context, c *Comment) error
 	UpdateComment(ctx context.Context, c *Comment) error
@@ -44,7 +52,8 @@ type Repository interface {
 	GetCommentByIDWithVotes(ctx context.Context, commentID int, userID *string) (*Comment, error)
 	GetCommentsByTopicID(ctx context.Context, topicID int) ([]Comment, error)
 	GetCommentsByTopicIDWithVotes(ctx context.Context, topicID int, userID *string) ([]Comment, error)
-	CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) error
+	CastCommentVote(ctx context.Context, userID string, commentID int, reactionType int) (VoteChange, error)
+	DeleteCommentVote(ctx context.Context, userID string, commentID int) error
 	GetVoteCounts(ctx context.Context, commentID int) (*VoteCounts, error)
 	GetCommentCount(ctx context.Context, userID string) (int, error)
 }

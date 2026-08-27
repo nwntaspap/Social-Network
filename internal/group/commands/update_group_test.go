@@ -51,6 +51,10 @@ func (s *updateGroupStub) GetGroupMembers(_ context.Context, _ string, _, _ int)
 	return nil, 0, group.ErrGroupNotFound
 }
 
+func (s *updateGroupStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *updateGroupStub) CreateInvitation(_ context.Context, _ *group.Invitation) error { return nil }
 
 func (s *updateGroupStub) DeleteInvitation(_ context.Context, _, _ string) error { return nil }
@@ -84,9 +88,21 @@ func (s *updateGroupStub) HasPendingRequest(_ context.Context, _, _ string) (boo
 func (s *updateGroupStub) GetPendingJoinRequests(_ context.Context, _ string) ([]group.JoinRequest, error) {
 	return nil, group.ErrGroupNotFound
 }
+
+func (s *updateGroupStub) GetSentInvitationInviteeIDs(_ context.Context, _, _ string) ([]string, error) {
+	return nil, nil
+}
 func (s *updateGroupStub) CreatePost(_ context.Context, _ *group.Post) error { return nil }
-func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _, _ int) ([]group.Post, int, error) {
+func (s *updateGroupStub) GetPostsByGroupID(_ context.Context, _ string, _ string, _, _ int) ([]group.Post, int, error) {
 	return nil, 0, nil
+}
+
+func (s *updateGroupStub) CastPostVote(_ context.Context, _, _ string, _ int) (group.VoteChange, error) {
+	return group.VoteChangeAdded, nil
+}
+
+func (s *updateGroupStub) GetPostVoteCounts(_ context.Context, _ string) (*group.VoteCounts, error) {
+	return &group.VoteCounts{}, nil
 }
 
 func (s *updateGroupStub) CreatePostComment(_ context.Context, _ *group.PostComment) error {
@@ -98,6 +114,18 @@ func (s *updateGroupStub) GetPostComments(_ context.Context, _ string, _, _ int)
 }
 
 func (s *updateGroupStub) CountPostComments(_ context.Context, _ string) (int, error) { return 0, nil }
+
+func (s *updateGroupStub) SendGroupChatMessage(_ context.Context, _ *group.ChatMessage) error {
+	return nil
+}
+
+func (s *updateGroupStub) GetGroupChatMessages(_ context.Context, _ string, _ int) ([]group.ChatMessage, error) {
+	return nil, nil
+}
+
+func (s *updateGroupStub) ListGroupMemberIDs(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
 
 func TestUpdateGroupHandler_Execute(t *testing.T) {
 	ctx := context.Background()
@@ -207,4 +235,8 @@ func TestUpdateGroupHandler_Execute(t *testing.T) {
 			t.Errorf("expected title 'New Title', got %q", g.Title)
 		}
 	})
+}
+
+func (s *updateGroupStub) GetPostByID(_ context.Context, _ string) (*group.Post, error) {
+	return nil, group.ErrPostNotFound
 }

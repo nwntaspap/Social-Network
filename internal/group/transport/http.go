@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"social-network/internal/group/commands"
@@ -20,22 +21,24 @@ func (h *Handler) lookupUser(ctx context.Context, userID string) *UserResult {
 	return u
 }
 
-func paginatedInfo(total, page, limit int) *helpers.Info {
+func paginatedPayload(data any, total, page, limit int) map[string]any {
 	totalPages := total / limit
 	if total%limit > 0 {
 		totalPages++
 	}
-	return &helpers.Info{
-		TotalRecords: total,
-		CurrentPage:  page,
-		PageSize:     limit,
-		TotalPages:   totalPages,
+	return map[string]any{
+		"data":       data,
+		"page":       page,
+		"pageSize":   limit,
+		"totalCount": total,
+		"totalPages": totalPages,
 	}
 }
 
-func requirePathParam(w http.ResponseWriter, r *http.Request, name, label string) (string, bool) {
+func (h *Handler) requirePathParam(w http.ResponseWriter, r *http.Request, name, label string) (string, bool) {
 	val := r.PathValue(name)
 	if val == "" {
+		h.logger.PrintError(errors.New(label+" is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, label+" is required")
 		return "", false
 	}
@@ -50,12 +53,14 @@ type createGroupBody struct {
 func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	var body createGroupBody
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -66,28 +71,38 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		Description: body.Description,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	creator := h.lookupUser(r.Context(), userID)
 	membersCount := 1
-	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupResponse(g, creator, membersCount))
+	helpers.RespondWithJSON(w, http.StatusCreated, nil, toGroupResponse(g, creator, membersCount, "member"))
 }
 
 func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	pagination := helpers.GetPagination(r)
 
+	var userID string
+	if uid, ok := h.extractUser(r); ok {
+		userID = uid
+	}
+
 	res, err := h.listGroups.Resolve(r.Context(), queries.ListGroupsQuery{
-		Page: pagination.Page,
-		Size: pagination.Limit,
+		Query:  r.URL.Query().Get("query"),
+		Page:   pagination.Page,
+		Size:   pagination.Limit,
+		UserID: userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -102,20 +117,22 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		if count != nil {
 			membersCount = count.Total
 		}
-		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount))
+		groups = append(groups, toGroupResponse(&res.Groups[i], creator, membersCount, res.Groups[i].MembershipStatus))
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, paginatedInfo(res.Total, pagination.Page, pagination.Limit), groups)
+	helpers.RespondWithJSON(w, http.StatusOK, nil, paginatedPayload(groups, res.Total, pagination.Page, pagination.Limit))
 }
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -125,11 +142,12 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 		userID = uid
 	}
 
-	_ = userID
 	res, err := h.getGroup.Resolve(r.Context(), queries.GetGroupQuery{
 		GroupID: groupID,
+		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusNotFound, err.Error())
 		return
 	}
@@ -142,12 +160,14 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.extractUser(r)
 	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
 		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	groupID := r.PathValue("groupId")
 	if groupID == "" {
+		h.logger.PrintError(errors.New("groupId is required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
@@ -157,6 +177,7 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		Description string `json:"description"`
 	}
 	if _, err := helpers.ParseBodyRequest(r, &body); err != nil {
+		h.logger.PrintError(errors.New("invalid request payload"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
@@ -168,6 +189,7 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 		Description: body.Description,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -180,19 +202,24 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	if count != nil {
 		membersCount = count.Total
 	}
-	helpers.RespondWithJSON(w, http.StatusOK, nil, toGroupResponse(g, creator, membersCount))
+	helpers.RespondWithJSON(w, http.StatusOK, nil, toGroupResponse(g, creator, membersCount, "member"))
+}
+
+func (h *Handler) requireGroupContext(w http.ResponseWriter, r *http.Request) (userID, groupID string, ok bool) {
+	userID, ok = h.extractUser(r)
+	if !ok {
+		h.logger.PrintError(errors.New("user not authenticated"), nil)
+		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+		return "", "", false
+	}
+
+	groupID, ok = h.requirePathParam(w, r, "groupId", "groupId")
+	return userID, groupID, ok
 }
 
 func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.extractUser(r)
+	userID, groupID, ok := h.requireGroupContext(w, r)
 	if !ok {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	groupID := r.PathValue("groupId")
-	if groupID == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
@@ -201,6 +228,7 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -209,15 +237,8 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.extractUser(r)
+	userID, groupID, ok := h.requireGroupContext(w, r)
 	if !ok {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
-		return
-	}
-
-	groupID := r.PathValue("groupId")
-	if groupID == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
 		return
 	}
 
@@ -226,6 +247,7 @@ func (h *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		UserID:  userID,
 	})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}

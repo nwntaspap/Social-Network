@@ -1,0 +1,2 @@
+the cast vote needs to publish a different event on like and dislike and a different one for the deleted.
+follow declined is off, it shouldnt be a deleted

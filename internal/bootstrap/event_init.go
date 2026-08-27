@@ -5,20 +5,21 @@ import (
 	"net/http"
 
 	"social-network/internal/core/middleware"
-	"social-network/internal/event"
 	eventcommands "social-network/internal/event/commands"
 	eventqueries "social-network/internal/event/queries"
 	eventstore "social-network/internal/event/store"
 	eventtransport "social-network/internal/event/transport"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initEvent(db database.DB) *eventtransport.Handler {
+func initEvent(db database.DB, bus eventbus.EventBus, logger logger.Logger) *eventtransport.Handler {
 	store := eventstore.NewSQLiteStore(db)
-	bus := &eventEventBus{}
 	groupMember := &groupMemberChecker{db: db}
+	users := userstore.NewSQLiteStore(db)
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -27,22 +28,19 @@ func initEvent(db database.DB) *eventtransport.Handler {
 		}
 		return uid, true
 	}
-
+	groupRole := &eventGroupRoleChecker{db: db}
 	userLookup := &eventUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
 
 	return eventtransport.NewHandler(
 		extractUser,
 		userLookup,
-		eventcommands.NewCreateEventHandler(store, groupMember, bus),
-		eventcommands.NewRSVPHandler(store),
-		eventqueries.NewListGroupEventsResolver(store),
+		eventcommands.NewCreateEventHandler(store, groupMember, bus, users),
+		eventcommands.NewUpdateEventHandler(store, groupRole),
+		eventcommands.NewRSVPHandler(store, groupMember),
+		eventqueries.NewListGroupEventsResolver(store, groupMember),
+		eventqueries.NewListEventRSVPsResolver(store, groupMember),
+		logger,
 	)
-}
-
-type eventEventBus struct{}
-
-func (b *eventEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
 }
 
 type groupMemberChecker struct {
@@ -57,6 +55,44 @@ func (c *groupMemberChecker) IsMember(ctx context.Context, groupID, userID strin
 		groupID, userID,
 	).Scan(&exists)
 	return exists, err
+}
+
+type eventGroupRoleChecker struct {
+	db database.DB
+}
+
+func (c *eventGroupRoleChecker) GetMemberRole(ctx context.Context, groupID, userID string) (string, error) {
+	var role string
+	err := c.db.QueryRowContext(
+		ctx,
+		`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`,
+		groupID, userID,
+	).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+func (c *groupMemberChecker) GetGroupMembers(ctx context.Context, groupID string) ([]string, error) {
+	var users []string
+	rows, err := c.db.QueryContext(
+		ctx,
+		`SELECT user_id FROM group_members WHERE group_id = ?`,
+		groupID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		users = append(users, userID)
+	}
+	return users, rows.Err()
 }
 
 type eventUserLookupAdapter struct {
@@ -89,7 +125,7 @@ func (a *eventUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*e
 }
 
 var (
-	_ event.Bus                        = (*eventEventBus)(nil)
 	_ eventcommands.GroupMemberChecker = (*groupMemberChecker)(nil)
+	_ eventcommands.GroupRoleChecker   = (*eventGroupRoleChecker)(nil)
 	_ eventtransport.UserLookup        = (*eventUserLookupAdapter)(nil)
 )

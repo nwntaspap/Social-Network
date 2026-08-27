@@ -2,10 +2,12 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"social-network/internal/follow"
+	"social-network/internal/platform/eventbus"
 )
 
 type acceptMockRepo struct {
@@ -48,7 +50,7 @@ func (m *acceptMockRepo) GetFollowingCount(_ context.Context, _ string) (int, er
 func TestAcceptRequestHandler_Success(t *testing.T) {
 	repo := &acceptMockRepo{}
 	bus := &mockBus{}
-	h := NewAcceptRequestHandler(repo, bus)
+	h := NewAcceptRequestHandler(repo, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), AcceptRequestCommand{
 		FollowerID: "user-1",
@@ -57,22 +59,22 @@ func TestAcceptRequestHandler_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if bus.eventType != "follow.accepted" {
-		t.Errorf("eventType = %q, want %q", bus.eventType, "follow.accepted")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
-	r, ok := bus.payload.(*follow.Request)
-	if !ok {
-		t.Fatalf("payload type = %T, want *follow.Request", bus.payload)
+	var env eventbus.Notification
+	if err := json.Unmarshal(bus.body, &env); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
 	}
-	if r.FollowerID != "user-1" || r.FolloweeID != "user-2" {
-		t.Errorf("payload = %+v, want FollowerID=user-1 FolloweeID=user-2", r)
+	if env.RecipientID != "user-1" || env.ActorID != "user-2" {
+		t.Errorf("payload = %+v, want RecipientID=user-1 ActorID=user-2", env)
 	}
 }
 
 func TestAcceptRequestHandler_DeleteRequestError(t *testing.T) {
 	repo := &acceptMockRepo{deleteFollowRequestErr: errors.New("delete failed")}
 	bus := &mockBus{}
-	h := NewAcceptRequestHandler(repo, bus)
+	h := NewAcceptRequestHandler(repo, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), AcceptRequestCommand{
 		FollowerID: "user-1",
@@ -81,15 +83,15 @@ func TestAcceptRequestHandler_DeleteRequestError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Execute() expected error, got nil")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after repo error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after repo error: %q", bus.routingKey)
 	}
 }
 
 func TestAcceptRequestHandler_CreateFollowError(t *testing.T) {
 	repo := &acceptMockRepo{createFollowErr: errors.New("insert failed")}
 	bus := &mockBus{}
-	h := NewAcceptRequestHandler(repo, bus)
+	h := NewAcceptRequestHandler(repo, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), AcceptRequestCommand{
 		FollowerID: "user-1",
@@ -98,7 +100,7 @@ func TestAcceptRequestHandler_CreateFollowError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Execute() expected error, got nil")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after repo error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after repo error: %q", bus.routingKey)
 	}
 }

@@ -5,14 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"social-network/internal/comment"
 	"social-network/internal/comment/commands"
 	"social-network/internal/comment/queries"
+	"social-network/internal/platform/logger"
 )
 
 type mockCreateComment struct {
@@ -45,6 +49,14 @@ type mockCastCommentVote struct {
 }
 
 func (m *mockCastCommentVote) Execute(_ context.Context, cmd commands.CastCommentVoteCommand) error {
+	return m.err
+}
+
+type mockDeleteCommentVote struct {
+	err error
+}
+
+func (m *mockDeleteCommentVote) Execute(_ context.Context, cmd commands.DeleteCommentVoteCommand) error {
 	return m.err
 }
 
@@ -93,6 +105,21 @@ func (m *mockGetCommentVotes) Resolve(_ context.Context, q queries.GetVoteCounts
 	return m.result, m.err
 }
 
+type mockUserLookup struct {
+	result *UserResult
+	err    error
+}
+
+func (m *mockUserLookup) GetUserByID(_ context.Context, id string) (*UserResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.result != nil {
+		return m.result, nil
+	}
+	return &UserResult{ID: id, Username: "alice", Nickname: "alice"}, nil
+}
+
 func fixedTime() time.Time {
 	return time.Date(2026, 7, 10, 12, 0, 0, 0, time.UTC)
 }
@@ -103,7 +130,7 @@ func testComment() *comment.Comment {
 		UserID:        "user-1",
 		TopicID:       10,
 		Content:       "test content",
-		ImagePath:     "",
+		ImagePath:     "/images/comment.jpg",
 		CreatedAt:     fixedTime(),
 		UpdatedAt:     fixedTime(),
 		UpvoteCount:   3,
@@ -140,6 +167,7 @@ func handler(h *Handler) http.Handler {
 	mux.HandleFunc("/api/comments/topic", h.GetCommentsByTopic)
 	mux.HandleFunc("/api/comments/topic/votes", h.GetCommentsByTopicWithVotes)
 	mux.HandleFunc("/api/comments/cast-vote", h.CastCommentVote)
+	mux.HandleFunc("/api/comments/vote-delete", h.DeleteCommentVote)
 	mux.HandleFunc("/api/comments/vote-counts", h.GetVoteCounts)
 	return mux
 }
@@ -211,11 +239,13 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 	var update UpdateCommentExecutor
 	var del DeleteCommentExecutor
 	var cast CastCommentVoteExecutor
+	var deleteVote DeleteCommentVoteExecutor
 	var get GetCommentByIDResolver
 	var getWV GetCommentByIDWithVotesResolver
 	var getByTopic GetCommentsByTopicResolver
 	var getByTopicWV GetCommentsByTopicWithVotesResolver
 	var getVotes GetVoteCountsResolver
+	var lookup UserLookup
 
 	for _, m := range mocks {
 		switch v := m.(type) {
@@ -227,6 +257,8 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			del = v
 		case *mockCastCommentVote:
 			cast = v
+		case *mockDeleteCommentVote:
+			deleteVote = v
 		case *mockGetComment:
 			get = v
 		case *mockGetCommentWV:
@@ -237,10 +269,13 @@ func newTestHandler(extractor UserExtractor, mocks ...any) *Handler {
 			getByTopicWV = v
 		case *mockGetCommentVotes:
 			getVotes = v
+		case *mockUserLookup:
+			lookup = v
 		}
 	}
 
-	return NewHandler(extractor, create, update, del, cast, get, getWV, getByTopic, getByTopicWV, getVotes)
+	return NewHandler(extractor, lookup, create, update, del, cast, deleteVote, get, getWV, getByTopic, getByTopicWV, getVotes,
+		logger.New(io.Discard, logger.LevelOff))
 }
 
 func TestCreateComment_Success(t *testing.T) {
@@ -248,10 +283,7 @@ func TestCreateComment_Success(t *testing.T) {
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
-	resp := doRequest(t, srv, http.MethodPost, "/api/comments", map[string]any{
-		"topicId": 10,
-		"content": "Hello world",
-	})
+	resp := postCommentForm(t, srv, 10, "Hello world")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -307,15 +339,33 @@ func TestCreateComment_HandlerError(t *testing.T) {
 	srv := httptest.NewServer(handler(h))
 	defer srv.Close()
 
-	resp := doRequest(t, srv, http.MethodPost, "/api/comments", map[string]any{
-		"topicId": 10,
-		"content": "Hello world",
-	})
+	resp := postCommentForm(t, srv, 10, "Hello world")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", resp.StatusCode)
 	}
+}
+
+func postCommentForm(t *testing.T, srv *httptest.Server, topicID int, content string) *http.Response {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField("topicId", strconv.Itoa(topicID))
+	_ = mw.WriteField("content", content)
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, srv.URL+"/api/comments", &buf)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	return resp
 }
 
 func TestUpdateComment_Success(t *testing.T) {
@@ -369,6 +419,45 @@ func TestDeleteComment_BadID(t *testing.T) {
 	defer srv.Close()
 
 	resp := doRequest(t, srv, http.MethodDelete, "/api/comments?id=abc", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteCommentVote_Success(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockDeleteCommentVote{err: nil})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
+
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=1", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteCommentVote_Unauthorized(t *testing.T) {
+	h := newTestHandler(extractUserFail, &mockDeleteCommentVote{err: nil})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
+
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=1", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteCommentVote_BadID(t *testing.T) {
+	h := newTestHandler(extractUserOK, &mockDeleteCommentVote{err: nil})
+	srv := httptest.NewServer(handler(h))
+	defer srv.Close()
+
+	resp := doRequest(t, srv, http.MethodDelete, "/api/comments/vote-delete?id=abc", nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {

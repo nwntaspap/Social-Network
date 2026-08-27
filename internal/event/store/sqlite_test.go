@@ -102,6 +102,58 @@ func TestGetEvent_NotFound(t *testing.T) {
 	}
 }
 
+func TestUpdateEvent(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLiteStore(db)
+	ctx := t.Context()
+	userID, groupID := seedTestData(t, db)
+
+	e := &event.Event{
+		ID:            "evt-1",
+		GroupID:       groupID,
+		CreatorID:     userID,
+		Title:         "Meetup",
+		Description:   "Monthly meetup",
+		ScheduledTime: time.Now().Add(24 * time.Hour),
+	}
+	if err := store.CreateEvent(ctx, e); err != nil {
+		t.Fatalf("CreateEvent() error = %v", err)
+	}
+
+	updated := &event.Event{
+		ID:            "evt-1",
+		GroupID:       groupID,
+		CreatorID:     userID,
+		Title:         "Big Meetup",
+		Description:   "Annual meetup",
+		ScheduledTime: time.Now().Add(48 * time.Hour),
+	}
+	if err := store.UpdateEvent(ctx, updated); err != nil {
+		t.Fatalf("UpdateEvent() error = %v", err)
+	}
+
+	got, err := store.GetEvent(ctx, "evt-1")
+	if err != nil {
+		t.Fatalf("GetEvent() error = %v", err)
+	}
+	if got.Title != "Big Meetup" {
+		t.Errorf("Title = %q, want %q", got.Title, "Big Meetup")
+	}
+	if got.Description != "Annual meetup" {
+		t.Errorf("Description = %q, want %q", got.Description, "Annual meetup")
+	}
+}
+
+func TestUpdateEvent_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLiteStore(db)
+
+	err := store.UpdateEvent(t.Context(), &event.Event{ID: "nonexistent"})
+	if !errors.Is(err, event.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
+	}
+}
+
 func TestListGroupEvents_CursorPagination(t *testing.T) {
 	db := setupTestDB(t)
 	store := NewSQLiteStore(db)

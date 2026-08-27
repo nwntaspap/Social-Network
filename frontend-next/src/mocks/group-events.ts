@@ -1,5 +1,10 @@
 import type { Event } from '@/lib/types';
 
+const eventOptions = [
+  { id: 'opt-going', label: 'Going', tally: 0 },
+  { id: 'opt-not-going', label: 'Not going', tally: 0 },
+];
+
 export const mockGroupEvents: Record<string, Event[]> = {
   // Events for group 1 (React Developers)
   '1': [
@@ -23,6 +28,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         "Join us for an exciting session exploring the upcoming React 19 features! We'll cover the new React Compiler, Server Components improvements, and more. Bring your questions and ideas!",
       eventDate: new Date(Date.now() + 86400000 * 14).toISOString(), // 2 weeks from now
       createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      options: eventOptions,
     },
     {
       id: 'evt2',
@@ -44,6 +50,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         "Bring your React code for peer review! We'll break into small groups and provide constructive feedback on each other's projects. All skill levels welcome.",
       eventDate: new Date(Date.now() + 86400000 * 7).toISOString(), // 1 week from now
       createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+      options: eventOptions,
     },
     {
       id: 'evt3',
@@ -65,6 +72,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         "Hands-on workshop where we'll build a complete full-stack application using Next.js 14, React Server Components, and Prisma. Prerequisites: Basic React and TypeScript knowledge.",
       eventDate: new Date(Date.now() + 86400000 * 21).toISOString(), // 3 weeks from now
       createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      options: eventOptions,
     },
   ],
 
@@ -90,6 +98,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         'Virtual meetup for open source contributors. Share your projects, find collaborators, and discuss best practices for maintaining healthy open source communities.',
       eventDate: new Date(Date.now() + 86400000 * 10).toISOString(),
       createdAt: new Date(Date.now() - 86400000 * 6).toISOString(),
+      options: eventOptions,
     },
     {
       id: 'evt5',
@@ -111,6 +120,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         "Planning session for Hacktoberfest 2024. We'll identify projects to contribute to, set up mentoring pairs, and create contribution guidelines for newcomers.",
       eventDate: new Date(Date.now() + 86400000 * 30).toISOString(),
       createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+      options: eventOptions,
     },
   ],
 
@@ -136,6 +146,7 @@ export const mockGroupEvents: Record<string, Event[]> = {
         'Deep dive into advanced TypeScript patterns including conditional types, mapped types, template literals, and type inference. Bring your challenging type problems!',
       eventDate: new Date(Date.now() + 86400000 * 12).toISOString(),
       createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+      options: eventOptions,
     },
   ],
 };
@@ -162,6 +173,7 @@ export const defaultGroupEvents: Event[] = [
       'New to the group? Join our welcome session to meet other members, learn about group activities, and share what you hope to get out of the community.',
     eventDate: new Date(Date.now() + 86400000 * 5).toISOString(),
     createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+    options: eventOptions,
   },
   {
     id: 'evt-default-2',
@@ -183,5 +195,6 @@ export const defaultGroupEvents: Event[] = [
       'Regular monthly catch-up where we discuss group updates, upcoming events, and any topics members want to bring up. Everyone is welcome!',
     eventDate: new Date(Date.now() + 86400000 * 15).toISOString(),
     createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
+    options: eventOptions,
   },
 ];

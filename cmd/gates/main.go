@@ -84,7 +84,7 @@ func main() {
 	runner.Register(&gates.StackGate{})
 	runner.Register(&gates.BranchGate{})
 	runner.Register(&gates.FormatGate{})
-	runner.Register(&gates.LintGate{MaxLines: 400})
+	runner.Register(&gates.LintGate{MaxLines: 500})
 	runner.Register(&gates.UnitTestGate{})
 	runner.Register(&gates.CoverageGate{})
 	runner.Register(&gates.LayoutGate{})

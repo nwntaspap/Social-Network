@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"encoding/json"
+	"maps"
 )
 
 type WSRouter interface {
@@ -12,26 +13,23 @@ type WSHandler interface {
 	Handle(client *Client, env Envelope)
 }
 
-type wsRouter struct {
-	chatHistoryHandler WSHandler
-	pingHandler        WSHandler
-	markAsReadHandler  WSHandler
-	sendHandler        WSHandler
-	chatOpenHandler    WSHandler
-	chatCloseHandler   WSHandler
-	chatTypingHandler  WSHandler
+// HandlerFunc adapts a function to the WSHandler interface.
+type HandlerFunc func(client *Client, env Envelope)
+
+func (f HandlerFunc) Handle(client *Client, env Envelope) {
+	f(client, env)
 }
 
-func NewWSRouter(chatHistoryHandler, pingHandler, markAsReasHandler, sendHandler, chatOpenHandler, chatCloseHandler, chatTypingHandler WSHandler) WSRouter {
-	return &wsRouter{
-		chatHistoryHandler: chatHistoryHandler,
-		pingHandler:        pingHandler,
-		markAsReadHandler:  markAsReasHandler,
-		sendHandler:        sendHandler,
-		chatOpenHandler:    chatOpenHandler,
-		chatCloseHandler:   chatCloseHandler,
-		chatTypingHandler:  chatTypingHandler,
-	}
+type wsRouter struct {
+	handlers map[string]WSHandler
+}
+
+// NewWSRouter builds a router for the given message type->handler pairs.
+// Types without a registered handler respond with an error envelope.
+func NewWSRouter(pairs map[string]WSHandler) WSRouter {
+	r := &wsRouter{handlers: make(map[string]WSHandler, len(pairs))}
+	maps.Copy(r.handlers, pairs)
+	return r
 }
 
 func (r *wsRouter) Route(client *Client, raw []byte) {
@@ -42,24 +40,12 @@ func (r *wsRouter) Route(client *Client, raw []byte) {
 		return
 	}
 
-	switch env.Type {
-	case TypePing:
-		r.pingHandler.Handle(client, env)
-	case TypeChatSend:
-		r.sendHandler.Handle(client, env)
-	case TypeChatHistory:
-		r.chatHistoryHandler.Handle(client, env)
-	case TypeChatOpen:
-		r.chatOpenHandler.Handle(client, env)
-	case TypeChatClose:
-		r.chatCloseHandler.Handle(client, env)
-	case TypeTyping:
-		r.chatTypingHandler.Handle(client, env)
-	case TypeMarkRead:
-		r.markAsReadHandler.Handle(client, env)
-	default:
+	handler, ok := r.handlers[env.Type]
+	if !ok {
 		sendError(client, env.RequestID, "unknown message type")
+		return
 	}
+	handler.Handle(client, env)
 }
 
 func sendError(client *Client, requestID, message string) {

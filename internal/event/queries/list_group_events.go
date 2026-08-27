@@ -2,9 +2,17 @@ package queries
 
 import (
 	"context"
+	"errors"
 
 	"social-network/internal/event"
 )
+
+var ErrNotGroupMember = errors.New("user is not a member of this group")
+
+// MemberChecker reports whether a user belongs to a group.
+type MemberChecker interface {
+	IsMember(ctx context.Context, groupID, userID string) (bool, error)
+}
 
 type EventWithOptions struct {
 	event.Event
@@ -19,20 +27,30 @@ type OptionWithTally struct {
 }
 
 type ListGroupEventsQuery struct {
-	GroupID string
-	Cursor  string
-	Size    int
+	GroupID     string
+	RequesterID string
+	Cursor      string
+	Size        int
 }
 
 type ListGroupEventsResolver struct {
-	repo event.Repository
+	repo   event.Repository
+	member MemberChecker
 }
 
-func NewListGroupEventsResolver(repo event.Repository) *ListGroupEventsResolver {
-	return &ListGroupEventsResolver{repo: repo}
+func NewListGroupEventsResolver(repo event.Repository, member MemberChecker) *ListGroupEventsResolver {
+	return &ListGroupEventsResolver{repo: repo, member: member}
 }
 
 func (r *ListGroupEventsResolver) Resolve(ctx context.Context, q ListGroupEventsQuery) ([]EventWithOptions, string, error) {
+	isMember, err := r.member.IsMember(ctx, q.GroupID, q.RequesterID)
+	if err != nil {
+		return nil, "", err
+	}
+	if !isMember {
+		return nil, "", ErrNotGroupMember
+	}
+
 	size := q.Size
 	if size <= 0 {
 		size = 10

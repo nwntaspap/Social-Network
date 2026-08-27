@@ -39,6 +39,10 @@ func (s *leaveGroupStub) CountMembers(_ context.Context, _ string) (int, error) 
 	return 0, nil
 }
 
+func (s *leaveGroupStub) GetGroupAdmins(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 func (s *leaveGroupStub) GetGroupMembers(_ context.Context, _ string, _, _ int) ([]group.Member, int, error) {
 	return nil, 0, nil
 }

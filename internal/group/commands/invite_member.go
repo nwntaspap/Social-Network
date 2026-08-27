@@ -2,13 +2,16 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
 	"social-network/internal/pkg/uuid"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
-var ErrNotConnected = errors.New("users are not connected: inviter must follow invitee")
+var ErrNotConnected = errors.New("users are not connected: invitee must be a follower of the inviter")
 
 type InviteMemberCommand struct {
 	GroupID   string
@@ -19,11 +22,12 @@ type InviteMemberCommand struct {
 type InviteMemberHandler struct {
 	repo   group.Repository
 	follow group.FollowChecker
-	bus    group.EventBus
+	bus    eventbus.EventBus
+	users  user.Repository
 }
 
-func NewInviteMemberHandler(repo group.Repository, follow group.FollowChecker, bus group.EventBus) *InviteMemberHandler {
-	return &InviteMemberHandler{repo: repo, follow: follow, bus: bus}
+func NewInviteMemberHandler(repo group.Repository, follow group.FollowChecker, bus eventbus.EventBus, users user.Repository) *InviteMemberHandler {
+	return &InviteMemberHandler{repo: repo, follow: follow, bus: bus, users: users}
 }
 
 func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberCommand) (*group.Invitation, error) {
@@ -41,12 +45,9 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 	}
 	_ = g
 
-	role, err := h.repo.GetMemberRole(ctx, cmd.GroupID, cmd.InviterID)
+	_, err = h.repo.GetMemberRole(ctx, cmd.GroupID, cmd.InviterID)
 	if err != nil {
 		return nil, group.ErrNotMember
-	}
-	if role != group.RoleCreator && role != group.RoleAdmin {
-		return nil, group.ErrNotAdmin
 	}
 
 	isMember, err := h.repo.IsMember(ctx, cmd.GroupID, cmd.InviteeID)
@@ -65,7 +66,8 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 		return nil, group.ErrAlreadyInvited
 	}
 
-	connected, err := h.follow.AreConnected(ctx, cmd.InviterID, cmd.InviteeID)
+	// Only followers may be invited: the invitee must follow the inviter.
+	connected, err := h.follow.AreConnected(ctx, cmd.InviteeID, cmd.InviterID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +82,26 @@ func (h *InviteMemberHandler) Execute(ctx context.Context, cmd InviteMemberComma
 		InviteeID: cmd.InviteeID,
 	}
 
-	if err := h.repo.CreateInvitation(ctx, inv); err != nil {
+	if err = h.repo.CreateInvitation(ctx, inv); err != nil {
 		return nil, err
 	}
 
-	_ = h.bus.Publish(ctx, "group.invited", inv)
+	actor, err := h.users.GetByID(ctx, cmd.InviterID)
+	if err != nil {
+		return nil, err
+	}
+
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:         eventbus.EventGroupInvitation,
+		RecipientID:  cmd.InviteeID,
+		ActorID:      actor.ID,
+		ActorName:    actor.Nickname,
+		ActorAvatar:  actor.AvatarPath,
+		ResourceType: eventbus.ResourceGroup,
+		ResourceID:   cmd.GroupID,
+		ContentText:  g.Title,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
 
 	return inv, nil
 }

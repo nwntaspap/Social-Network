@@ -22,8 +22,8 @@ func TestGetCommentByID_Success(t *testing.T) {
 
 	result := decodeResponse(t, resp)
 	data := getData(t, result)
-	if getFloat(t, data, "id") != 1 {
-		t.Errorf("expected id 1, got %v", data["id"])
+	if got, ok := data["id"].(string); !ok || got != "1" {
+		t.Errorf("expected id \"1\", got %v", data["id"])
 	}
 }
 
@@ -54,8 +54,8 @@ func TestGetCommentByIDWithVotes_Success(t *testing.T) {
 
 	result := decodeResponse(t, resp)
 	data := getData(t, result)
-	if getFloat(t, data, "id") != 1 {
-		t.Errorf("expected id 1, got %v", data["id"])
+	if got, ok := data["id"].(string); !ok || got != "1" {
+		t.Errorf("expected id \"1\", got %v", data["id"])
 	}
 }
 

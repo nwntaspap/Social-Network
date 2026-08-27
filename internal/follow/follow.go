@@ -34,10 +34,6 @@ type UserPrivacyChecker interface {
 	IsPrivate(ctx context.Context, userID string) (bool, error)
 }
 
-type EventBus interface {
-	Publish(ctx context.Context, eventType string, payload any) error
-}
-
 var _ UserPrivacyChecker = (*PrivacyStub)(nil)
 
 type PrivacyStub struct{}
@@ -45,8 +41,6 @@ type PrivacyStub struct{}
 func (p *PrivacyStub) IsPrivate(_ context.Context, _ string) (bool, error) {
 	return false, nil
 }
-
-var _ EventBus = (*NoopEventBus)(nil)
 
 type NoopEventBus struct{}
 

@@ -11,7 +11,7 @@ import (
 )
 
 func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int, orderBy, order, filter string) ([]topic.Topic, int, error) {
-	whereClause := `WHERE 1=1`
+	whereClause := `WHERE 1=1 AND t.group_id IS NULL`
 	args := make([]any, 0)
 
 	if filter != "" {
@@ -20,9 +20,16 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		args = append(args, fp, fp)
 	}
 
+	guard, guardArgs := visibilityGuard(userID)
+	whereClause += " AND " + guard
+
+	countArgs := make([]any, 0, len(args)+len(guardArgs))
+	countArgs = append(countArgs, args...)
+	countArgs = append(countArgs, guardArgs...)
+
 	countQuery := "SELECT COUNT(DISTINCT t.id) FROM topics t " + whereClause
 	var total int
-	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count feed: %w", err)
 	}
 
@@ -34,6 +41,7 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
 		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0), " +
 		"uv.reaction_type " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
@@ -42,12 +50,14 @@ func (s *SQLiteStore) GetFeed(ctx context.Context, userID string, page, size int
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		"LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL " +
 		whereClause + " ORDER BY " + orderByCol + " " + orderDir + " LIMIT ? OFFSET ?"
 
-	allArgs := make([]any, 0, len(args)+3)
+	allArgs := make([]any, 0, len(args)+len(guardArgs)+3)
 	allArgs = append(allArgs, userID)
 	allArgs = append(allArgs, args...)
+	allArgs = append(allArgs, guardArgs...)
 	offset := (page - 1) * size
 	allArgs = append(allArgs, size, offset)
 
@@ -68,9 +78,16 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 	whereClause := `WHERE t.user_id = ?`
 	args := []any{ownerID}
 
+	guard, guardArgs := visibilityGuard(requesterID)
+	whereClause += " AND " + guard
+
+	countArgs := make([]any, 0, len(args)+len(guardArgs))
+	countArgs = append(countArgs, args...)
+	countArgs = append(countArgs, guardArgs...)
+
 	countQuery := "SELECT COUNT(DISTINCT t.id) FROM topics t " + whereClause
 	var total int
-	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user topics: %w", err)
 	}
 
@@ -79,6 +96,7 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
 		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0), " +
 		"uv.reaction_type " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
@@ -87,12 +105,15 @@ func (s *SQLiteStore) GetTopicsByUserID(ctx context.Context, ownerID, requesterI
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		"LEFT JOIN votes uv ON t.id = uv.topic_id AND uv.user_id = ? AND uv.comment_id IS NULL " +
 		whereClause + " ORDER BY t.created_at DESC LIMIT ? OFFSET ?"
 
 	offset := (page - 1) * size
-	allArgs := []any{requesterID}
+	allArgs := make([]any, 0, len(args)+len(guardArgs)+3)
+	allArgs = append(allArgs, requesterID)
 	allArgs = append(allArgs, args...)
+	allArgs = append(allArgs, guardArgs...)
 	allArgs = append(allArgs, size, offset)
 
 	rows, err := s.db.QueryContext(ctx, query, allArgs...)
@@ -122,7 +143,8 @@ func (s *SQLiteStore) GetTopicsByGroupID(ctx context.Context, groupID string, pa
 		"COALESCE(t.visibility, 0), t.group_id, " +
 		"t.created_at, t.updated_at, " +
 		"COALESCE(u.username, ''), " +
-		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0) " +
+		"COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0), " +
+		"COALESCE(cc.comments_count, 0) " +
 		"FROM topics t " +
 		"LEFT JOIN users u ON t.user_id = u.id " +
 		"LEFT JOIN (SELECT topic_id, " +
@@ -130,6 +152,7 @@ func (s *SQLiteStore) GetTopicsByGroupID(ctx context.Context, groupID string, pa
 		"COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as downvotes, " +
 		"COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) as score " +
 		"FROM votes WHERE comment_id IS NULL GROUP BY topic_id) vc ON t.id = vc.topic_id " +
+		"LEFT JOIN (SELECT topic_id, COUNT(*) AS comments_count FROM comments GROUP BY topic_id) cc ON t.id = cc.topic_id " +
 		whereClause + " ORDER BY t.created_at DESC LIMIT ? OFFSET ?"
 
 	offset := (page - 1) * size
@@ -153,14 +176,16 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 	for rows.Next() {
 		var t topic.Topic
 		var groupID sql.NullString
+		var imagePath sql.NullString
 		var updatedAt sql.NullTime
 
 		scanArgs := []any{
-			&t.ID, &t.UserID, &t.Title, &t.Content, &t.ImagePath,
+			&t.ID, &t.UserID, &t.Title, &t.Content, &imagePath,
 			&t.Visibility, &groupID,
 			&t.CreatedAt, &updatedAt,
 			&t.OwnerUsername,
 			&t.UpvoteCount, &t.DownvoteCount, &t.VoteScore,
+			&t.CommentsCount,
 		}
 		if includeUserVote {
 			var userVote sql.NullInt32
@@ -178,6 +203,7 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 			}
 		}
 		t.UpdatedAt = database.ResolveTime(updatedAt, t.CreatedAt)
+		t.ImagePath = imagePath.String
 		if groupID.Valid {
 			t.GroupID = &groupID.String
 		}
@@ -189,16 +215,35 @@ func collectTopics(rows *sql.Rows, includeUserVote bool) ([]topic.Topic, error) 
 	return topics, nil
 }
 
-func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) error {
-	_, err := s.db.ExecContext(ctx,
+func (s *SQLiteStore) CastVote(ctx context.Context, userID string, topicID int, reactionType int) (topic.VoteChange, error) {
+	if _, err := s.GetTopicByID(ctx, topicID, &userID); err != nil {
+		return topic.VoteChangeAdded, err
+	}
+
+	var existingReaction sql.NullInt32
+	err := s.db.QueryRowContext(ctx,
+		`SELECT reaction_type FROM votes WHERE user_id = ? AND topic_id = ? AND comment_id IS NULL`,
+		userID, topicID).Scan(&existingReaction)
+
+	if err == nil && existingReaction.Valid && int(existingReaction.Int32) == reactionType {
+		_, delErr := s.db.ExecContext(ctx,
+			`DELETE FROM votes WHERE user_id = ? AND topic_id = ? AND comment_id IS NULL`,
+			userID, topicID)
+		if delErr != nil {
+			return topic.VoteChangeRemoved, fmt.Errorf("delete vote: %w", delErr)
+		}
+		return topic.VoteChangeRemoved, nil
+	}
+
+	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO votes (user_id, topic_id, comment_id, reaction_type)
 		 VALUES (?, ?, NULL, ?)
 		 ON CONFLICT (user_id, topic_id) DO UPDATE SET reaction_type = EXCLUDED.reaction_type, created_at = CURRENT_TIMESTAMP`,
 		userID, topicID, reactionType)
 	if err != nil {
-		return fmt.Errorf("cast vote: %w", err)
+		return topic.VoteChangeAdded, fmt.Errorf("cast vote: %w", err)
 	}
-	return nil
+	return topic.VoteChangeAdded, nil
 }
 
 func (s *SQLiteStore) DeleteVote(ctx context.Context, userID string, topicID int) error {
@@ -264,6 +309,47 @@ func (s *SQLiteStore) getAllowedUsers(ctx context.Context, topicID int) ([]strin
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// visibilityGuard returns a SQL fragment (and its arguments) restricting topics
+// to those the requester may see: their own posts, public posts, followers-only
+// posts when the requester follows the author, and private posts when the
+// requester is on the topic's allowed-user list AND still follows the author
+// (unfollowing revokes private-post access). An empty requesterID (anonymous)
+// only sees public posts. Public posts (visibility=0) are always visible
+// regardless of the author's profile privacy. Author profile privacy only
+// restricts followers-only and private posts from non-followers.
+func visibilityGuard(requesterID string) (string, []any) {
+	guard := `(t.user_id = ? OR (
+		t.visibility = 0
+		OR
+		(
+			t.visibility IN (1, 2)
+			AND NOT (
+				EXISTS(SELECT 1 FROM users au WHERE au.id = t.user_id AND au.is_private = 1)
+				AND t.user_id != ?
+				AND NOT EXISTS(
+					SELECT 1 FROM follows f2
+					WHERE f2.follower_id = ? AND f2.followee_id = t.user_id
+				)
+			)
+			AND (
+				(t.visibility = 1 AND EXISTS(
+					SELECT 1 FROM follows f
+					WHERE f.follower_id = ? AND f.followee_id = t.user_id
+				))
+				OR
+				(t.visibility = 2 AND EXISTS(
+					SELECT 1 FROM topic_allowed_users a
+					WHERE a.topic_id = t.id AND a.user_id = ?
+				) AND EXISTS(
+					SELECT 1 FROM follows f
+					WHERE f.follower_id = ? AND f.followee_id = t.user_id
+				))
+			)
+		)
+	))`
+	return guard, []any{requesterID, requesterID, requesterID, requesterID, requesterID, requesterID}
 }
 
 func sanitizeOrderBy(orderBy string) string {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"social-network/internal/oauth"
 	"social-network/internal/platform/database"
@@ -64,9 +65,11 @@ func (s *SQLiteStore) CreateOAuthUser(ctx context.Context, user *oauth.User) (st
 		}
 	}()
 
+	firstName, lastName := splitName(user.Name, user.Username)
+
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO users (id, username, email, password_hash, avatar_url) VALUES (?, ?, ?, '', ?)`,
-		user.UserID, user.Username, user.Email, user.AvatarURL)
+		`INSERT INTO users (id, username, email, password_hash, first_name, last_name, avatar_url) VALUES (?, ?, ?, '', ?, ?, ?)`,
+		user.UserID, user.Username, user.Email, firstName, lastName, user.AvatarURL)
 	if err != nil {
 		return "", fmt.Errorf("insert user: %w", err)
 	}
@@ -121,4 +124,19 @@ func (s *SQLiteStore) GetOAuthProvider(ctx context.Context, userID string, provi
 	}
 
 	return &u, nil
+}
+
+// splitName derives first_name and last_name from the provider's display name.
+// Providers do not always supply a family name, so the remaining part is left
+// as an empty string (allowed by NOT NULL); callers fall back to the username.
+func splitName(name, fallback string) (first, last string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fallback, ""
+	}
+	parts := strings.Fields(name)
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], strings.Join(parts[1:], " ")
 }

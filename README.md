@@ -1,11 +1,10 @@
 # 🌐 Social Network — Vertical Slices with CQRS
 
-[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white)]()
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)]()
-[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)]()
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]()
-[![CI](https://img.shields.io/github/actions/workflow/status/ertval/social-network/ci.yml?style=flat-square&logo=github&logoColor=white)]()
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go&logoColor=white)](<>)
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white)](<>)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](<>)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](<>)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](<>)
 
 A full-stack social networking reference architecture demonstrating clean vertical-slice design in Go 1.25 with a Next.js glassmorphic frontend. Decoupled infrastructure (SQLite/PostgreSQL, Redis, RabbitMQ) behind abstract interfaces enables zero-code platform swaps.
 
@@ -43,9 +42,8 @@ To configure your local environment for development and testing, install the fol
    Create a `.env` file at the root:
 
    ```env
-   SERVER_PORT=8080
-   CLIENT_PORT=3000
-   DATABASE_DRIVER=sqlite
+    SERVER_PORT=8080
+    DATABASE_DRIVER=sqlite
    DATABASE_DSN=db/data/forum.db?_journal_mode=WAL&_busy_timeout=5000
    DB_SEED_ON_START=true
    GITHUB_CLIENT_ID=your_github_client_id
@@ -70,8 +68,11 @@ To configure your local environment for development and testing, install the fol
    ```
 
 3. **Access points**
-   - **Frontend web App**: [http://localhost:3000](http://localhost:3000)
+   - **Frontend web App**: [https://localhost:3001](https://localhost:3001)
    - **Backend REST API**: [http://localhost:8080/api/v1](http://localhost:8080/api/v1)
+   - **Notifications service**: proxied by the frontend at `/notifications-api` (direct port `8081`)
+
+   The compose stack runs four containers: `forum` (Go API), `frontend` (Next.js), `notifications` (SSE + notification store), and `broker` (event bus).
 
 4. **Shutdown and Clean**  
    Stop the services:
@@ -141,7 +142,7 @@ graph TD
 
 ### 1. Presentation Layer (Frontend)
 
-- **Next.js App Router (Port 3000)**: Server-side and client-side rendering with shadcn/ui.
+- **Next.js App Router (Port 3001)**: Server-side and client-side rendering with shadcn/ui.
 - **Real-time Communication**: Persistent WebSockets for chats and Server-Sent Events (SSE) for live notifications.
 - **Client Verification**: Native Unicode emoji parsing, magic-byte image validation, and client-side file size and extension checks before transport.
 
@@ -160,7 +161,7 @@ graph TD
 
 ### 🔐 Authentication & Session Persistence
 
-- **Rich Registration**: Custom flow requiring Email, Password, First Name, Last Name, and Date of Birth. Optional Avatar, Nickname, and About Me info.
+- **Rich Registration**: Custom flow requiring Email, Password, First Name, Last Name, and Date of Birth. Optional Avatar, Nickname, and Gender info.
 - **Secure Sessions**: Persistent double-cookie auth (`access_token` and `refresh_token` rotation) behind `HttpOnly` and secure flags.
 - **OAuth Delegation**: Built-in GitHub and Google authentication.
 
@@ -218,10 +219,8 @@ Every developer and sub-agent must adhere to these architectural guidelines:
 ├── cmd/
 │   ├── server/
 │   │   └── main.go                  # Application entry point & configuration bootstrap
-│   ├── gates/
-│   │   └── main.go                  # CLI runner for verification gates
-│   └── client/
-│       └── main.go                  # CLI client for testing/ops
+│   └── gates/
+│       └── main.go                  # CLI runner for verification gates
 ├── db/
 │   └── migrations/                  # Sequential up/down SQL database migrations
 ├── internal/
@@ -233,7 +232,6 @@ Every developer and sub-agent must adhere to these architectural guidelines:
 │   ├── group/                       # Communities, group posts, group chat
 │   ├── event/                       # Group events & RSVP tracking
 │   ├── chat/                        # Direct messages, presence, and chat history
-│   ├── notification/                # Event bus subscriber notifications
 │   ├── oauth/                       # Github/Google authentication pipelines
 │   #
 │   # ─── Cross-Cutting Core ───
@@ -256,8 +254,6 @@ Every developer and sub-agent must adhere to these architectural guidelines:
 │   ├── bootstrap/                   # Composition root & service wiring
 │   ├── config/                      # Configuration loader
 │   └── pkg/                         # Shared helpers (bcrypt, uuid, validator, helpers, oauth, imgutil) — migrates to repo-root pkg/ in S5-BE-99
-│
-└── frontend/                        # Next.js Application Root (TypeScript + Bun)
 ```
 
 ---
@@ -275,7 +271,7 @@ Every developer and sub-agent must adhere to these architectural guidelines:
 
 - **Backend Tools:**
   - **Testing**: `go test -race -coverprofile` via `Makefile` (`make test`)
-  - **Linting**: `golangci-lint` (v2.2.1) configured in `.golangci.yml`
+  - **Linting**: `golangci-lint` (v2.12.2) configured in `.golangci.yml`
   - **Static Analysis**: `staticcheck` via `Makefile` (`make lint`)
   - **Formatting**: `gofmt -s`, `gofumpt` via `Makefile` (`make format`)
   - **Vulnerability Checks**: `govulncheck` run locally
@@ -301,10 +297,8 @@ make gates
 
 This runs the decoupled PR quality gate suite:
 
-1.  **`go build ./...`**: Compiles all Go packages (legacy + new) for basic build safety.
+1.  **`go build ./...`**: Compiles all Go packages for basic build safety.
 2.  **`go run cmd/gates/main.go --all`**: Runs the custom Go verification gates.
-
-_Note: You can still run the legacy full-system check via `make ci` (runs blanket `make be-ci` + `make fe-ci`), which is informational and does not block PR gates._
 
 To auto-format files in new directories:
 `PATH=<GOBIN>:$PATH gofumpt -w <dirs> && PATH=<GOBIN>:$PATH goimports -w -local social-network <dirs>`
@@ -425,13 +419,13 @@ opencode skill upgrade
 
 **Development Dependencies** — one command to install everything:
 
-| Layer                      | Command                                | What it installs                                                                                                  |
-| :------------------------- | :------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| **All (unified)**          | `make install`                         | Go modules + root JS + `.env` + SSL certs + Go tools + git hooks + frontend deps                                  |
-| **Backend (Go)**           | `make setup` (or `make tools`)         | `goimports`, `staticcheck`, `golangci-lint` (v2.2.1), `govulncheck`, `gofumpt`, `gosec`, `go-arch-lint`, lefthook |
-| **Backend (Go modules)**   | `go mod download` (via `make install`) | Go library dependencies from `go.sum`                                                                             |
-| **Frontend (Bun/Next.js)** | `bun install` (via `make install`)     | npm packages from `frontend/package.json`                                                                         |
-| **Docker**                 | `docker compose build`                 | Container images for backend + frontend                                                                           |
+| Layer                      | Command                                | What it installs                                                                                                   |
+| :------------------------- | :------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **All (unified)**          | `make install`                         | Go modules + root JS + `.env` + SSL certs + Go tools + git hooks + frontend deps                                   |
+| **Backend (Go)**           | `make setup` (or `make tools`)         | `goimports`, `staticcheck`, `golangci-lint` (v2.12.2), `govulncheck`, `gofumpt`, `gosec`, `go-arch-lint`, lefthook |
+| **Backend (Go modules)**   | `go mod download` (via `make install`) | Go library dependencies from `go.sum`                                                                              |
+| **Frontend (Bun/Next.js)** | `bun install` (via `make install`)     | npm packages from `frontend/package.json`                                                                          |
+| **Docker**                 | `docker compose build`                 | Container images for backend + frontend                                                                            |
 
 To update Go dependencies:
 

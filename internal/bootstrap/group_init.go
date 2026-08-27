@@ -5,21 +5,27 @@ import (
 	"net/http"
 
 	"social-network/internal/core/middleware"
+	"social-network/internal/follow"
+	followstore "social-network/internal/follow/store"
 	"social-network/internal/group"
 	groupcommands "social-network/internal/group/commands"
 	groupqueries "social-network/internal/group/queries"
 	groupstore "social-network/internal/group/store"
 	grouptransport "social-network/internal/group/transport"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
+	localstorage "social-network/internal/platform/storage/local"
 	"social-network/internal/user"
 	userstore "social-network/internal/user/store"
 )
 
-func initGroup(db database.DB) *grouptransport.Handler {
+func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool, logger logger.Logger) *grouptransport.Handler {
 	store := groupstore.NewSQLiteStore(db)
+	img := localstorage.NewLocalStorage()
+	users := userstore.NewSQLiteStore(db)
 
-	bus := &groupEventBus{}
-	followChecker := &groupFollowChecker{}
+	followChecker := &groupFollowChecker{follows: followstore.NewSQLiteStore(db)}
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -28,41 +34,45 @@ func initGroup(db database.DB) *grouptransport.Handler {
 		}
 		return uid, true
 	}
-
 	userLookup := &userLookupAdapter{repo: userstore.NewSQLiteStore(db)}
-
 	return grouptransport.NewHandler(
 		extractUser,
 		userLookup,
 		groupcommands.NewCreateGroupHandler(store),
-		groupcommands.NewInviteMemberHandler(store, followChecker, bus),
-		groupcommands.NewRespondInviteHandler(store),
-		groupcommands.NewRequestJoinHandler(store, bus),
-		groupcommands.NewRespondJoinHandler(store),
-		groupcommands.NewCreateGroupPostHandler(store),
-		groupcommands.NewCreateGroupPostCommentHandler(store),
+		groupcommands.NewInviteMemberHandler(store, followChecker, bus, users),
+		groupcommands.NewRespondInviteHandler(store, bus),
+		groupcommands.NewRequestJoinHandler(store, bus, users),
+		groupcommands.NewRespondJoinHandler(store, bus, users),
+		groupcommands.NewCreateGroupPostHandler(store, img),
+		groupcommands.NewCreateGroupPostCommentHandler(store, img, bus, users),
+		groupcommands.NewCastGroupPostVoteHandler(store, bus, users),
 		groupcommands.NewLeaveGroupHandler(store),
 		groupcommands.NewUpdateGroupHandler(store),
-		groupcommands.NewDeleteGroupHandler(store),
+		groupcommands.NewDeleteGroupHandler(store, bus),
 		groupqueries.NewListGroupsResolver(store),
 		groupqueries.NewGetGroupResolver(store),
 		groupqueries.NewGetGroupFeedResolver(store),
 		groupqueries.NewGetGroupChatResolver(store),
 		groupqueries.NewGetGroupPostCommentsResolver(store),
 		groupqueries.NewGetGroupMembersResolver(store),
+		groupqueries.NewGetPendingInvitationsResolver(store),
+		groupqueries.NewGetPendingJoinRequestsResolver(store),
+		groupqueries.NewGetSentInvitationIDsResolver(store),
+		groupqueries.NewListMyGroupsResolver(store),
+		groupqueries.NewGetGroupPresenceResolver(store, isOnline),
+		logger,
 	)
 }
 
-type groupEventBus struct{}
-
-func (b *groupEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
+type groupFollowChecker struct {
+	follows follow.Repository
 }
 
-type groupFollowChecker struct{}
-
-func (fc *groupFollowChecker) AreConnected(_ context.Context, _, _ string) (bool, error) {
-	return true, nil
+// AreConnected reports whether invitee is a follower of inviter.
+// The group command invokes this as AreConnected(invitee, inviter);
+// the follow store treats (a, b) as "a follows b".
+func (fc *groupFollowChecker) AreConnected(ctx context.Context, a, b string) (bool, error) {
+	return fc.follows.AreConnected(ctx, a, b)
 }
 
 type userLookupAdapter struct {
@@ -100,6 +110,5 @@ func (a *userLookupAdapter) GetUserByID(ctx context.Context, id string) (*groupt
 
 var (
 	_ group.FollowChecker       = (*groupFollowChecker)(nil)
-	_ group.EventBus            = (*groupEventBus)(nil)
 	_ grouptransport.UserLookup = (*userLookupAdapter)(nil)
 )

@@ -7,23 +7,28 @@ import (
 
 // Inbound message types (client -> server).
 const (
-	TypeChatSend    = "chat.send"
-	TypeChatHistory = "chat.history"
-	TypeMarkRead    = "chat.mark_read"
-	TypePing        = "ping"
-	TypeTyping      = "chat.typing"
-	TypeChatOpen    = "chat.open"
-	TypeChatClose   = "chat.close"
+	TypeChatSend          = "chat.send"
+	TypeChatHistory       = "chat.history"
+	TypeMarkRead          = "chat.mark_read"
+	TypePing              = "ping"
+	TypeTyping            = "chat.typing"
+	TypeChatOpen          = "chat.open"
+	TypeChatClose         = "chat.close"
+	TypeGroupChatSend     = "group_chat.send"
+	TypeGroupChatHistory  = "group_chat.history"
+	TypeGroupChatMarkRead = "group_chat.mark_read"
 )
 
 // Outbound message types (server -> client).
 const (
-	TypeChatMessage    = "chat.message"
-	TypeHistoryResult  = "chat.history_result"
-	TypeError          = "error"
-	TypePong           = "pong"
-	TypeIsOnlineStatus = "isOnlineStatus.update"
-	TypeIsTyping       = "chat.is_typing"
+	TypeChatMessage         = "chat.message"
+	TypeHistoryResult       = "chat.history_result"
+	TypeError               = "error"
+	TypePong                = "pong"
+	TypeIsOnlineStatus      = "isOnlineStatus.update"
+	TypeIsTyping            = "chat.is_typing"
+	TypeGroupChatMessage    = "group_chat.message"
+	TypeGroupChatHistResult = "group_chat.history_result"
 )
 
 // Envelope is the wrapper for every WebSocker message.
@@ -64,6 +69,20 @@ type MarkReadPayload struct {
 	UpToMessageID int    `json:"up_to_message_id"`
 }
 
+type GroupChatSendPayload struct {
+	GroupID string `json:"group_id"`
+	Content string `json:"content"`
+}
+
+type GroupChatHistoryPayload struct {
+	GroupID string `json:"group_id"`
+	Limit   int    `json:"limit,omitempty"`
+}
+
+type GroupChatMarkReadPayload struct {
+	GroupID string `json:"group_id"`
+}
+
 // Payloads for outbound messages.
 
 type ChatIsTyping struct {
@@ -78,6 +97,15 @@ type MessagePayload struct {
 	SenderID        string    `json:"sender_id"`
 	Content         string    `json:"content"`
 	ID              int       `json:"id"`
+}
+
+// GroupChatMessagePayload is the outbound payload for a group chat message.
+type GroupChatMessagePayload struct {
+	ID        string    `json:"id"`
+	GroupID   string    `json:"group_id"`
+	SenderID  string    `json:"sender_id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type ErrorPayload struct {

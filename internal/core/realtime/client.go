@@ -27,6 +27,11 @@ func (c *Client) Send(msg []byte) {
 	c.send <- msg
 }
 
+// SendChannel exposes the outbound message channel (used by tests).
+func (c *Client) SendChannel() <-chan []byte {
+	return c.send
+}
+
 func NewClient(userID string, hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
 		UserID: userID,

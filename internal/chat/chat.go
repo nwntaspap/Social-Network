@@ -2,7 +2,21 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"time"
+)
+
+var (
+	// ErrNotParticipant is returned when a user requests history for a chat
+	// they are not part of.
+	ErrNotParticipant = errors.New("user is not a participant of this chat")
+
+	// ErrChatNotFound is returned when a chat does not exist.
+	ErrChatNotFound = errors.New("chat not found")
+
+	// ErrNotConnected is returned when the two users in a chat no longer
+	// follow each other and therefore cannot exchange messages.
+	ErrNotConnected = errors.New("users are not connected: at least one must follow the other")
 )
 
 type Chat struct {
@@ -72,8 +86,9 @@ type UserRepository interface {
 }
 
 type UserRef struct {
-	ID       string
-	Nickname string
+	ID        string
+	Nickname  string
+	AvatarURL string
 }
 
 // FollowAdapter wraps a function to satisfy FollowChecker.
@@ -93,6 +108,21 @@ type BroadcasterAdapter struct {
 
 func (a *BroadcasterAdapter) IsOnline(userID string) bool {
 	return a.IsOnlineFn(userID)
+}
+
+// UserPrivacyChecker reports whether a user's profile is private.
+// Satisfied by the user store in bootstrap.
+type UserPrivacyChecker interface {
+	IsPrivate(ctx context.Context, userID string) (bool, error)
+}
+
+// PrivacyAdapter wraps a function to satisfy UserPrivacyChecker.
+type PrivacyAdapter struct {
+	IsPrivateFn func(ctx context.Context, userID string) (bool, error)
+}
+
+func (a *PrivacyAdapter) IsPrivate(ctx context.Context, userID string) (bool, error) {
+	return a.IsPrivateFn(ctx, userID)
 }
 
 // UserAdapter wraps a function to satisfy UserRepository.

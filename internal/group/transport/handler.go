@@ -7,6 +7,7 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/group/commands"
 	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
 type UserExtractor func(r *http.Request) (userID string, ok bool)
@@ -24,7 +25,7 @@ type InviteMemberExecutor interface {
 }
 
 type RespondInviteExecutor interface {
-	Execute(ctx context.Context, cmd commands.RespondInviteCommand) error
+	Execute(ctx context.Context, cmd commands.RespondInviteCommand) (commands.RespondInviteResult, error)
 }
 
 type RequestJoinExecutor interface {
@@ -45,6 +46,10 @@ type SendGroupMessageExecutor interface {
 
 type CreateGroupPostCommentExecutor interface {
 	Execute(ctx context.Context, cmd commands.CreateGroupPostCommentCommand) (*group.PostComment, error)
+}
+
+type CastGroupPostVoteExecutor interface {
+	Execute(ctx context.Context, cmd commands.CastGroupPostVoteCommand) error
 }
 
 type LeaveGroupExecutor interface {
@@ -83,6 +88,26 @@ type GetGroupMembersResolver interface {
 	Resolve(ctx context.Context, q queries.GetGroupMembersQuery) (*queries.GetGroupMembersResult, error)
 }
 
+type GetPendingInvitationsResolver interface {
+	Resolve(ctx context.Context, q queries.GetPendingInvitationsQuery) (*queries.GetPendingInvitationsResult, error)
+}
+
+type GetPendingJoinRequestsResolver interface {
+	Resolve(ctx context.Context, q queries.GetPendingJoinRequestsQuery) (*queries.GetPendingJoinRequestsResult, error)
+}
+
+type GetSentInvitationIDsResolver interface {
+	Resolve(ctx context.Context, q queries.GetSentInvitationIDsQuery) (*queries.GetSentInvitationIDsResult, error)
+}
+
+type ListMyGroupsResolver interface {
+	Resolve(ctx context.Context, q queries.ListMyGroupsQuery) (*queries.ListMyGroupsResult, error)
+}
+
+type GetGroupPresenceResolver interface {
+	Resolve(ctx context.Context, q queries.GetGroupPresenceQuery) (*queries.GetGroupPresenceResult, error)
+}
+
 type Handler struct {
 	createGroup            CreateGroupExecutor
 	inviteMember           InviteMemberExecutor
@@ -91,6 +116,7 @@ type Handler struct {
 	respondJoin            RespondJoinExecutor
 	createGroupPost        CreateGroupPostExecutor
 	createGroupPostComment CreateGroupPostCommentExecutor
+	castGroupPostVote      CastGroupPostVoteExecutor
 	leaveGroup             LeaveGroupExecutor
 	updateGroup            UpdateGroupExecutor
 	deleteGroup            DeleteGroupExecutor
@@ -100,8 +126,14 @@ type Handler struct {
 	getGroupChat           GetGroupChatResolver
 	getGroupPostComments   GetGroupPostCommentsResolver
 	getGroupMembers        GetGroupMembersResolver
+	getPendingInvitations  GetPendingInvitationsResolver
+	getPendingJoinRequests GetPendingJoinRequestsResolver
+	getSentInvitationIDs   GetSentInvitationIDsResolver
+	listMyGroups           ListMyGroupsResolver
+	getGroupPresence       GetGroupPresenceResolver
 	userLookup             UserLookup
 	extractUser            UserExtractor
+	logger                 logger.Logger
 }
 
 func NewHandler(
@@ -114,6 +146,7 @@ func NewHandler(
 	respondJoin RespondJoinExecutor,
 	createGroupPost CreateGroupPostExecutor,
 	createGroupPostComment CreateGroupPostCommentExecutor,
+	castGroupPostVote CastGroupPostVoteExecutor,
 	leaveGroup LeaveGroupExecutor,
 	updateGroup UpdateGroupExecutor,
 	deleteGroup DeleteGroupExecutor,
@@ -123,6 +156,12 @@ func NewHandler(
 	getGroupChat GetGroupChatResolver,
 	getGroupPostComments GetGroupPostCommentsResolver,
 	getGroupMembers GetGroupMembersResolver,
+	getPendingInvitations GetPendingInvitationsResolver,
+	getPendingJoinRequests GetPendingJoinRequestsResolver,
+	getSentInvitationIDs GetSentInvitationIDsResolver,
+	listMyGroups ListMyGroupsResolver,
+	getGroupPresence GetGroupPresenceResolver,
+	logger logger.Logger,
 ) *Handler {
 	return &Handler{
 		createGroup:            createGroup,
@@ -132,6 +171,7 @@ func NewHandler(
 		respondJoin:            respondJoin,
 		createGroupPost:        createGroupPost,
 		createGroupPostComment: createGroupPostComment,
+		castGroupPostVote:      castGroupPostVote,
 		leaveGroup:             leaveGroup,
 		updateGroup:            updateGroup,
 		deleteGroup:            deleteGroup,
@@ -141,7 +181,13 @@ func NewHandler(
 		getGroupChat:           getGroupChat,
 		getGroupPostComments:   getGroupPostComments,
 		getGroupMembers:        getGroupMembers,
+		getPendingInvitations:  getPendingInvitations,
+		getPendingJoinRequests: getPendingJoinRequests,
+		getSentInvitationIDs:   getSentInvitationIDs,
+		listMyGroups:           listMyGroups,
+		getGroupPresence:       getGroupPresence,
 		userLookup:             userLookup,
 		extractUser:            extractUser,
+		logger:                 logger,
 	}
 }

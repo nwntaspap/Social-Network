@@ -1,0 +1,120 @@
+{
+  "exchanges": [
+    { "name": "notifications.exchange" },
+    { "name": "dead.letter.exchange" }
+  ],
+  "queues": [
+    {
+      "name": "notifications_queue",
+      "dead_letter_exchange": "dead.letter.exchange",
+      "dead_letter_routing_key": "dead.notifications"
+    },
+    {
+      "name": "dead.letter_queue",
+      "dead_letter_exchange": "",
+      "dead_letter_routing_key": ""
+    }
+  ],
+  "bindings": [
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "post.created"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "post.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "post.liked"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "post.liked.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "comment.created"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "comment.liked"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "comment.liked.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.requested"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.requested.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.accepted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.accepted.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "follow.declined"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "group.invitation"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "group.invitation.deleted"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "group.join_requested"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "event.created"
+    },
+    {
+      "queue": "notifications_queue",
+      "exchange": "notifications.exchange",
+      "routing_key": "event.created.deleted"
+    },
+    {
+      "queue": "dead.letter_queue",
+      "exchange": "dead.letter.exchange",
+      "routing_key": "dead.notifications"
+    }
+  ]
+}

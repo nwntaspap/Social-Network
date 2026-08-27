@@ -18,5 +18,5 @@ openssl req -x509 \
   -keyout "$SERVER_TLS_KEY_FILE" \
   -out "$SERVER_TLS_CERT_FILE" \
   -days 825 -subj "/CN=${SERVER_HOST}" \
-  -addext "subjectAltName=DNS:${SERVER_HOST}"
+  -addext "subjectAltName=DNS:${SERVER_HOST},DNS:forum"
 echo "Certificate generated successfully."

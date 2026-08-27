@@ -13,7 +13,8 @@ const topicSchema = `
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
-    username TEXT NOT NULL UNIQUE
+    username TEXT NOT NULL UNIQUE,
+    is_private BOOLEAN NOT NULL DEFAULT 0
 );
 CREATE TABLE topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,6 +31,12 @@ CREATE TABLE topic_allowed_users (
     topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (topic_id, user_id)
+);
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id INTEGER REFERENCES topics(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    content TEXT NOT NULL
 );
 CREATE TABLE votes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,8 +55,23 @@ CREATE INDEX idx_topics_user ON topics(user_id);
 CREATE INDEX idx_topics_created ON topics(created_at DESC);
 CREATE INDEX idx_topics_group ON topics(group_id);
 CREATE INDEX idx_topic_allowed_users_topic ON topic_allowed_users(topic_id);
+CREATE TABLE follows (
+    follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    followee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, followee_id)
+);
+CREATE INDEX idx_follows_followee ON follows(followee_id);
 INSERT INTO users (id, email, username) VALUES ('u1', 'a@b.com', 'alice');
-INSERT INTO users (id, email, username) VALUES ('u2', 'c@d.com', 'bob');`
+INSERT INTO users (id, email, username) VALUES ('u2', 'c@d.com', 'bob');
+INSERT INTO users (id, email, username) VALUES ('u3', 'e@f.com', 'charlie');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u2', 'u1');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u3', 'u1');
+INSERT INTO follows (follower_id, followee_id) VALUES ('u1', 'u3');`
+
+func strPtr(s string) *string {
+	return &s
+}
 
 func setupTopicStore(t *testing.T) *SQLiteStore {
 	t.Helper()
@@ -127,7 +149,7 @@ func TestCreateTopic_WithAllowedUsers(t *testing.T) {
 		t.Fatalf("CreateTopic: %v", err)
 	}
 
-	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	got, err := s.GetTopicByID(context.Background(), top.ID, strPtr("u1"))
 	if err != nil {
 		t.Fatalf("GetTopicByID: %v", err)
 	}
@@ -183,7 +205,7 @@ func TestUpdateTopic(t *testing.T) {
 		t.Fatalf("UpdateTopic: %v", err)
 	}
 
-	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	got, err := s.GetTopicByID(context.Background(), top.ID, strPtr("u1"))
 	if err != nil {
 		t.Fatalf("GetTopicByID: %v", err)
 	}
@@ -243,7 +265,7 @@ func TestGetFeed_WithUserVote(t *testing.T) {
 	if err := s.CreateTopic(context.Background(), top, nil); err != nil {
 		t.Fatalf("CreateTopic: %v", err)
 	}
-	if err := s.CastVote(context.Background(), "u1", top.ID, 1); err != nil {
+	if _, err := s.CastVote(context.Background(), "u1", top.ID, 1); err != nil {
 		t.Fatalf("CastVote: %v", err)
 	}
 
@@ -280,71 +302,52 @@ func TestGetFeed_Filter(t *testing.T) {
 	}
 }
 
-func TestCastVote(t *testing.T) {
+func TestGetFeed_ExcludesGroupPosts(t *testing.T) {
 	s := setupTopicStore(t)
 
-	top := &topic.Topic{UserID: "u1", Title: "Vote", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
+	_ = s.CreateTopic(context.Background(), &topic.Topic{UserID: "u1", Title: "Regular", Content: "x"}, nil)
+	gid := "group-1"
+	_ = s.CreateTopic(context.Background(), &topic.Topic{UserID: "u1", Title: "GroupOnly", Content: "y", GroupID: &gid}, nil)
 
-	if err := s.CastVote(context.Background(), "u2", top.ID, 1); err != nil {
-		t.Fatalf("CastVote: %v", err)
-	}
-
-	vc, err := s.GetVoteCounts(context.Background(), top.ID)
+	topics, count, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
 	if err != nil {
-		t.Fatalf("GetVoteCounts: %v", err)
+		t.Fatalf("GetFeed: %v", err)
 	}
-	if vc.Upvotes != 1 || vc.Downvotes != 0 || vc.Score != 1 {
-		t.Errorf("votes = %+v, want {1 0 1}", vc)
+	if count != 1 {
+		t.Errorf("count = %d, want 1", count)
 	}
-}
-
-func TestCastVote_Toggle(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "Toggle", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
-
-	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
-	if vc.Upvotes != 0 || vc.Downvotes != 1 || vc.Score != -1 {
-		t.Errorf("after toggle: votes = %+v, want {0 1 -1}", vc)
+	if len(topics) != 1 || topics[0].Title != "Regular" {
+		t.Errorf("topics = %v, want [Regular]", topics)
 	}
 }
 
-func TestDeleteVote(t *testing.T) {
+func TestCommentsCount(t *testing.T) {
 	s := setupTopicStore(t)
 
-	top := &topic.Topic{UserID: "u1", Title: "DelVote", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u2", top.ID, 1)
-
-	if err := s.DeleteVote(context.Background(), "u2", top.ID); err != nil {
-		t.Fatalf("DeleteVote: %v", err)
+	top := &topic.Topic{UserID: "u1", Title: "Commented", Content: "x"}
+	if err := s.CreateTopic(context.Background(), top, nil); err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	if _, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO comments (topic_id, user_id, content) VALUES (?, 'u2', 'c1'), (?, 'u2', 'c2')`,
+		top.ID, top.ID); err != nil {
+		t.Fatalf("insert comments: %v", err)
 	}
 
-	vc, _ := s.GetVoteCounts(context.Background(), top.ID)
-	if vc.Upvotes != 0 {
-		t.Errorf("UpvoteCount = %d, want 0", vc.Upvotes)
-	}
-}
-
-func TestGetVoteCounts(t *testing.T) {
-	s := setupTopicStore(t)
-
-	top := &topic.Topic{UserID: "u1", Title: "Counts", Content: "x"}
-	_ = s.CreateTopic(context.Background(), top, nil)
-	_ = s.CastVote(context.Background(), "u1", top.ID, 1)
-	_ = s.CastVote(context.Background(), "u2", top.ID, -1)
-
-	vc, err := s.GetVoteCounts(context.Background(), top.ID)
+	topics, _, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
 	if err != nil {
-		t.Fatalf("GetVoteCounts: %v", err)
+		t.Fatalf("GetFeed: %v", err)
 	}
-	if vc.Upvotes != 1 || vc.Downvotes != 1 || vc.Score != 0 {
-		t.Errorf("votes = %+v, want {1 1 0}", vc)
+	if len(topics) != 1 || topics[0].CommentsCount != 2 {
+		t.Errorf("GetFeed CommentsCount = %d, want 2", topics[0].CommentsCount)
+	}
+
+	got, err := s.GetTopicByID(context.Background(), top.ID, nil)
+	if err != nil {
+		t.Fatalf("GetTopicByID: %v", err)
+	}
+	if got.CommentsCount != 2 {
+		t.Errorf("GetTopicByID CommentsCount = %d, want 2", got.CommentsCount)
 	}
 }
 
@@ -379,5 +382,45 @@ func TestGetTopicsByUserID(t *testing.T) {
 	}
 	if len(topics) != 2 {
 		t.Errorf("len = %d, want 2", len(topics))
+	}
+}
+
+func TestGetTopicByID_NullImagePath(t *testing.T) {
+	s := setupTopicStore(t)
+
+	result, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO topics (user_id, title, content, image_path) VALUES ('u1', 'No Image', 'x', NULL)`)
+	if err != nil {
+		t.Fatalf("seed topic: %v", err)
+	}
+	id, _ := result.LastInsertId()
+
+	got, err := s.GetTopicByID(context.Background(), int(id), nil)
+	if err != nil {
+		t.Fatalf("GetTopicByID: %v", err)
+	}
+	if got.ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", got.ImagePath)
+	}
+}
+
+func TestGetFeed_NullImagePath(t *testing.T) {
+	s := setupTopicStore(t)
+
+	_, err := s.db.ExecContext(context.Background(),
+		`INSERT INTO topics (user_id, title, content, image_path) VALUES ('u1', 'No Image', 'x', NULL)`)
+	if err != nil {
+		t.Fatalf("seed topic: %v", err)
+	}
+
+	topics, _, err := s.GetFeed(context.Background(), "u1", 1, 10, "created_at", "DESC", "")
+	if err != nil {
+		t.Fatalf("GetFeed: %v", err)
+	}
+	if len(topics) != 1 {
+		t.Fatalf("len = %d, want 1", len(topics))
+	}
+	if topics[0].ImagePath != "" {
+		t.Errorf("ImagePath = %q, want empty string", topics[0].ImagePath)
 	}
 }

@@ -51,7 +51,7 @@ func (m *unfollowMockRepo) GetFollowingCount(_ context.Context, _ string) (int, 
 
 func TestUnfollowUserHandler_Success(t *testing.T) {
 	repo := &unfollowMockRepo{}
-	h := NewUnfollowUserHandler(repo)
+	h := NewUnfollowUserHandler(repo, &mockBus{})
 
 	err := h.Execute(context.Background(), UnfollowUserCommand{
 		FollowerID: "user-1",
@@ -70,7 +70,7 @@ func TestUnfollowUserHandler_Success(t *testing.T) {
 
 func TestUnfollowUserHandler_SelfUnfollow(t *testing.T) {
 	repo := &unfollowMockRepo{}
-	h := NewUnfollowUserHandler(repo)
+	h := NewUnfollowUserHandler(repo, &mockBus{})
 
 	err := h.Execute(context.Background(), UnfollowUserCommand{
 		FollowerID: "user-1",
@@ -86,7 +86,7 @@ func TestUnfollowUserHandler_SelfUnfollow(t *testing.T) {
 
 func TestUnfollowUserHandler_RepoError(t *testing.T) {
 	repo := &unfollowMockRepo{deleteFollowErr: errors.New("db error")}
-	h := NewUnfollowUserHandler(repo)
+	h := NewUnfollowUserHandler(repo, &mockBus{})
 
 	err := h.Execute(context.Background(), UnfollowUserCommand{
 		FollowerID: "user-1",

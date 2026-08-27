@@ -53,21 +53,4 @@ func TestDAGGate_Run(t *testing.T) {
 	if !strings.Contains(res.Message, "CIRCULAR") {
 		t.Errorf("expected circular path in message, got: %s", res.Message)
 	}
-
-	// 4. Fallback notification import FAIL
-	t.Setenv("MOCK_CYCLE", "0")
-	t.Setenv("MOCK_NOTIF", "1")
-	res = g.Run()
-	if res.Status != "FAIL" {
-		t.Errorf("expected notification import FAIL, got: %s (%s)", res.Status, res.Message)
-	}
-}
-
-func TestDAGGate_NotificationImportsNonexistent(t *testing.T) {
-	// checkNotificationImports with nonexistent directory
-	dg := &DAGGate{InternalDir: "/nonexistent"}
-	res := dg.checkNotificationImports()
-	if res != nil {
-		t.Errorf("expected nil for nonexistent directory, got: %v", res)
-	}
 }

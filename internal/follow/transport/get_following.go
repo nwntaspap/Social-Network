@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 
 	"social-network/internal/follow/queries"
@@ -9,21 +10,29 @@ import (
 
 func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.logger.PrintError(errors.New("invalid request method"), nil)
 		helpers.RespondWithError(w, http.StatusMethodNotAllowed, "Invalid request method")
 		return
 	}
 
 	userID, err := helpers.GetQueryString(r, "userId")
 	if err != nil {
+		h.logger.PrintError(errors.New("userId query param required"), nil)
 		helpers.RespondWithError(w, http.StatusBadRequest, "userId query param required")
 		return
 	}
 
 	following, err := h.getFollowing.Resolve(r.Context(), queries.GetFollowingQuery{UserID: userID})
 	if err != nil {
+		h.logger.PrintError(err, nil)
 		helpers.RespondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, nil, following)
+	users := make([]*UserResult, len(following))
+	for i, f := range following {
+		users[i] = h.lookupUser(r.Context(), f.FolloweeID)
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, nil, users)
 }

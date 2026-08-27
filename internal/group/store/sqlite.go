@@ -77,6 +77,25 @@ func (s *SQLiteStore) GetMemberRole(ctx context.Context, groupID, userID string)
 	return group.Role(role), nil
 }
 
+func (s *SQLiteStore) GetGroupAdmins(ctx context.Context, groupID string) ([]string, error) {
+	var users []string
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT user_id FROM group_members WHERE group_id = ? AND role in (?,?)`,
+		groupID, group.RoleAdmin, group.RoleCreator)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		users = append(users, userID)
+	}
+	return users, rows.Err()
+}
+
 func (s *SQLiteStore) CreateInvitation(ctx context.Context, inv *group.Invitation) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO group_invitations (id, group_id, inviter_id, invitee_id) VALUES (?, ?, ?, ?)`,
@@ -162,7 +181,25 @@ func (s *SQLiteStore) CreatePost(ctx context.Context, p *group.Post) error {
 	return err
 }
 
-func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID string, page, size int) ([]group.Post, int, error) {
+func (s *SQLiteStore) GetPostByID(ctx context.Context, postID string) (*group.Post, error) {
+	var p group.Post
+	var imagePath sql.NullString
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, group_id, author_id, title, content, image_path, created_at
+		 FROM group_posts WHERE id = ?`, postID).Scan(
+		&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &imagePath, &p.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, group.ErrPostNotFound
+		}
+		return nil, fmt.Errorf("get group post: %w", err)
+	}
+	p.ImagePath = imagePath.String
+	return &p, nil
+}
+
+func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID, userID string, page, size int) ([]group.Post, int, error) {
 	var total int
 	err := s.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM group_posts WHERE group_id = ?`, groupID).Scan(&total)
@@ -172,10 +209,28 @@ func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID string, pag
 
 	offset := (page - 1) * size
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, group_id, author_id, title, content, image_path, created_at, updated_at
-		 FROM group_posts WHERE group_id = ?
-		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		groupID, size, offset)
+		`SELECT p.id, p.group_id, p.author_id, p.title, p.content, p.image_path, p.created_at, p.updated_at,
+		        COALESCE(vc.upvotes, 0), COALESCE(vc.downvotes, 0), COALESCE(vc.score, 0),
+		        COALESCE(cc.comments_count, 0),
+		        uv.reaction_type
+		 FROM group_posts p
+		 LEFT JOIN (
+		     SELECT post_id,
+		            COUNT(CASE WHEN reaction_type = 1 THEN 1 END) AS upvotes,
+		            COUNT(CASE WHEN reaction_type = -1 THEN 1 END) AS downvotes,
+		            COUNT(CASE WHEN reaction_type = 1 THEN 1 END) - COUNT(CASE WHEN reaction_type = -1 THEN 1 END) AS score
+		     FROM group_post_votes
+		     GROUP BY post_id
+		 ) vc ON p.id = vc.post_id
+		 LEFT JOIN (
+		     SELECT post_id, COUNT(*) AS comments_count
+		     FROM group_post_comments
+		     GROUP BY post_id
+		 ) cc ON p.id = cc.post_id
+		 LEFT JOIN group_post_votes uv ON p.id = uv.post_id AND uv.user_id = ?
+		 WHERE p.group_id = ?
+		 ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
+		userID, groupID, size, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list group posts: %w", err)
 	}
@@ -184,51 +239,23 @@ func (s *SQLiteStore) GetPostsByGroupID(ctx context.Context, groupID string, pag
 	var posts []group.Post
 	for rows.Next() {
 		var p group.Post
+		var imagePath sql.NullString
 		var updatedAt sql.NullTime
-		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &p.ImagePath, &p.CreatedAt, &updatedAt); err != nil {
+		var userVote sql.NullInt32
+		if err := rows.Scan(&p.ID, &p.GroupID, &p.AuthorID, &p.Title, &p.Content, &imagePath,
+			&p.CreatedAt, &updatedAt, &p.UpvoteCount, &p.DownvoteCount, &p.VoteScore,
+			&p.CommentsCount, &userVote); err != nil {
 			return nil, 0, fmt.Errorf("scan group post: %w", err)
 		}
+		p.ImagePath = imagePath.String
 		p.UpdatedAt = database.ResolveTime(updatedAt, p.CreatedAt)
+		if userVote.Valid {
+			v := int(userVote.Int32)
+			p.UserVote = &v
+		}
 		posts = append(posts, p)
 	}
 	return posts, total, rows.Err()
-}
-
-func (s *SQLiteStore) CreatePostComment(ctx context.Context, c *group.PostComment) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO group_post_comments (id, post_id, author_id, content, image_path) VALUES (?, ?, ?, ?, ?)`,
-		c.ID, c.PostID, c.AuthorID, c.Content, c.ImagePath)
-	return err
-}
-
-func (s *SQLiteStore) GetPostComments(ctx context.Context, postID string, page, size int) ([]group.PostComment, int, error) {
-	var total int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM group_post_comments WHERE post_id = ?`, postID).Scan(&total)
-	if err != nil {
-		return nil, 0, fmt.Errorf("count post comments: %w", err)
-	}
-
-	offset := (page - 1) * size
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, post_id, author_id, content, image_path, created_at
-		 FROM group_post_comments WHERE post_id = ?
-		 ORDER BY created_at ASC LIMIT ? OFFSET ?`,
-		postID, size, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list post comments: %w", err)
-	}
-	defer rows.Close()
-
-	var comments []group.PostComment
-	for rows.Next() {
-		var c group.PostComment
-		if err := rows.Scan(&c.ID, &c.PostID, &c.AuthorID, &c.Content, &c.ImagePath, &c.CreatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scan post comment: %w", err)
-		}
-		comments = append(comments, c)
-	}
-	return comments, total, rows.Err()
 }
 
 func (s *SQLiteStore) ListGroups(ctx context.Context, page, size int) ([]group.Group, int, error) {
@@ -261,6 +288,86 @@ func (s *SQLiteStore) ListGroups(ctx context.Context, page, size int) ([]group.G
 	return groups, total, rows.Err()
 }
 
+func groupSearchFilter(query string) (string, []any) {
+	if query == "" {
+		return "", nil
+	}
+	pattern := "%" + query + "%"
+	where := `WHERE title LIKE ? OR description LIKE ?`
+	args := []any{pattern, pattern}
+	return where, args
+}
+
+func (s *SQLiteStore) SearchGroups(ctx context.Context, query string, page, size int) ([]group.Group, int, error) {
+	where, args := groupSearchFilter(query)
+
+	var total int
+	countArgs := args
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM groups `+where, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count groups: %w", err)
+	}
+
+	offset := (page - 1) * size
+	args = append(args, size, offset)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, title, description, creator_id, created_at, updated_at
+		 FROM groups `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []group.Group
+	for rows.Next() {
+		var g group.Group
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan group: %w", err)
+		}
+		g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
+		groups = append(groups, g)
+	}
+	return groups, total, rows.Err()
+}
+
+// ListUserGroups returns the groups a user belongs to, newest first.
+func (s *SQLiteStore) ListUserGroups(ctx context.Context, userID string, page, size int) ([]group.Group, int, error) {
+	var total int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*)
+		 FROM groups g JOIN group_members gm ON gm.group_id = g.id
+		 WHERE gm.user_id = ?`, userID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count user groups: %w", err)
+	}
+
+	offset := (page - 1) * size
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT g.id, g.title, g.description, g.creator_id, g.created_at, g.updated_at
+		 FROM groups g JOIN group_members gm ON gm.group_id = g.id
+		 WHERE gm.user_id = ?
+		 ORDER BY g.created_at DESC LIMIT ? OFFSET ?`,
+		userID, size, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user groups: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []group.Group
+	for rows.Next() {
+		var g group.Group
+		var updatedAt sql.NullTime
+		if err := rows.Scan(&g.ID, &g.Title, &g.Description, &g.CreatorID, &g.CreatedAt, &updatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan user group: %w", err)
+		}
+		g.UpdatedAt = database.ResolveTime(updatedAt, g.CreatedAt)
+		groups = append(groups, g)
+	}
+	return groups, total, rows.Err()
+}
+
 func (s *SQLiteStore) GetPendingInvitations(ctx context.Context, userID string) ([]group.Invitation, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, group_id, inviter_id, invitee_id, created_at
@@ -279,6 +386,26 @@ func (s *SQLiteStore) GetPendingInvitations(ctx context.Context, userID string) 
 		invitations = append(invitations, inv)
 	}
 	return invitations, rows.Err()
+}
+
+func (s *SQLiteStore) GetSentInvitationInviteeIDs(ctx context.Context, groupID, inviterID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT invitee_id FROM group_invitations WHERE group_id = ? AND inviter_id = ?`,
+		groupID, inviterID)
+	if err != nil {
+		return nil, fmt.Errorf("list sent invitation invitee ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan invitee id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (s *SQLiteStore) GetPendingJoinRequests(ctx context.Context, groupID string) ([]group.JoinRequest, error) {
@@ -398,14 +525,4 @@ func (s *SQLiteStore) GetJoinRequestByID(ctx context.Context, id string) (*group
 		return nil, fmt.Errorf("get join request by id: %w", err)
 	}
 	return &jr, nil
-}
-
-func (s *SQLiteStore) CountPostComments(ctx context.Context, postID string) (int, error) {
-	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM group_post_comments WHERE post_id = ?`, postID).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("count post comments: %w", err)
-	}
-	return count, nil
 }

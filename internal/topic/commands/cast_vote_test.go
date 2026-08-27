@@ -8,9 +8,15 @@ import (
 	"social-network/internal/topic"
 )
 
+var topicWithAuthor = &mockTopicRepo{
+	getByIDFn: func(_ context.Context, id int, _ *string) (*topic.Topic, error) {
+		return &topic.Topic{ID: id, UserID: "author-1"}, nil
+	},
+}
+
 func TestCastVote_Like(t *testing.T) {
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(&mockTopicRepo{}, bus)
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u2",
@@ -20,14 +26,14 @@ func TestCastVote_Like(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.liked" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.liked")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
 }
 
 func TestCastVote_Dislike(t *testing.T) {
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(&mockTopicRepo{}, bus)
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u2",
@@ -37,13 +43,13 @@ func TestCastVote_Dislike(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if bus.eventType != "post.unliked" {
-		t.Errorf("event = %q, want %q", bus.eventType, "post.unliked")
+	if bus.routingKey != "created" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "created")
 	}
 }
 
 func TestCastVote_EmptyUser(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		TopicID:      1,
@@ -55,7 +61,7 @@ func TestCastVote_EmptyUser(t *testing.T) {
 }
 
 func TestCastVote_ZeroTopicID(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u1",
@@ -67,7 +73,7 @@ func TestCastVote_ZeroTopicID(t *testing.T) {
 }
 
 func TestCastVote_InvalidReaction(t *testing.T) {
-	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{})
+	h := NewCastVoteHandler(&mockTopicRepo{}, &mockEventBus{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID:       "u1",
@@ -81,12 +87,12 @@ func TestCastVote_InvalidReaction(t *testing.T) {
 
 func TestCastVote_RepoError(t *testing.T) {
 	repo := &mockTopicRepo{
-		castVoteFn: func(_ context.Context, _ string, _ int, _ int) error {
-			return errors.New("db error")
+		castVoteFn: func(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+			return topic.VoteChangeAdded, errors.New("db error")
 		},
 	}
 	bus := &mockEventBus{}
-	h := NewCastVoteHandler(repo, bus)
+	h := NewCastVoteHandler(repo, bus, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), CastVoteCommand{
 		UserID: "u1", TopicID: 1, ReactionType: 1,
@@ -94,7 +100,59 @@ func TestCastVote_RepoError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from repo")
 	}
-	if bus.eventType != "" {
-		t.Errorf("event published after error: %q", bus.eventType)
+	if bus.routingKey != "" {
+		t.Errorf("event published after error: %q", bus.routingKey)
+	}
+}
+
+func TestCastVote_ChangeVote(t *testing.T) {
+	bus := &mockEventBus{}
+	h := NewCastVoteHandler(topicWithAuthor, bus, &mockUserRepo{})
+
+	err := h.Execute(context.Background(), CastVoteCommand{
+		UserID:       "u2",
+		TopicID:      1,
+		ReactionType: -1,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(bus.calls) < 2 {
+		t.Fatalf("expected at least 2 publish calls, got %d", len(bus.calls))
+	}
+	if bus.calls[0].routingKey != "deleted" {
+		t.Errorf("first call routingKey = %q, want %q", bus.calls[0].routingKey, "deleted")
+	}
+	if bus.calls[0].eventType != "post.vote.deleted" {
+		t.Errorf("first call eventType = %q, want %q", bus.calls[0].eventType, "post.vote.deleted")
+	}
+	if bus.calls[1].routingKey != "created" {
+		t.Errorf("second call routingKey = %q, want %q", bus.calls[1].routingKey, "created")
+	}
+	if bus.calls[1].eventType != "post.disliked" {
+		t.Errorf("second call eventType = %q, want %q", bus.calls[1].eventType, "post.disliked")
+	}
+}
+
+func TestCastVote_ToggleOff(t *testing.T) {
+	bus := &mockEventBus{}
+	repo := &mockTopicRepo{
+		castVoteFn: func(_ context.Context, _ string, _ int, _ int) (topic.VoteChange, error) {
+			return topic.VoteChangeRemoved, nil
+		},
+	}
+	h := NewCastVoteHandler(repo, bus, &mockUserRepo{})
+
+	err := h.Execute(context.Background(), CastVoteCommand{
+		UserID: "u2", TopicID: 1, ReactionType: 1,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if bus.routingKey != "deleted" {
+		t.Errorf("routingKey = %q, want %q", bus.routingKey, "deleted")
+	}
+	if bus.eventType != "post.vote.deleted" {
+		t.Errorf("eventType = %q, want %q", bus.eventType, "post.vote.deleted")
 	}
 }

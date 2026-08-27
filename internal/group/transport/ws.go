@@ -1,41 +1,143 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
 
-	"social-network/internal/pkg/helpers"
+	"social-network/internal/core/realtime"
+	"social-network/internal/group/commands"
+	"social-network/internal/group/queries"
+	"social-network/internal/platform/logger"
 )
 
-type GroupChatEnvelope struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
+// GroupMemberIDsResolver lists the members of a group.
+type GroupMemberIDsResolver interface {
+	Resolve(ctx context.Context, q queries.ListGroupMemberIDsQuery) ([]string, error)
 }
 
-type GroupChatPayload struct {
-	GroupID string `json:"groupId"`
-	Content string `json:"content"`
+// GroupWSHandler provides WebSocket handlers for group chat.
+type GroupWSHandler struct {
+	hub        *realtime.Hub
+	send       SendGroupMessageExecutor
+	getHistory GetGroupChatResolver
+	memberIDs  GroupMemberIDsResolver
+	markRead   MarkGroupReadExecutor
+	logger     logger.Logger
 }
 
-const TypeGroupChatMessage = "group_chat_message"
+// MarkGroupReadExecutor marks a group's chat as read by the user.
+type MarkGroupReadExecutor interface {
+	Execute(ctx context.Context, cmd commands.MarkGroupReadCommand) error
+}
 
-func (h *Handler) HandleGroupChatWS(w http.ResponseWriter, r *http.Request) {
-	groupID, err := helpers.GetQueryString(r, "groupId")
+func NewGroupWSHandler(
+	hub *realtime.Hub,
+	send SendGroupMessageExecutor,
+	getHistory GetGroupChatResolver,
+	memberIDs GroupMemberIDsResolver,
+	markRead MarkGroupReadExecutor,
+	logger logger.Logger,
+) *GroupWSHandler {
+	return &GroupWSHandler{hub: hub, send: send, getHistory: getHistory, memberIDs: memberIDs, markRead: markRead, logger: logger}
+}
+
+// Handlers returns the per-type handlers to register on the realtime router.
+func (h *GroupWSHandler) Handlers() map[string]realtime.WSHandler {
+	return map[string]realtime.WSHandler{
+		realtime.TypeGroupChatSend:     realtime.HandlerFunc(h.handleSend),
+		realtime.TypeGroupChatHistory:  realtime.HandlerFunc(h.handleHistory),
+		realtime.TypeGroupChatMarkRead: realtime.HandlerFunc(h.handleMarkRead),
+	}
+}
+
+func (h *GroupWSHandler) handleSend(client *realtime.Client, env realtime.Envelope) {
+	var payload realtime.GroupChatSendPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, "invalid group chat send payload")
+		return
+	}
+
+	result, err := h.send.Execute(context.Background(), commands.SendGroupMessageCommand{
+		GroupID:  payload.GroupID,
+		SenderID: client.UserID,
+		Content:  payload.Content,
+	})
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "groupId is required")
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
 
-	userID, ok := h.extractUser(r)
-	if !ok {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "User not authenticated")
+	memberIDs, err := h.memberIDs.Resolve(context.Background(), queries.ListGroupMemberIDsQuery{GroupID: payload.GroupID})
+	if err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
 		return
 	}
 
-	_ = groupID
-	_ = userID
+	out, _ := json.Marshal(realtime.GroupChatMessagePayload{
+		ID:        result.Message.ID,
+		GroupID:   result.Message.GroupID,
+		SenderID:  result.Message.SenderID,
+		Content:   result.Message.Content,
+		CreatedAt: result.Message.CreatedAt,
+	})
+	reply, _ := json.Marshal(realtime.Envelope{Type: realtime.TypeGroupChatMessage, Payload: out})
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"ok","message":"group chat websocket placeholder"}`))
+	h.hub.SendToUsers(memberIDs, reply)
+}
+
+func (h *GroupWSHandler) handleHistory(client *realtime.Client, env realtime.Envelope) {
+	var payload realtime.GroupChatHistoryPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, "invalid group chat history payload")
+		return
+	}
+
+	result, err := h.getHistory.Resolve(context.Background(), queries.GetGroupChatQuery{
+		GroupID: payload.GroupID,
+		UserID:  client.UserID,
+		Limit:   payload.Limit,
+	})
+	if err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
+		return
+	}
+
+	out, _ := json.Marshal(result.Messages)
+	reply, _ := json.Marshal(realtime.Envelope{
+		Type:      realtime.TypeGroupChatHistResult,
+		RequestID: env.RequestID,
+		Payload:   out,
+	})
+	client.Send(reply)
+}
+
+func (h *GroupWSHandler) handleMarkRead(client *realtime.Client, env realtime.Envelope) {
+	var payload realtime.GroupChatMarkReadPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, "invalid group_chat.mark_read payload")
+		return
+	}
+	if err := h.markRead.Execute(context.Background(), commands.MarkGroupReadCommand{
+		GroupID: payload.GroupID,
+		UserID:  client.UserID,
+	}); err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
+	}
+}
+
+func sendGroupRealtimeError(client *realtime.Client, requestID, message string) {
+	payload, _ := json.Marshal(realtime.ErrorPayload{Message: message})
+	reply, _ := json.Marshal(realtime.Envelope{
+		Type:      realtime.TypeError,
+		RequestID: requestID,
+		Payload:   payload,
+	})
+	client.Send(reply)
 }

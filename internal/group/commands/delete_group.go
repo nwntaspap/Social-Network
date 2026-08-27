@@ -2,9 +2,11 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"social-network/internal/group"
+	"social-network/internal/platform/eventbus"
 )
 
 type DeleteGroupCommand struct {
@@ -14,10 +16,14 @@ type DeleteGroupCommand struct {
 
 type DeleteGroupHandler struct {
 	repo group.Repository
+	bus  eventbus.EventBus
 }
 
-func NewDeleteGroupHandler(repo group.Repository) *DeleteGroupHandler {
-	return &DeleteGroupHandler{repo: repo}
+func NewDeleteGroupHandler(repo group.Repository, bus eventbus.EventBus) *DeleteGroupHandler {
+	return &DeleteGroupHandler{
+		repo: repo,
+		bus:  bus,
+	}
 }
 
 func (h *DeleteGroupHandler) Execute(ctx context.Context, cmd DeleteGroupCommand) error {
@@ -40,5 +46,15 @@ func (h *DeleteGroupHandler) Execute(ctx context.Context, cmd DeleteGroupCommand
 		return group.ErrNotCreator
 	}
 
-	return h.repo.DeleteGroup(ctx, cmd.GroupID)
+	err = h.repo.DeleteGroup(ctx, cmd.GroupID)
+	if err != nil {
+		return err
+	}
+
+	body, _ := json.Marshal(eventbus.Notification{
+		Type:       eventbus.EventGroup,
+		ResourceID: cmd.GroupID,
+	})
+	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingDeleted, body)
+	return nil
 }

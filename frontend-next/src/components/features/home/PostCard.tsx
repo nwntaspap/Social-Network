@@ -3,38 +3,72 @@
 /**
  * components/features/home/PostCard.tsx
  *
- * Individual post card with optimistic like toggle.
+ * Individual post card with optimistic like/dislike toggles.
  * Extracted from app/page.tsx.
- *
- * When the backend is ready, wire handleLike to:
- *   liked ? unlikePost(post.id) : likePost(post.id)
- * The optimistic update pattern is already in place — just add the API call
- * and revert state on error.
  */
 
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { likePost, dislikePost, voteGroupPost } from '@/lib/api';
 import { getDisplayName, getFileUrl, formatRelativeDate } from '@/lib/helpers';
 import type { Post } from '@/lib/types';
 
-export default function PostCard({ post }: { post: Post }) {
-  const [liked, setLiked] = useState(post.isLiked ?? false);
-  const [likesCount, setLikesCount] = useState(post.likesCount);
+interface PostCardProps {
+  post: Post;
+  commentsExpanded?: boolean;
+  onToggleComments?: (postId: string) => void;
+}
 
-  async function handleLike() {
-    // Optimistic update — flip immediately, revert on error
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikesCount((prev) => (wasLiked ? prev - 1 : prev + 1));
+function initialVote(post: Post): number | null {
+  if (post.userVote !== undefined && post.userVote !== null) return post.userVote;
+  if (typeof post.isLiked === 'number') return post.isLiked;
+  return post.isLiked ? 1 : null;
+}
+
+export default function PostCard({ post, commentsExpanded, onToggleComments }: PostCardProps) {
+  const isGroupPost = !!post.groupId;
+
+  const [userVote, setUserVote] = useState<number | null>(initialVote(post));
+  const [likesCount, setLikesCount] = useState(post.likesCount);
+  const [dislikesCount, setDislikesCount] = useState(post.dislikesCount ?? 0);
+
+  async function handleVote(reaction: 1 | -1, commit: (nextVote: number | null) => Promise<void>) {
+    const prevVote = userVote;
+    const nextVote = prevVote === reaction ? null : reaction;
+
+    const deltaOf = (r: 1 | -1): number => {
+      if (prevVote === r) return -1;
+      if (nextVote === r) return 1;
+      return 0;
+    };
+
+    setUserVote(nextVote);
+    setLikesCount((prev) => prev + deltaOf(1));
+    setDislikesCount((prev) => prev + deltaOf(-1));
 
     try {
-      // TODO: wasLiked ? await unlikePost(post.id) : await likePost(post.id)
+      await commit(nextVote);
     } catch {
-      // Revert on failure
-      setLiked(wasLiked);
-      setLikesCount((prev) => (wasLiked ? prev + 1 : prev - 1));
+      setUserVote(prevVote);
+      setLikesCount((prev) => prev - deltaOf(1));
+      setDislikesCount((prev) => prev - deltaOf(-1));
     }
+  }
+
+  async function handleTopicVote(reaction: 1 | -1) {
+    await handleVote(reaction, async () => {
+      // Re-casting the same reaction toggles the vote off on the backend.
+      if (reaction === 1) {
+        await likePost(Number(post.id));
+      } else {
+        await dislikePost(Number(post.id));
+      }
+    });
+  }
+
+  async function handleGroupVote(reaction: 1 | -1) {
+    await handleVote(reaction, () => voteGroupPost(post.id, reaction));
   }
 
   const privacyIcon = post.privacy === 'public' ? '🌍' : post.privacy === 'followers' ? '👥' : '🔒';
@@ -81,20 +115,53 @@ export default function PostCard({ post }: { post: Post }) {
 
       {/* Actions */}
       <div className="post-actions">
-        <button className="post-action-btn" onClick={handleLike}>
+        <button
+          type="button"
+          aria-label="Like"
+          className="post-action-btn"
+          onClick={() => (isGroupPost ? handleGroupVote(1) : handleTopicVote(1))}
+        >
           <Image
-            src="/images/icons/heart.png"
-            alt={liked ? 'Unlike' : 'Like'}
+            src="/images/icons/icon-like.png"
+            alt="Like"
             width={20}
             height={20}
-            className={liked ? 'icon-liked' : 'icon-not-liked'}
+            className={userVote === 1 ? 'icon-liked' : 'icon-not-liked'}
           />
           <span>{likesCount}</span>
         </button>
-        <Link href={`/post/${post.id}`} className="post-action-btn">
-          <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
-          <span>{post.commentsCount}</span>
-        </Link>
+        <button
+          type="button"
+          aria-label="Dislike"
+          className="post-action-btn"
+          onClick={() => (isGroupPost ? handleGroupVote(-1) : handleTopicVote(-1))}
+        >
+          <Image
+            src="/images/icons/icon-dislike.png"
+            alt="Dislike"
+            width={20}
+            height={20}
+            className={userVote === -1 ? 'icon-liked' : 'icon-not-liked'}
+          />
+          <span>{dislikesCount}</span>
+        </button>
+        {onToggleComments ? (
+          <button
+            type="button"
+            aria-label="Comments"
+            aria-expanded={commentsExpanded}
+            className="post-action-btn"
+            onClick={() => onToggleComments(post.id)}
+          >
+            <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
+            <span>{post.commentsCount}</span>
+          </button>
+        ) : (
+          <Link href={`/post/${post.id}`} className="post-action-btn">
+            <Image src="/images/icons/icon-comments.png" alt="Comments" width={20} height={20} />
+            <span>{post.commentsCount}</span>
+          </Link>
+        )}
       </div>
     </div>
   );

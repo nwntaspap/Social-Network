@@ -25,6 +25,22 @@ CREATE TABLE users (
     date_of_birth DATETIME,
     about_me TEXT,
     is_private BOOLEAN DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id TEXT NOT NULL,
+    followee_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(follower_id, followee_id),
+    FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS follow_requests (
+    follower_id TEXT NOT NULL,
+    followee_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(follower_id, followee_id),
+    FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
 );`
 
 func setupStore(t *testing.T) *SQLiteStore {
@@ -110,6 +126,26 @@ func TestCreate_DuplicateUsername(t *testing.T) {
 	}
 }
 
+func TestCreate_GenderRoundTrip(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	if err := s.Create(ctx, &user.User{
+		ID: "u1", Email: "g@example.com", Nickname: "gendered",
+		PasswordHash: "h", Gender: "female", CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if got.Gender != "female" {
+		t.Errorf("Gender = %q, want %q", got.Gender, "female")
+	}
+}
+
 func TestGetByID(t *testing.T) {
 	s := setupStore(t)
 	ctx := context.Background()
@@ -129,6 +165,64 @@ func TestGetByID(t *testing.T) {
 	}
 	if got.FirstName != "A" {
 		t.Errorf("FirstName = %q, want %q", got.FirstName, "A")
+	}
+}
+
+// Regression: OAuth signups insert users without dob/gender/about (NULLs).
+// GetByID must scan them without error and yield zero-value fields.
+func TestGetByID_OAuthShapedUser(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO users (id, username, email, password_hash, first_name, last_name, avatar_url)
+		 VALUES ('oauth1', 'ghuser', 'gh@example.com', '', 'Git', 'Hub', '/img.png')`)
+	if err != nil {
+		t.Fatalf("seed oauth-shaped user: %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "oauth1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v (NULL profile columns must not break scanning)", err)
+	}
+	if got.Email != "gh@example.com" {
+		t.Errorf("Email = %q, want %q", got.Email, "gh@example.com")
+	}
+	if !got.DateOfBirth.IsZero() {
+		t.Errorf("DateOfBirth = %v, want zero", got.DateOfBirth)
+	}
+	if got.Gender != "" || got.AboutMe != "" {
+		t.Errorf("Gender/AboutMe = %q/%q, want empty", got.Gender, got.AboutMe)
+	}
+	if got.IsPrivate {
+		t.Error("IsPrivate = true, want false (OAuth users are public by default)")
+	}
+}
+
+func TestUpdate_PersistsDOBAndGender(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+	dob := time.Date(2000, 5, 17, 0, 0, 0, 0, time.UTC)
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "u@example.com", Nickname: "u", PasswordHash: "h", CreatedAt: time.Now()})
+
+	err := s.Update(ctx, &user.User{
+		ID: "u1", Email: "u@example.com", Nickname: "u",
+		DateOfBirth: dob, Gender: "other",
+	})
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	got, err := s.GetByID(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if !got.DateOfBirth.Equal(dob) {
+		t.Errorf("DateOfBirth = %v, want %v", got.DateOfBirth, dob)
+	}
+	if got.Gender != "other" {
+		t.Errorf("Gender = %q, want %q", got.Gender, "other")
 	}
 }
 
@@ -321,5 +415,184 @@ func TestListAll_Empty(t *testing.T) {
 	}
 	if len(users) != 0 {
 		t.Fatalf("ListAll() returned %d users, want 0", len(users))
+	}
+}
+
+func TestSearchUsers_MatchesColumns(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", FirstName: "Alice", LastName: "Smith", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bobby", FirstName: "Bob", LastName: "Alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", FirstName: "Carol", LastName: "Jones", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsers(ctx, "alice", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(alice) error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("SearchUsers(alice) returned %d users, want 2", len(users))
+	}
+
+	users, err = s.SearchUsers(ctx, "carol", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(carol) error = %v", err)
+	}
+	if len(users) != 1 || users[0].ID != "u3" {
+		t.Fatalf("SearchUsers(carol) = %+v, want [u3]", users)
+	}
+
+	users, err = s.SearchUsers(ctx, "", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsers(empty) error = %v", err)
+	}
+	if len(users) != 3 {
+		t.Fatalf("SearchUsers(empty) returned %d users, want 3", len(users))
+	}
+	if users[0].Nickname != "alice" {
+		t.Errorf("users[0].Nickname = %q, want %q (sorted)", users[0].Nickname, "alice")
+	}
+}
+
+func TestSearchUsers_Paginates(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "a@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "b@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "c@example.com", Nickname: "carol", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsers(ctx, "", 2, 2)
+	if err != nil {
+		t.Fatalf("SearchUsers(page2) error = %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("SearchUsers(page2) returned %d users, want 1", len(users))
+	}
+	if users[0].Nickname != "carol" {
+		t.Errorf("users[0].Nickname = %q, want %q", users[0].Nickname, "carol")
+	}
+}
+
+func TestCountUsers_MatchesFilter(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", FirstName: "Alice", LastName: "Smith", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bobby", FirstName: "Bob", LastName: "Alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", FirstName: "Carol", LastName: "Jones", PasswordHash: "h", CreatedAt: time.Now()})
+
+	count, err := s.CountUsers(ctx, "alice")
+	if err != nil {
+		t.Fatalf("CountUsers(alice) error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsers(alice) = %d, want 2", count)
+	}
+
+	count, err = s.CountUsers(ctx, "nomatch")
+	if err != nil {
+		t.Fatalf("CountUsers(nomatch) error = %v", err)
+	}
+	if count != 0 {
+		t.Errorf("CountUsers(nomatch) = %d, want 0", count)
+	}
+
+	count, err = s.CountUsers(ctx, "")
+	if err != nil {
+		t.Fatalf("CountUsers(empty) error = %v", err)
+	}
+	if count != 3 {
+		t.Errorf("CountUsers(empty) = %d, want 3", count)
+	}
+}
+
+func TestSearchUsersExcluding_ExcludesSelfAndFollowed(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@example.com", Nickname: "carol", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u4", Email: "dave@example.com", Nickname: "dave", PasswordHash: "h", CreatedAt: time.Now()})
+
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`, "u1", "u2"); err != nil {
+		t.Fatalf("seed follow: %v", err)
+	}
+
+	users, err := s.SearchUsersExcluding(ctx, "", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding() error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("SearchUsersExcluding() returned %d users, want 2", len(users))
+	}
+	if users[0].Nickname != "carol" || users[1].Nickname != "dave" {
+		t.Errorf("SearchUsersExcluding() = %+v, want [carol dave]", users)
+	}
+
+	count, err := s.CountUsersExcluding(ctx, "", "u1")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding() error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsersExcluding() = %d, want 2", count)
+	}
+
+	searched, err := s.SearchUsersExcluding(ctx, "bob", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding(bob) error = %v", err)
+	}
+	if len(searched) != 0 {
+		t.Errorf("SearchUsersExcluding(bob) = %+v, want empty (followed user)", searched)
+	}
+}
+
+func TestSearchUsersExcluding_ExcludesPendingFollowRequests(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@test.com", Nickname: "a", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@test.com", Nickname: "b", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u3", Email: "carol@test.com", Nickname: "c", PasswordHash: "h", CreatedAt: time.Now()})
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO follow_requests (follower_id, followee_id) VALUES (?, ?)`, "u1", "u2"); err != nil {
+		t.Fatalf("seed follow request: %v", err)
+	}
+	users, err := s.SearchUsersExcluding(ctx, "", "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding() error = %v", err)
+	}
+	if len(users) != 1 || users[0].Nickname != "c" {
+		t.Errorf("SearchUsersExcluding() = %+v, want [c]", users)
+	}
+	count, err := s.CountUsersExcluding(ctx, "", "u1")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding() error = %v", err)
+	}
+	if count != 1 {
+		t.Errorf("CountUsersExcluding() = %d, want 1", count)
+	}
+}
+
+func TestSearchUsersExcluding_EmptyViewerBehavesLikeSearchUsers(t *testing.T) {
+	s := setupStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, &user.User{ID: "u1", Email: "alice@example.com", Nickname: "alice", PasswordHash: "h", CreatedAt: time.Now()})
+	seedUser(t, s, &user.User{ID: "u2", Email: "bob@example.com", Nickname: "bob", PasswordHash: "h", CreatedAt: time.Now()})
+
+	users, err := s.SearchUsersExcluding(ctx, "", "", 10, 0)
+	if err != nil {
+		t.Fatalf("SearchUsersExcluding(empty viewer) error = %v", err)
+	}
+	if len(users) != 2 {
+		t.Errorf("SearchUsersExcluding(empty viewer) = %+v, want 2 users", users)
+	}
+
+	count, err := s.CountUsersExcluding(ctx, "", "")
+	if err != nil {
+		t.Fatalf("CountUsersExcluding(empty viewer) error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountUsersExcluding(empty viewer) = %d, want 2", count)
 	}
 }

@@ -43,12 +43,12 @@ func TestReadTokenFromRequest_Cookie(t *testing.T) {
 	}
 }
 
-func TestReadTokenFromRequest_QueryParam(t *testing.T) {
+func TestReadTokenFromRequest_QueryParamRejected(t *testing.T) {
 	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?session_token=tok-456", nil)
 
 	got := readTokenFromRequest(r, "session_token")
-	if got != "tok-456" {
-		t.Errorf("readTokenFromRequest() = %q, want %q", got, "tok-456")
+	if got != "" {
+		t.Errorf("readTokenFromRequest() = %q, want empty string (query params must not authenticate)", got)
 	}
 }
 
@@ -179,7 +179,7 @@ func TestAuth_Required_InvalidToken(t *testing.T) {
 	}
 }
 
-func TestAuth_Required_QueryParamFallback(t *testing.T) {
+func TestAuth_Required_QueryParamRejected(t *testing.T) {
 	sm := &mockSessionManager{
 		getFn: func(_ context.Context, token string) (*session.Session, error) {
 			if token == "ws-token" {
@@ -195,7 +195,7 @@ func TestAuth_Required_QueryParamFallback(t *testing.T) {
 	auth := NewAuth(sm, "access_token")
 
 	handler := auth.Required(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(GetUserIDFromContext(r)))
+		t.Fatal("handler should not be called")
 	})
 
 	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?access_token=ws-token", nil)
@@ -203,11 +203,8 @@ func TestAuth_Required_QueryParamFallback(t *testing.T) {
 
 	handler(w, r)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
-	}
-	if w.Body.String() != "user-99" {
-		t.Errorf("body = %q, want %q", w.Body.String(), "user-99")
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
 	}
 }
 

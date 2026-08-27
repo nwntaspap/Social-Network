@@ -23,9 +23,11 @@ func setupNewStoreDB(t *testing.T) database.DB {
 	_, err = db.ExecContext(context.Background(), `
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
-			email TEXT NOT NULL,
-			username TEXT NOT NULL,
-			password_hash TEXT,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			first_name TEXT NOT NULL,
+			last_name TEXT NOT NULL,
+			username TEXT UNIQUE,
 			avatar_url TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
@@ -55,8 +57,8 @@ func insertNewStoreUser(t *testing.T, db *sql.DB) {
 	t.Helper()
 	_, err := db.ExecContext(
 		context.Background(),
-		`INSERT INTO users (id, username, email, password_hash) VALUES (?, ?, ?, '')`,
-		"user-1", "alice", "alice@example.com",
+		`INSERT INTO users (id, username, email, password_hash, first_name, last_name) VALUES (?, ?, ?, '', ?, ?)`,
+		"user-1", "alice", "alice@example.com", "Alice", "Example",
 	)
 	if err != nil {
 		t.Fatalf("failed to insert user: %v", err)
@@ -178,6 +180,73 @@ func TestNewStore_CreateOAuthUser_Success(t *testing.T) {
 	}
 	if oauthRecord.Email != "bob@example.com" {
 		t.Errorf("oauth Email = %q, want %q", oauthRecord.Email, "bob@example.com")
+	}
+
+	// Verify the local user was created with derived first/last name
+	var firstName, lastName string
+	err = db.QueryRowContext(context.Background(),
+		`SELECT first_name, last_name FROM users WHERE id = ?`, "new-user-1").Scan(&firstName, &lastName)
+	if err != nil {
+		t.Fatalf("query user after create error = %v", err)
+	}
+	if firstName != "Bob" || lastName != "" {
+		t.Errorf("user name = %q %q, want %q %q", firstName, lastName, "Bob", "")
+	}
+}
+
+func TestNewStore_CreateOAuthUser_FullNameSplit(t *testing.T) {
+	db := setupNewStoreDB(t)
+	defer db.Close()
+
+	store := NewSQLiteStore(db)
+
+	oauthUser := &oauth.User{
+		UserID:     "new-user-2",
+		ProviderID: "gg_123",
+		Provider:   oauth.ProviderGoogle,
+		Email:      "carol@example.com",
+		Username:   "Carol Smith",
+		AvatarURL:  "https://avatar.example.com/gg_123",
+		Name:       "Carol Smith",
+	}
+
+	if _, err := store.CreateOAuthUser(context.Background(), oauthUser); err != nil {
+		t.Fatalf("CreateOAuthUser() error = %v", err)
+	}
+
+	var firstName, lastName string
+	err := db.QueryRowContext(context.Background(),
+		`SELECT first_name, last_name FROM users WHERE id = ?`, "new-user-2").Scan(&firstName, &lastName)
+	if err != nil {
+		t.Fatalf("query user after create error = %v", err)
+	}
+	if firstName != "Carol" || lastName != "Smith" {
+		t.Errorf("user name = %q %q, want %q %q", firstName, lastName, "Carol", "Smith")
+	}
+}
+
+func TestSplitName(t *testing.T) {
+	tests := []struct {
+		label     string
+		input     string
+		fallback  string
+		wantFirst string
+		wantLast  string
+	}{
+		{label: "full name", input: "John Doe", fallback: "fallback", wantFirst: "John", wantLast: "Doe"},
+		{label: "multi-word last name", input: "Jean Claude Van Damme", fallback: "fallback", wantFirst: "Jean", wantLast: "Claude Van Damme"},
+		{label: "single word", input: "johndoe", fallback: "fallback", wantFirst: "johndoe", wantLast: ""},
+		{label: "empty name uses fallback", input: "  ", fallback: "johndoe", wantFirst: "johndoe", wantLast: ""},
+		{label: "whitespace trimmed", input: "  Alice Smith ", fallback: "fallback", wantFirst: "Alice", wantLast: "Smith"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.label, func(t *testing.T) {
+			gotFirst, gotLast := splitName(tt.input, tt.fallback)
+			if gotFirst != tt.wantFirst || gotLast != tt.wantLast {
+				t.Errorf("splitName() = (%q, %q), want (%q, %q)", gotFirst, gotLast, tt.wantFirst, tt.wantLast)
+			}
+		})
 	}
 }
 

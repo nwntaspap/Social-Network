@@ -49,6 +49,7 @@ type Server struct {
 	rateLimiterOpt *rateLimiterOptions
 
 	handlers *AllHandlers
+	realtime *realtimeServer
 
 	handler http.Handler
 }

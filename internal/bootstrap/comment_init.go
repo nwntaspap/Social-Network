@@ -10,17 +10,19 @@ import (
 	commenttransport "social-network/internal/comment/transport"
 	"social-network/internal/core/middleware"
 	"social-network/internal/platform/database"
+	"social-network/internal/platform/eventbus"
+	"social-network/internal/platform/logger"
+	localstorage "social-network/internal/platform/storage/local"
+	topicstore "social-network/internal/topic/store"
+	"social-network/internal/user"
+	userstore "social-network/internal/user/store"
 )
 
-type commentEventBus struct{}
-
-func (b *commentEventBus) Publish(_ context.Context, _ string, _ any) error {
-	return nil
-}
-
-func initComment(db database.DB) *commenttransport.Handler {
+func initComment(db database.DB, bus eventbus.EventBus, logger logger.Logger) *commenttransport.Handler {
 	store := commentstore.NewSQLiteStore(db)
-	bus := &commentEventBus{}
+	img := localstorage.NewLocalStorage()
+	users := userstore.NewSQLiteStore(db)
+	topics := topicstore.NewSQLiteStore(db)
 
 	extractUser := func(r *http.Request) (string, bool) {
 		uid := middleware.GetUserIDFromContext(r)
@@ -30,16 +32,56 @@ func initComment(db database.DB) *commenttransport.Handler {
 		return uid, true
 	}
 
+	userLookup := &commentUserLookupAdapter{repo: userstore.NewSQLiteStore(db)}
+
 	return commenttransport.NewHandler(
 		extractUser,
-		commentcommands.NewCreateCommentHandler(store, bus),
+		userLookup,
+		commentcommands.NewCreateCommentHandler(store, bus, users, topics, img),
 		commentcommands.NewUpdateCommentHandler(store),
-		commentcommands.NewDeleteCommentHandler(store),
-		commentcommands.NewCastCommentVoteHandler(store, bus),
+		commentcommands.NewDeleteCommentHandler(store, bus, topics, users),
+		commentcommands.NewCastCommentVoteHandler(store, bus, users),
+		commentcommands.NewDeleteCommentVoteHandler(store, bus),
 		commentqueries.NewGetCommentByIDResolver(store),
 		commentqueries.NewGetCommentByIDWithVotesResolver(store),
-		commentqueries.NewGetCommentsByTopicResolver(store),
-		commentqueries.NewGetCommentsByTopicWithVotesResolver(store),
+		commentqueries.NewGetCommentsByTopicResolver(store, topics),
+		commentqueries.NewGetCommentsByTopicWithVotesResolver(store, topics),
 		commentqueries.NewGetVoteCountsResolver(store),
+		logger,
 	)
 }
+
+type commentUserLookupAdapter struct {
+	repo user.Repository
+}
+
+func (a *commentUserLookupAdapter) GetUserByID(ctx context.Context, id string) (*commenttransport.UserResult, error) {
+	u, err := a.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &commenttransport.UserResult{
+		ID:        u.ID,
+		Email:     u.Email,
+		Username:  u.Nickname,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Nickname:  u.Nickname,
+		AboutMe:   u.AboutMe,
+		IsPublic:  !u.IsPrivate,
+		CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if !u.DateOfBirth.IsZero() {
+		result.DateOfBirth = u.DateOfBirth.Format("2006-01-02")
+	}
+
+	if u.AvatarPath != "" {
+		result.AvatarURL = u.AvatarPath
+	}
+
+	return result, nil
+}
+
+var _ commenttransport.UserLookup = (*commentUserLookupAdapter)(nil)

@@ -17,8 +17,10 @@ type User struct {
 	DateOfBirth  time.Time
 	Nickname     string
 	AboutMe      string
+	Gender       string
 	AvatarPath   string
 	IsPrivate    bool
+	IsOnline     bool
 	CreatedAt    time.Time
 }
 
@@ -30,4 +32,8 @@ type Repository interface {
 	Update(ctx context.Context, u *User) error
 	TogglePrivacy(ctx context.Context, id string, isPrivate bool) error
 	ListAll(ctx context.Context) ([]User, error)
+}
+
+type ImageStorage interface {
+	Upload(ctx context.Context, data []byte, filename string) error
 }

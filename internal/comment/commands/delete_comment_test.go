@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"social-network/internal/comment"
 )
 
 func TestDeleteComment_Success(t *testing.T) {
-	repo := &mockRepo{}
-	h := NewDeleteCommentHandler(repo)
+	repo := &mockRepo{getResult: &comment.Comment{ID: 1, TopicID: 1, UserID: "u1", Content: "hello"}}
+	h := NewDeleteCommentHandler(repo, &mockBus{}, &mockTopicRepo{}, &mockUserRepo{})
 
 	if err := h.Execute(context.Background(), DeleteCommentCommand{
 		UserID:    "u1",
@@ -19,7 +21,7 @@ func TestDeleteComment_Success(t *testing.T) {
 }
 
 func TestDeleteComment_EmptyUserID(t *testing.T) {
-	h := NewDeleteCommentHandler(&mockRepo{})
+	h := NewDeleteCommentHandler(&mockRepo{}, &mockBus{}, &mockTopicRepo{}, &mockUserRepo{})
 	err := h.Execute(context.Background(), DeleteCommentCommand{CommentID: 1})
 	if !errors.Is(err, ErrEmptyUserID) {
 		t.Errorf("error = %v, want ErrEmptyUserID", err)
@@ -27,7 +29,7 @@ func TestDeleteComment_EmptyUserID(t *testing.T) {
 }
 
 func TestDeleteComment_ZeroCommentID(t *testing.T) {
-	h := NewDeleteCommentHandler(&mockRepo{})
+	h := NewDeleteCommentHandler(&mockRepo{}, &mockBus{}, &mockTopicRepo{}, &mockUserRepo{})
 	err := h.Execute(context.Background(), DeleteCommentCommand{UserID: "u1"})
 	if !errors.Is(err, ErrEmptyCommentID) {
 		t.Errorf("error = %v, want ErrEmptyCommentID", err)
@@ -35,8 +37,8 @@ func TestDeleteComment_ZeroCommentID(t *testing.T) {
 }
 
 func TestDeleteComment_RepoError(t *testing.T) {
-	repo := &mockRepo{deleteErr: errors.New("db fail")}
-	h := NewDeleteCommentHandler(repo)
+	repo := &mockRepo{deleteErr: errors.New("db fail"), getResult: &comment.Comment{ID: 1, TopicID: 1, UserID: "u1", Content: "hello"}}
+	h := NewDeleteCommentHandler(repo, &mockBus{}, &mockTopicRepo{}, &mockUserRepo{})
 
 	err := h.Execute(context.Background(), DeleteCommentCommand{
 		UserID:    "u1",

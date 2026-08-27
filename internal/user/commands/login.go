@@ -3,13 +3,14 @@ package commands
 import (
 	"context"
 	"errors"
+	"time"
 
 	"social-network/internal/core/session"
 	"social-network/internal/pkg/bcrypt"
 	"social-network/internal/user"
 )
 
-var ErrInvalidCredentials = errors.New("invalid email or password")
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type LoginCommand struct {
 	Identifier string
@@ -17,8 +18,9 @@ type LoginCommand struct {
 }
 
 type LoginResult struct {
-	User  *user.User
-	Token string
+	User      *user.User
+	Token     string
+	ExpiresAt time.Time
 }
 
 type LoginHandler struct {
@@ -56,7 +58,8 @@ func (h *LoginHandler) Execute(ctx context.Context, cmd LoginCommand) (*LoginRes
 	}
 
 	return &LoginResult{
-		User:  u,
-		Token: sess.Token,
+		User:      u,
+		Token:     sess.Token,
+		ExpiresAt: sess.ExpiresAt,
 	}, nil
 }
