@@ -56,10 +56,7 @@ func initChat(db database.DB, hub *realtime.Hub, logger logger.Logger) *chattran
 		return uid, true
 	}
 
-	gate := chatcommands.NewMessageGate(
-		followAdapter,
-		&chat.PrivacyAdapter{IsPrivateFn: userStore.IsPrivate},
-	)
+	gate := chatcommands.NewMessageGate(followAdapter)
 	startChat := chatcommands.NewOpenPrivateChatHandler(store, gate)
 
 	return chattransport.NewHandlerWithStart(logger, extractUser, userLookup, getHistory, getUsers, startChat)

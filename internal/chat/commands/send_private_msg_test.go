@@ -67,21 +67,12 @@ func (m *mockFollowChecker) AreConnected(_ context.Context, a, b string) (bool, 
 	return true, nil
 }
 
-type mockPrivacyChecker struct {
-	private bool
-	err     error
-}
-
-func (m *mockPrivacyChecker) IsPrivate(_ context.Context, _ string) (bool, error) {
-	return m.private, m.err
-}
-
-func newTestHandler(follow chat.FollowChecker, privacy chat.UserPrivacyChecker) *SendPrivateMessageHandler {
-	return NewSendPrivateMessageHandler(&mockChatRepo{}, NewMessageGate(follow, privacy))
+func newTestHandler(follow chat.FollowChecker) *SendPrivateMessageHandler {
+	return NewSendPrivateMessageHandler(&mockChatRepo{}, NewMessageGate(follow))
 }
 
 func TestSendPrivateMessage_NotConnected(t *testing.T) {
-	h := newTestHandler(&mockFollowChecker{connectedFn: func(_, _ string) bool { return false }}, &mockPrivacyChecker{})
+	h := newTestHandler(&mockFollowChecker{connectedFn: func(_, _ string) bool { return false }})
 	_, err := h.Execute(context.Background(), SendPrivateMessageCommand{
 		SenderID: "u1", ReceiverID: "u2", Content: "hello",
 	})
@@ -90,25 +81,10 @@ func TestSendPrivateMessage_NotConnected(t *testing.T) {
 	}
 }
 
-func TestSendPrivateMessage_RecipientPrivateNotFollowing(t *testing.T) {
-	// sender follows receiver, but receiver does not follow sender and is private
+func TestSendPrivateMessage_ApprovedFollowerCanMessagePrivateRecipient(t *testing.T) {
+	// sender follows a private recipient; the established follow enables messaging
 	h := newTestHandler(
 		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u1" && b == "u2" }},
-		&mockPrivacyChecker{private: true},
-	)
-	_, err := h.Execute(context.Background(), SendPrivateMessageCommand{
-		SenderID: "u1", ReceiverID: "u2", Content: "hello",
-	})
-	if !errors.Is(err, ErrCannotMessage) {
-		t.Fatalf("expected ErrCannotMessage, got %v", err)
-	}
-}
-
-func TestSendPrivateMessage_SenderFollows_PublicRecipient(t *testing.T) {
-	// sender follows receiver, receiver is public and does not follow back
-	h := newTestHandler(
-		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u1" && b == "u2" }},
-		&mockPrivacyChecker{private: false},
 	)
 	res, err := h.Execute(context.Background(), SendPrivateMessageCommand{
 		SenderID: "u1", ReceiverID: "u2", Content: "hello",
@@ -121,11 +97,42 @@ func TestSendPrivateMessage_SenderFollows_PublicRecipient(t *testing.T) {
 	}
 }
 
-func TestSendPrivateMessage_RecipientFollowsBack_Private(t *testing.T) {
-	// receiver follows sender, so message allowed even though receiver is private
+func TestSendPrivateMessage_PrivateSenderMessagesPublicFollower(t *testing.T) {
+	// private sender messages a public recipient who follows back
 	h := newTestHandler(
 		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u2" && b == "u1" }},
-		&mockPrivacyChecker{private: true},
+	)
+	res, err := h.Execute(context.Background(), SendPrivateMessageCommand{
+		SenderID: "u1", ReceiverID: "u2", Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Message == nil || res.Message.Content != "hello" {
+		t.Fatalf("unexpected message: %#v", res.Message)
+	}
+}
+
+func TestSendPrivateMessage_SenderFollows_PublicRecipient(t *testing.T) {
+	// sender follows receiver, receiver does not follow back
+	h := newTestHandler(
+		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u1" && b == "u2" }},
+	)
+	res, err := h.Execute(context.Background(), SendPrivateMessageCommand{
+		SenderID: "u1", ReceiverID: "u2", Content: "hello",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Message == nil || res.Message.Content != "hello" {
+		t.Fatalf("unexpected message: %#v", res.Message)
+	}
+}
+
+func TestSendPrivateMessage_RecipientFollowsBack(t *testing.T) {
+	// receiver follows sender, so messaging is enabled
+	h := newTestHandler(
+		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u2" && b == "u1" }},
 	)
 	res, err := h.Execute(context.Background(), SendPrivateMessageCommand{
 		SenderID: "u1", ReceiverID: "u2", Content: "hello",
@@ -143,18 +150,7 @@ func TestSendPrivateMessage_RecipientFollowsBack_Private(t *testing.T) {
 
 func TestSendPrivateMessage_FollowCheckError(t *testing.T) {
 	sentinel := errors.New("db down")
-	h := newTestHandler(&mockFollowChecker{err: sentinel}, &mockPrivacyChecker{})
-	_, err := h.Execute(context.Background(), SendPrivateMessageCommand{
-		SenderID: "u1", ReceiverID: "u2", Content: "hello",
-	})
-	if !errors.Is(err, sentinel) {
-		t.Fatalf("expected sentinel error, got %v", err)
-	}
-}
-
-func TestSendPrivateMessage_PrivacyCheckError(t *testing.T) {
-	sentinel := errors.New("db down")
-	h := newTestHandler(&mockFollowChecker{}, &mockPrivacyChecker{err: sentinel})
+	h := newTestHandler(&mockFollowChecker{err: sentinel})
 	_, err := h.Execute(context.Background(), SendPrivateMessageCommand{
 		SenderID: "u1", ReceiverID: "u2", Content: "hello",
 	})
@@ -166,7 +162,6 @@ func TestSendPrivateMessage_PrivacyCheckError(t *testing.T) {
 func TestOpenPrivateChat_Gate(t *testing.T) {
 	h := NewOpenPrivateChatHandler(&mockChatRepo{}, NewMessageGate(
 		&mockFollowChecker{connectedFn: func(a, b string) bool { return a == "u1" && b == "u2" }},
-		&mockPrivacyChecker{private: false},
 	))
 	res, err := h.Execute(context.Background(), OpenPrivateChatCommand{SenderID: "u1", ReceiverID: "u2"})
 	if err != nil {
@@ -180,7 +175,6 @@ func TestOpenPrivateChat_Gate(t *testing.T) {
 func TestOpenPrivateChat_NotConnected(t *testing.T) {
 	h := NewOpenPrivateChatHandler(&mockChatRepo{}, NewMessageGate(
 		&mockFollowChecker{connectedFn: func(_, _ string) bool { return false }},
-		&mockPrivacyChecker{},
 	))
 	_, err := h.Execute(context.Background(), OpenPrivateChatCommand{SenderID: "u1", ReceiverID: "u2"})
 	if !errors.Is(err, ErrNotConnected) {

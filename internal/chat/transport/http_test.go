@@ -306,7 +306,6 @@ func TestStartChat_GateRejection(t *testing.T) {
 		want int
 	}{
 		{"not connected", commands.ErrNotConnected, http.StatusForbidden},
-		{"cannot message", commands.ErrCannotMessage, http.StatusForbidden},
 		{"missing user", errors.New("boom"), http.StatusInternalServerError},
 	}
 	for _, tc := range cases {

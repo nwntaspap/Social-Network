@@ -7,26 +7,18 @@ import (
 	"social-network/internal/chat"
 )
 
-var (
-	// ErrNotConnected is returned when neither user follows the other.
-	ErrNotConnected = errors.New("users are not connected: at least one must follow the other")
+// ErrNotConnected is returned when neither user follows the other.
+var ErrNotConnected = errors.New("users are not connected: at least one must follow the other")
 
-	// ErrCannotMessage is returned when the recipient neither follows the sender
-	// nor has a public profile, so the message cannot be delivered to them.
-	ErrCannotMessage = errors.New("recipient cannot receive your message")
-)
-
-// MessageGate enforces the private-messaging rules:
-//   - the sender and recipient must be connected (at least one follows the other), and
-//   - the recipient must be able to receive the message (they follow the sender
-//     or their profile is public).
+// MessageGate enforces the private-messaging rules: the sender and recipient
+// must be connected (at least one of them follows the other). A follow
+// established in either direction lets both users exchange messages.
 type MessageGate struct {
-	follow  chat.FollowChecker
-	privacy chat.UserPrivacyChecker
+	follow chat.FollowChecker
 }
 
-func NewMessageGate(follow chat.FollowChecker, privacy chat.UserPrivacyChecker) *MessageGate {
-	return &MessageGate{follow: follow, privacy: privacy}
+func NewMessageGate(follow chat.FollowChecker) *MessageGate {
+	return &MessageGate{follow: follow}
 }
 
 // Validate returns an error if a message from senderID to receiverID is not allowed.
@@ -42,14 +34,6 @@ func (g *MessageGate) Validate(ctx context.Context, senderID, receiverID string)
 
 	if !senderFollows && !receiverFollows {
 		return ErrNotConnected
-	}
-
-	isPrivate, err := g.privacy.IsPrivate(ctx, receiverID)
-	if err != nil {
-		return err
-	}
-	if !receiverFollows && isPrivate {
-		return ErrCannotMessage
 	}
 
 	return nil
