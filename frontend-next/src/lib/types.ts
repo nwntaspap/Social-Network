@@ -244,6 +244,12 @@ export interface IsTypingPayload {
   user_id: string;
 }
 
+/** Payload of the group_chat.is_typing broadcast. */
+export interface GroupChatIsTypingPayload {
+  group_id: string;
+  user_id: string;
+}
+
 /** Payload of an error envelope. */
 export interface WsErrorPayload {
   message: string;

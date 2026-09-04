@@ -18,7 +18,7 @@ import { chatSocket } from '@/lib/ws';
 import { useAuth } from '@/context/AuthContext';
 import { formatMessageTime, getDisplayName } from '@/lib/helpers';
 import MessageInput from '@/components/features/chat/MessageInput';
-import type { GroupChatMessageWire, GroupMember } from '@/lib/types';
+import type { GroupChatIsTypingPayload, GroupChatMessageWire, GroupMember } from '@/lib/types';
 import type { GroupPresenceState } from '@/lib/useGroupPresence';
 
 interface GroupChatRoomProps {
@@ -63,6 +63,7 @@ export default function GroupChatRoom({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showPresence, setShowPresence] = useState(false);
+  const [typers, setTypers] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Load history + members over HTTP on mount / group change. Members are
@@ -111,25 +112,76 @@ export default function GroupChatRoom({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [showPresence]);
 
-  // Subscribe to incoming group messages (the socket owner is upstream).
+  // Subscribe to incoming group messages + typing over the WS (the socket owner
+  // is upstream). Typing events carry who is typing and are auto-cleared after
+  // 3s or when that member's message arrives.
   useEffect(() => {
-    const unsubscribe = chatSocket.on('group_chat.message', (payload) => {
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+    const clearTyping = (userId: string) => {
+      const timer = timers.get(userId);
+      if (timer) {
+        clearTimeout(timer);
+        timers.delete(userId);
+      }
+      setTypers((prev) => {
+        if (!prev.has(userId)) return prev;
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    };
+
+    const unsubscribeMessage = chatSocket.on('group_chat.message', (payload) => {
       const msg = payload as GroupChatMessageWire;
       if (msg.group_id !== groupId) return;
       const display = toDisplayMessage(msg);
       setMessages((prev) => (prev.some((m) => m.id === display.id) ? prev : [...prev, display]));
+      clearTyping(msg.sender_id);
       chatSocket.send('group_chat.mark_read', { group_id: groupId });
     });
-    return unsubscribe;
-  }, [groupId]);
 
-  // Auto-scroll on new messages.
+    const unsubscribeTyping = chatSocket.on('group_chat.is_typing', (payload) => {
+      const p = payload as GroupChatIsTypingPayload;
+      if (p.group_id !== groupId || p.user_id === currentUser?.id) return;
+      setTypers((prev) => (prev.has(p.user_id) ? prev : new Set(prev).add(p.user_id)));
+      const existing = timers.get(p.user_id);
+      if (existing) clearTimeout(existing);
+      timers.set(
+        p.user_id,
+        setTimeout(() => clearTyping(p.user_id), 3000)
+      );
+    });
+
+    return () => {
+      unsubscribeMessage();
+      unsubscribeTyping();
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, [groupId, currentUser?.id]);
+
+  // Auto-scroll on new messages and typing changes.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [messages.length, typers.size]);
 
   function handleSend(content: string) {
     chatSocket.send('group_chat.send', { group_id: groupId, content });
+  }
+
+  function handleTyping() {
+    chatSocket.send('group_chat.typing', { group_id: groupId });
+  }
+
+  function typingLabel(userIDs: string[]): string {
+    const names = userIDs.map((id) => {
+      const gm = members.get(id);
+      return gm ? getDisplayName(gm.user) : 'Someone';
+    });
+    if (names.length === 1) return `${names[0]} is typing`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are typing`;
+    return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more are typing`;
   }
 
   const onlineCount = presence ? `${presence.online} online` : null;
@@ -259,10 +311,26 @@ export default function GroupChatRoom({
             );
           })
         )}
+        {typers.size > 0 && (
+          <div className="chat-message chat-message-typing">
+            <div className="group-chat-message-inner">
+              <div className="group-chat-typing-row">
+                <span className="group-chat-typing-name">{typingLabel([...typers])}</span>
+              </div>
+              <div className="chat-message-bubble chat-message-bubble-typing">
+                <span className="chat-typing-dots">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
-      <MessageInput onSend={handleSend} />
+      <MessageInput onSend={handleSend} onTyping={handleTyping} />
     </div>
   );
 }

@@ -189,6 +189,70 @@ func TestGroupWS_MarkReadRejectsBadPayload(t *testing.T) {
 	}
 }
 
+func TestGroupWS_TypingBroadcastsToMembers(t *testing.T) {
+	hub := realtime.NewHub()
+	memberIDs := &mockGroupMemberIDs{ids: []string{"u1", "u2", "u3"}}
+	h := newTestGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, memberIDs)
+
+	u1 := realtime.NewClient("u1", hub, nil)
+	u2 := realtime.NewClient("u2", hub, nil)
+	u3 := realtime.NewClient("u3", hub, nil)
+	hub.Register(u1)
+	hub.Register(u2)
+	hub.Register(u3)
+
+	drainStatusN(t, u1, 3)
+	drainStatusN(t, u2, 2)
+	drainStatusN(t, u3, 1)
+
+	payload, _ := json.Marshal(realtime.GroupChatTypingPayload{GroupID: "g1"})
+	h.handleTyping(u1, realtime.Envelope{Type: realtime.TypeGroupChatTyping, Payload: payload})
+
+	for name, c := range map[string]*realtime.Client{"u2": u2, "u3": u3} {
+		env := readGroupEnvelope(t, c)
+		if env.Type != realtime.TypeGroupIsTyping {
+			t.Fatalf("%s got %s, want group_chat.is_typing", name, env.Type)
+		}
+		var p realtime.GroupChatIsTyping
+		if err := json.Unmarshal(env.Payload, &p); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if p.GroupID != "g1" || p.UserID != "u1" {
+			t.Fatalf("%s typing payload = %#v", name, p)
+		}
+	}
+
+	assertNoGroupEnvelope(t, u1, "typer must not receive own typing broadcast")
+}
+
+func TestGroupWS_TypingRejectsNonMember(t *testing.T) {
+	hub := realtime.NewHub()
+	memberIDs := &mockGroupMemberIDs{ids: []string{"u1", "u2", "u3"}}
+	h := newTestGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, memberIDs)
+	client := realtime.NewClient("u9", hub, nil)
+
+	payload, _ := json.Marshal(realtime.GroupChatTypingPayload{GroupID: "g1"})
+	h.handleTyping(client, realtime.Envelope{Type: realtime.TypeGroupChatTyping, RequestID: "r1", Payload: payload})
+
+	env := readGroupEnvelope(t, client)
+	if env.Type != realtime.TypeError || env.RequestID != "r1" {
+		t.Fatalf("got %s/%s, want error r1", env.Type, env.RequestID)
+	}
+}
+
+func TestGroupWS_TypingRejectsBadPayload(t *testing.T) {
+	hub := realtime.NewHub()
+	h := newTestGroupWSHandler(hub, &mockGroupSend{}, &mockGroupChatResolver{}, &mockGroupMemberIDs{})
+	client := realtime.NewClient("u1", hub, nil)
+
+	h.handleTyping(client, realtime.Envelope{Type: realtime.TypeGroupChatTyping, Payload: []byte("{")})
+
+	env := readGroupEnvelope(t, client)
+	if env.Type != realtime.TypeError {
+		t.Fatalf("got %s, want error", env.Type)
+	}
+}
+
 func readGroupEnvelope(t *testing.T, client *realtime.Client) realtime.Envelope {
 	t.Helper()
 	select {
@@ -201,6 +265,15 @@ func readGroupEnvelope(t *testing.T, client *realtime.Client) realtime.Envelope 
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for envelope")
 		return realtime.Envelope{}
+	}
+}
+
+func assertNoGroupEnvelope(t *testing.T, client *realtime.Client, msg string) {
+	t.Helper()
+	select {
+	case raw := <-client.SendChannel():
+		t.Fatalf("%s: unexpected envelope %s", msg, string(raw))
+	case <-time.After(150 * time.Millisecond):
 	}
 }
 

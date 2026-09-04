@@ -422,6 +422,18 @@
   justify-content: flex-start;
 }
 
+.group-chat-typing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.group-chat-typing-name {
+  font-size: 12px;
+  color: #667eea;
+}
+
 .chat-message-bubble-typing {
   background: #e8eaf6;
   color: #667eea;

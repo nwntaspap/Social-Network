@@ -17,6 +17,7 @@ const (
 	TypeGroupChatSend     = "group_chat.send"
 	TypeGroupChatHistory  = "group_chat.history"
 	TypeGroupChatMarkRead = "group_chat.mark_read"
+	TypeGroupChatTyping   = "group_chat.typing"
 )
 
 // Outbound message types (server -> client).
@@ -27,6 +28,7 @@ const (
 	TypePong                = "pong"
 	TypeIsOnlineStatus      = "isOnlineStatus.update"
 	TypeIsTyping            = "chat.is_typing"
+	TypeGroupIsTyping       = "group_chat.is_typing"
 	TypeGroupChatMessage    = "group_chat.message"
 	TypeGroupChatHistResult = "group_chat.history_result"
 )
@@ -83,11 +85,21 @@ type GroupChatMarkReadPayload struct {
 	GroupID string `json:"group_id"`
 }
 
+type GroupChatTypingPayload struct {
+	GroupID string `json:"group_id"`
+}
+
 // Payloads for outbound messages.
 
 type ChatIsTyping struct {
 	ChatID string `json:"chat_id"`
 	UserID string `json:"user_id"`
+}
+
+// GroupChatIsTyping is the outbound payload informing group members who is typing.
+type GroupChatIsTyping struct {
+	GroupID string `json:"group_id"`
+	UserID  string `json:"user_id"`
 }
 
 type MessagePayload struct {
