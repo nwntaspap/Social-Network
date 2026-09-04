@@ -271,6 +271,7 @@ export type NotificationType =
   | 'follow_declined'
   | 'group_invite'
   | 'group_invite_removed'
+  | 'group_invite_pending'
   | 'group_join_request'
   | 'group_join_accept'
   | 'group_join_declined'

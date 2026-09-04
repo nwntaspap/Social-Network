@@ -71,14 +71,28 @@ describe('getNotificationMessage', () => {
 
   it('formats group join accept', () => {
     expect(getNotificationMessage(makeNotification({ type: 'group_join_accept' }))).toBe(
-      'Alice accepted your group join request'
+      'You joined the group'
     );
   });
 
   it('formats group join accept with the group title', () => {
     expect(
       getNotificationMessage(makeNotification({ type: 'group_join_accept', content_text: 'Devs' }))
-    ).toBe('Alice accepted your join request for group:"Devs"');
+    ).toBe('You joined group "Devs"');
+  });
+
+  it('formats pending group invite acceptance', () => {
+    expect(getNotificationMessage(makeNotification({ type: 'group_invite_pending' }))).toBe(
+      'You accepted to join the group'
+    );
+  });
+
+  it('formats pending group invite acceptance with the group title', () => {
+    expect(
+      getNotificationMessage(
+        makeNotification({ type: 'group_invite_pending', content_text: 'Devs' })
+      )
+    ).toBe('You accepted to join group "Devs"');
   });
 
   it('falls back to actor name when actor_name is missing', () => {
@@ -119,6 +133,9 @@ describe('getNotificationHref', () => {
     expect(getNotificationHref(makeNotification({ type: 'group_invite', resource_id: 'g1' }))).toBe(
       '/groups/g1'
     );
+    expect(
+      getNotificationHref(makeNotification({ type: 'group_invite_pending', resource_id: 'g1' }))
+    ).toBe('/groups/g1');
   });
 
   it('returns null when a group notification has no resource_id', () => {
@@ -136,9 +153,12 @@ describe('hasNotificationActions', () => {
     }
   );
 
-  it.each(['like', 'dislike', 'follow', 'comment'])('returns false for %s', (type) => {
-    expect(hasNotificationActions(makeNotification({ type }))).toBe(false);
-  });
+  it.each(['like', 'dislike', 'follow', 'comment', 'group_invite_pending'])(
+    'returns false for %s',
+    (type) => {
+      expect(hasNotificationActions(makeNotification({ type }))).toBe(false);
+    }
+  );
 });
 
 describe('getNotificationIcon', () => {
@@ -158,6 +178,7 @@ describe('getNotificationIcon', () => {
   it('maps group types to group', () => {
     expect(getNotificationIcon(makeNotification({ type: 'group_invite' }))).toBe('group');
     expect(getNotificationIcon(makeNotification({ type: 'group_join_request' }))).toBe('group');
+    expect(getNotificationIcon(makeNotification({ type: 'group_invite_pending' }))).toBe('group');
   });
 
   it('defaults to mention', () => {

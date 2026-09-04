@@ -40,7 +40,7 @@ func initGroup(db database.DB, bus eventbus.EventBus, isOnline func(string) bool
 		userLookup,
 		groupcommands.NewCreateGroupHandler(store),
 		groupcommands.NewInviteMemberHandler(store, followChecker, bus, users),
-		groupcommands.NewRespondInviteHandler(store, bus),
+		groupcommands.NewRespondInviteHandler(store, bus, users),
 		groupcommands.NewRequestJoinHandler(store, bus, users),
 		groupcommands.NewRespondJoinHandler(store, bus, users),
 		groupcommands.NewCreateGroupPostHandler(store, img),

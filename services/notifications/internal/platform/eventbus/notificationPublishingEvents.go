@@ -23,8 +23,9 @@ const (
 	EventGroupJoinAccepted  = "group.join.accepted"
 	EventGroupJoinDeclined  = "group.join.declined"
 
-	EventGroupInviteAccepted = "group.invitation.accepted"
-	EventGroupInviteDeclined = "group.invitation.declined"
+	EventGroupInviteAccepted        = "group.invitation.accepted"
+	EventGroupInviteAcceptedPending = "group.invitation.accepted_pending"
+	EventGroupInviteDeclined        = "group.invitation.declined"
 
 	EventProfileUpdate = "profile.updated"
 
