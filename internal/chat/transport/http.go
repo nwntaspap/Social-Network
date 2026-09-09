@@ -149,9 +149,6 @@ func (h *Handler) StartChat(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, commands.ErrNotConnected):
 			h.logger.PrintError(err, nil)
 			helpers.RespondWithError(w, http.StatusForbidden, "You are not connected to this user")
-		case errors.Is(err, commands.ErrCannotMessage):
-			h.logger.PrintError(err, nil)
-			helpers.RespondWithError(w, http.StatusForbidden, "This user cannot receive your messages")
 		default:
 			h.logger.PrintError(err, nil)
 			helpers.RespondWithError(w, http.StatusInternalServerError, "Failed to start chat")

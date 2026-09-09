@@ -8,6 +8,7 @@ import (
 	"social-network/internal/group"
 	"social-network/internal/pkg/uuid"
 	"social-network/internal/platform/eventbus"
+	"social-network/internal/user"
 )
 
 type RespondInviteCommand struct {
@@ -27,14 +28,16 @@ const (
 )
 
 type RespondInviteHandler struct {
-	repo group.Repository
-	bus  eventbus.EventBus
+	repo  group.Repository
+	bus   eventbus.EventBus
+	users user.Repository
 }
 
-func NewRespondInviteHandler(repo group.Repository, bus eventbus.EventBus) *RespondInviteHandler {
+func NewRespondInviteHandler(repo group.Repository, bus eventbus.EventBus, users user.Repository) *RespondInviteHandler {
 	return &RespondInviteHandler{
-		repo: repo,
-		bus:  bus,
+		repo:  repo,
+		bus:   bus,
+		users: users,
 	}
 }
 
@@ -117,6 +120,9 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 	if err != nil {
 		return "", err
 	}
+
+	var jrID string
+	createdNew := false
 	if !hasPending {
 		jr := &group.JoinRequest{
 			ID:          uuid.NewProvider().NewUUID(),
@@ -126,18 +132,52 @@ func (h *RespondInviteHandler) Execute(ctx context.Context, cmd RespondInviteCom
 		if err := h.repo.CreateJoinRequest(ctx, jr); err != nil {
 			return "", err
 		}
+		jrID = jr.ID
+		createdNew = true
+	} else {
+		existing, err := h.repo.GetJoinRequest(ctx, cmd.GroupID, cmd.InviteeID)
+		if err != nil {
+			return "", err
+		}
+		jrID = existing.ID
 	}
 
-	// Non-creator invite: notify invitee that acceptance is pending approval.
+	// Non-creator invite: notify the invitee that acceptance awaits approval.
 	body, _ := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventGroupInviteAccepted,
-		RecipientID:  cmd.InviteeID,
-		ActorID:      inv.InviterID,
-		ResourceType: eventbus.ResourceGroup,
-		ResourceID:   cmd.GroupID,
-		ContentText:  g.Title,
+		Type:          eventbus.EventGroupInviteAcceptedPending,
+		RecipientID:   cmd.InviteeID,
+		ActorID:       inv.InviterID,
+		ResourceType:  eventbus.ResourceGroup,
+		ResourceID:    cmd.GroupID,
+		JoinRequestID: jrID,
+		ContentText:   g.Title,
 	})
 	_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
+
+	// Inform the group admins that the invitee wants to join, unless a join
+	// request was already pending (they were already notified then).
+	if createdNew {
+		actor, err := h.users.GetByID(ctx, cmd.InviteeID)
+		if err != nil {
+			return "", err
+		}
+		admins, err := h.repo.GetGroupAdmins(ctx, cmd.GroupID)
+		if err != nil {
+			return "", err
+		}
+		body, _ := json.Marshal(eventbus.Notification{
+			Type:               eventbus.EventGroupJoinRequested,
+			ActorID:            actor.ID,
+			ActorName:          actor.Nickname,
+			ActorAvatar:        actor.AvatarPath,
+			ResourceType:       eventbus.ResourceGroup,
+			JoinRequestID:      jrID,
+			MultipleRecipients: admins,
+			ResourceID:         g.ID,
+			ContentText:        g.Title,
+		})
+		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)
+	}
 
 	return RespondInvitePending, nil
 }

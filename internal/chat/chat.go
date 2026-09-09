@@ -110,21 +110,6 @@ func (a *BroadcasterAdapter) IsOnline(userID string) bool {
 	return a.IsOnlineFn(userID)
 }
 
-// UserPrivacyChecker reports whether a user's profile is private.
-// Satisfied by the user store in bootstrap.
-type UserPrivacyChecker interface {
-	IsPrivate(ctx context.Context, userID string) (bool, error)
-}
-
-// PrivacyAdapter wraps a function to satisfy UserPrivacyChecker.
-type PrivacyAdapter struct {
-	IsPrivateFn func(ctx context.Context, userID string) (bool, error)
-}
-
-func (a *PrivacyAdapter) IsPrivate(ctx context.Context, userID string) (bool, error) {
-	return a.IsPrivateFn(ctx, userID)
-}
-
 // UserAdapter wraps a function to satisfy UserRepository.
 type UserAdapter struct {
 	GetAllFn func(ctx context.Context) ([]*UserRef, error)

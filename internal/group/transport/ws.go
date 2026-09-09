@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"slices"
 
 	"social-network/internal/core/realtime"
 	"social-network/internal/group/commands"
@@ -47,6 +48,7 @@ func (h *GroupWSHandler) Handlers() map[string]realtime.WSHandler {
 		realtime.TypeGroupChatSend:     realtime.HandlerFunc(h.handleSend),
 		realtime.TypeGroupChatHistory:  realtime.HandlerFunc(h.handleHistory),
 		realtime.TypeGroupChatMarkRead: realtime.HandlerFunc(h.handleMarkRead),
+		realtime.TypeGroupChatTyping:   realtime.HandlerFunc(h.handleTyping),
 	}
 }
 
@@ -130,6 +132,38 @@ func (h *GroupWSHandler) handleMarkRead(client *realtime.Client, env realtime.En
 		h.logger.PrintError(err, nil)
 		sendGroupRealtimeError(client, env.RequestID, err.Error())
 	}
+}
+
+func (h *GroupWSHandler) handleTyping(client *realtime.Client, env realtime.Envelope) {
+	var payload realtime.GroupChatTypingPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, "invalid group_chat.typing payload")
+		return
+	}
+
+	memberIDs, err := h.memberIDs.Resolve(context.Background(), queries.ListGroupMemberIDsQuery{GroupID: payload.GroupID})
+	if err != nil {
+		h.logger.PrintError(err, nil)
+		sendGroupRealtimeError(client, env.RequestID, err.Error())
+		return
+	}
+
+	if !slices.Contains(memberIDs, client.UserID) {
+		sendGroupRealtimeError(client, env.RequestID, "you are not a member of this group")
+		return
+	}
+
+	out, _ := json.Marshal(realtime.GroupChatIsTyping{GroupID: payload.GroupID, UserID: client.UserID})
+	reply, _ := json.Marshal(realtime.Envelope{Type: realtime.TypeGroupIsTyping, Payload: out})
+
+	recipients := make([]string, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if id != client.UserID {
+			recipients = append(recipients, id)
+		}
+	}
+	h.hub.SendToUsers(recipients, reply)
 }
 
 func sendGroupRealtimeError(client *realtime.Client, requestID, message string) {

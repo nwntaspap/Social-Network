@@ -16,7 +16,6 @@ import (
 	grouptransport "social-network/internal/group/transport"
 	"social-network/internal/platform/database"
 	"social-network/internal/platform/logger"
-	userstore "social-network/internal/user/store"
 )
 
 // Realtime bundles the WebSocket hub and its message router.
@@ -28,14 +27,10 @@ type Realtime struct {
 func initRealtime(db database.DB, hub *realtime.Hub, logger logger.Logger) *Realtime {
 	chatStore := chatstore.NewSQLiteStore(db)
 	followStore := followstore.NewSQLiteStore(db)
-	userStore := userstore.NewSQLiteStore(db)
 
 	followAdapter := &chat.FollowAdapter{AreConnectedFn: followStore.AreConnected}
 
-	gate := chatcommands.NewMessageGate(
-		followAdapter,
-		&chat.PrivacyAdapter{IsPrivateFn: userStore.IsPrivate},
-	)
+	gate := chatcommands.NewMessageGate(followAdapter)
 	send := chatcommands.NewSendPrivateMessageHandler(chatStore, gate)
 	getHistory := queries.NewGetChatHistoryResolver(chatStore, followAdapter)
 

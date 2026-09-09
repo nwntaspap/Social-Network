@@ -244,6 +244,12 @@ export interface IsTypingPayload {
   user_id: string;
 }
 
+/** Payload of the group_chat.is_typing broadcast. */
+export interface GroupChatIsTypingPayload {
+  group_id: string;
+  user_id: string;
+}
+
 /** Payload of an error envelope. */
 export interface WsErrorPayload {
   message: string;
@@ -265,6 +271,7 @@ export type NotificationType =
   | 'follow_declined'
   | 'group_invite'
   | 'group_invite_removed'
+  | 'group_invite_pending'
   | 'group_join_request'
   | 'group_join_accept'
   | 'group_join_declined'

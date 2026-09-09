@@ -21,6 +21,8 @@ func TestEventEnvelope_ToNotification_MapsType(t *testing.T) {
 		{"follow.declined", "follow_declined"},
 		{"group.invitation", "group_invite"},
 		{"group.invitation.deleted", "group_invite_removed"},
+		{"group.invitation.accepted", "group_invite_accepted"},
+		{"group.invitation.accepted_pending", "group_invite_pending"},
 		{"group.join.requested", "group_join_request"},
 		{"group.join.accepted", "group_join_accept"},
 		{"group.join.declined", "group_join_declined"},
