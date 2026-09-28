@@ -39,7 +39,7 @@ func (h *DeclineRequestHandler) Execute(ctx context.Context, cmd DeclineRequestC
 		return err
 	}
 	body, err := json.Marshal(eventbus.Notification{
-		Type:         eventbus.EventFollowDeclined,
+		Type:         eventbus.EventFollow,
 		RecipientID:  cmd.FollowerID,
 		ActorID:      cmd.FolloweeID,
 		ActorName:    actor.Nickname,
