@@ -84,6 +84,7 @@ func (h *CreateGroupPostCommentHandler) Execute(ctx context.Context, cmd CreateG
 			ActorAvatar:  actor.AvatarPath,
 			ResourceType: eventbus.ResourcePost,
 			ResourceID:   cmd.PostID,
+			GroupID:      post.GroupID,
 			ContentText:  post.Content,
 		})
 		_ = h.bus.Publish("notifications.exchange", eventbus.RoutingCreated, body)

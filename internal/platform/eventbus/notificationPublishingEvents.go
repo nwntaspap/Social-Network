@@ -54,6 +54,7 @@ type Notification struct {
 	ActorAvatar        string   `json:"actor_avatar"`
 	ResourceType       string   `json:"resource_type"`
 	ResourceID         string   `json:"resource_id"`
+	GroupID            string   `json:"group_id"`
 	JoinRequestID      string   `json:"join_request_id"`
 	MultipleRecipients []string `json:"multiple_recipients"`
 	ContentText        string   `json:"content_text"`

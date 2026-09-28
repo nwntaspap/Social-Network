@@ -16,6 +16,7 @@ CREATE TABLE notifications (
     type TEXT NOT NULL,
     resource_type TEXT NOT NULL DEFAULT '',
     resource_id INTEGER NOT NULL DEFAULT 0,
+    group_id TEXT NOT NULL DEFAULT '',
     actor_id TEXT NOT NULL,
     actor_name TEXT NOT NULL DEFAULT '',
     actor_avatar TEXT NOT NULL DEFAULT '',
@@ -61,6 +62,34 @@ func TestCreate(t *testing.T) {
 	}
 	if n.ID == 0 {
 		t.Fatal("ID not set after create")
+	}
+}
+
+func TestCreate_PreservesGroupID(t *testing.T) {
+	s := setupStore(t)
+
+	n := &Notification{
+		RecipientID:  "u1",
+		Type:         "comment",
+		ResourceType: "post",
+		ResourceID:   "post-uuid",
+		GroupID:      "g1",
+		ActorID:      "u2",
+	}
+
+	if err := s.Create(context.Background(), n); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	ns, total, err := s.GetByRecipient(context.Background(), "u1", 10, 0)
+	if err != nil {
+		t.Fatalf("GetByRecipient: %v", err)
+	}
+	if total != 1 || len(ns) != 1 {
+		t.Fatalf("got total=%d len=%d, want 1", total, len(ns))
+	}
+	if ns[0].GroupID != "g1" {
+		t.Errorf("GroupID = %q, want %q", ns[0].GroupID, "g1")
 	}
 }
 

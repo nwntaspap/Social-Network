@@ -9,7 +9,7 @@ import (
 	"social-network/services/notifications/internal/platform/database"
 )
 
-const notificationColumns = "id, recipient_id, type, resource_type, resource_id, actor_id, actor_name, actor_avatar, content_text, image_url, join_request_id, event_id, is_read, created_at"
+const notificationColumns = "id, recipient_id, type, resource_type, resource_id, group_id, actor_id, actor_name, actor_avatar, content_text, image_url, join_request_id, event_id, is_read, created_at"
 
 func scanNotifications(rows *sql.Rows) ([]Notification, error) {
 	var ns []Notification
@@ -17,7 +17,7 @@ func scanNotifications(rows *sql.Rows) ([]Notification, error) {
 		var n Notification
 		if err := rows.Scan(
 			&n.ID, &n.RecipientID, &n.Type, &n.ResourceType, &n.ResourceID,
-			&n.ActorID, &n.ActorName, &n.ActorAvatar, &n.ContentText, &n.ImageURL,
+			&n.GroupID, &n.ActorID, &n.ActorName, &n.ActorAvatar, &n.ContentText, &n.ImageURL,
 			&n.JoinRequestID, &n.EventID, &n.IsRead, &n.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan notification: %w", err)
@@ -68,15 +68,15 @@ func (s *SQLiteStore) Create(ctx context.Context, n *Notification) error {
 
 	query := `
 		INSERT INTO notifications
-			(recipient_id, type, resource_type, resource_id, actor_id,
+			(recipient_id, type, resource_type, resource_id, group_id, actor_id,
 			 actor_name, actor_avatar, content_text, image_url,
 			 join_request_id, event_id, is_read, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
 
 	now := time.Now()
 	result, err := s.db.ExecContext(
 		ctx, query,
-		n.RecipientID, n.Type, n.ResourceType, n.ResourceID, n.ActorID,
+		n.RecipientID, n.Type, n.ResourceType, n.ResourceID, n.GroupID, n.ActorID,
 		n.ActorName, n.ActorAvatar, n.ContentText, n.ImageURL,
 		n.JoinRequestID, n.EventID,
 		now,
@@ -102,7 +102,7 @@ func (s *SQLiteStore) GetByRecipient(ctx context.Context, recipientID string, li
 
 	query := `
 		SELECT id, recipient_id, type, resource_type, resource_id,
-		       actor_id, actor_name, actor_avatar, content_text, image_url,
+		       group_id, actor_id, actor_name, actor_avatar, content_text, image_url,
 		       join_request_id, event_id, is_read, created_at
 		FROM notifications
 		WHERE recipient_id = ?
@@ -120,7 +120,7 @@ func (s *SQLiteStore) GetByRecipient(ctx context.Context, recipientID string, li
 		var n Notification
 		if err := rows.Scan(
 			&n.ID, &n.RecipientID, &n.Type, &n.ResourceType, &n.ResourceID,
-			&n.ActorID, &n.ActorName, &n.ActorAvatar, &n.ContentText, &n.ImageURL,
+			&n.GroupID, &n.ActorID, &n.ActorName, &n.ActorAvatar, &n.ContentText, &n.ImageURL,
 			&n.JoinRequestID, &n.EventID, &n.IsRead, &n.CreatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
