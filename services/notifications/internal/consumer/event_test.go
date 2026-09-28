@@ -50,6 +50,7 @@ func TestEventEnvelope_ToNotification_MapsFields(t *testing.T) {
 		ActorAvatar:   "/avatars/bob.png",
 		ResourceType:  "post",
 		ResourceID:    "42",
+		GroupID:       "g1",
 		ContentText:   "Bob liked your post",
 		ImageURL:      "/posts/42.jpg",
 		JoinRequestID: "jr-1",
@@ -62,6 +63,7 @@ func TestEventEnvelope_ToNotification_MapsFields(t *testing.T) {
 		Type:          "like",
 		ResourceType:  "post",
 		ResourceID:    "42",
+		GroupID:       "g1",
 		ActorID:       "u2",
 		ActorName:     "Bob",
 		ActorAvatar:   "/avatars/bob.png",
@@ -103,5 +105,19 @@ func TestEventEnvelope_ToNotification_MapsFields(t *testing.T) {
 	}
 	if n.EventID != want.EventID {
 		t.Errorf("EventID = %q, want %q", n.EventID, want.EventID)
+	}
+	if n.GroupID != want.GroupID {
+		t.Errorf("GroupID = %q, want %q", n.GroupID, want.GroupID)
+	}
+}
+
+func TestEventEnvelope_ToNotification_PreservesGroupID(t *testing.T) {
+	env := &EventEnvelope{Type: "comment", ResourceType: "post", ResourceID: "post-uuid", GroupID: "g1"}
+	if n := env.ToNotification(); n.GroupID != "g1" {
+		t.Errorf("GroupID = %q, want %q", n.GroupID, "g1")
+	}
+	env = &EventEnvelope{Type: "comment", ResourceType: "post", ResourceID: "42"}
+	if n := env.ToNotification(); n.GroupID != "" {
+		t.Errorf("GroupID = %q, want empty", n.GroupID)
 	}
 }

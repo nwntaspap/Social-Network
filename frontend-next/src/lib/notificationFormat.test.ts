@@ -125,6 +125,30 @@ describe('getNotificationHref', () => {
     expect(getNotificationHref(makeNotification({ type: 'comment' }))).toBe('/post/42');
   });
 
+  it('points group post comments at the group', () => {
+    expect(
+      getNotificationHref(makeNotification({ type: 'comment', group_id: 'g1' }))
+    ).toBe('/groups/g1');
+  });
+
+  it('points group post likes at the group', () => {
+    expect(getNotificationHref(makeNotification({ type: 'like', group_id: 'g1' }))).toBe(
+      '/groups/g1'
+    );
+  });
+
+  it('returns null for legacy group comment rows (UUID without group_id) instead of 404', () => {
+    expect(
+      getNotificationHref(makeNotification({ type: 'comment', resource_id: 'bb0e8400-uuid' }))
+    ).toBeNull();
+  });
+
+  it('returns null for legacy group like rows (UUID without group_id) instead of 404', () => {
+    expect(
+      getNotificationHref(makeNotification({ type: 'like', resource_id: 'bb0e8400-uuid' }))
+    ).toBeNull();
+  });
+
   it('points follow at the actor profile', () => {
     expect(getNotificationHref(makeNotification({ type: 'follow' }))).toBe('/profile/u1');
   });

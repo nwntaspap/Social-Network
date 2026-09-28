@@ -13,6 +13,7 @@ type EventEnvelope struct {
 	ActorAvatar        string   `json:"actor_avatar"`
 	ResourceType       string   `json:"resource_type"`
 	ResourceID         string   `json:"resource_id"`
+	GroupID            string   `json:"group_id"`
 	ContentText        string   `json:"content_text"`
 	ImageURL           string   `json:"image_url"`
 	JoinRequestID      string   `json:"join_request_id"`
@@ -26,6 +27,7 @@ func (e *EventEnvelope) ToNotification() *store.Notification {
 		Type:          mapEventType(e.Type),
 		ResourceType:  e.ResourceType,
 		ResourceID:    e.ResourceID,
+		GroupID:       e.GroupID,
 		ActorID:       e.ActorID,
 		ActorName:     e.ActorName,
 		ActorAvatar:   e.ActorAvatar,

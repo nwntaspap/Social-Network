@@ -288,6 +288,7 @@ export interface Notification {
   type: NotificationType;
   resource_type: string;
   resource_id: string;
+  group_id?: string;
   actor_id: string;
   actor_name: string;
   actor_avatar: string;

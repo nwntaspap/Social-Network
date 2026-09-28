@@ -24,6 +24,7 @@ CREATE TABLE notifications (
     type TEXT NOT NULL,
     resource_type TEXT NOT NULL DEFAULT '',
     resource_id INTEGER NOT NULL DEFAULT 0,
+    group_id TEXT NOT NULL DEFAULT '',
     actor_id TEXT NOT NULL,
     actor_name TEXT NOT NULL DEFAULT '',
     actor_avatar TEXT NOT NULL DEFAULT '',

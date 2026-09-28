@@ -87,6 +87,7 @@ func (h *CastGroupPostVoteHandler) Execute(ctx context.Context, cmd CastGroupPos
 		ActorAvatar:  actor.AvatarPath,
 		ResourceType: eventbus.ResourcePost,
 		ResourceID:   cmd.PostID,
+		GroupID:      post.GroupID,
 		ContentText:  post.Content,
 	})
 	log.Printf("group post vote notification: type=%s post=%s actor=%s", eventType, cmd.PostID, actor.ID)

@@ -9,6 +9,11 @@ import type { Notification } from './types';
 
 const ACTION_TYPES = new Set(['follow_request', 'group_invite', 'group_join_request']);
 
+/** Group-post ids are UUIDs; normal post ids are numeric strings. */
+function isUuidLike(id: string): boolean {
+  return id.includes('-');
+}
+
 /** Human-readable message for a notification. */
 export function getNotificationMessage(n: Notification): string {
   const name = n.actor_name || 'Someone';
@@ -70,9 +75,16 @@ export function getNotificationHref(n: Notification): string | null {
       return `/profile/${n.actor_id}`;
     case 'like':
     case 'dislike':
+      if (n.group_id) return `/groups/${n.group_id}`;
       if (n.resource_type === 'comment') return null; // resolved via getComment
+      // Legacy group-post rows (pre-group_id) carry a UUID post id.
+      // Numeric ids are normal posts; UUIDs without group_id have no
+      // resolvable target — return null instead of a 404 /post/<uuid>.
+      if (isUuidLike(n.resource_id)) return null;
       return `/post/${n.resource_id}`;
     case 'comment':
+      if (n.group_id) return `/groups/${n.group_id}`;
+      if (isUuidLike(n.resource_id)) return null;
       return `/post/${n.resource_id}`;
     case 'group_invite':
     case 'group_join_request':
@@ -84,7 +96,9 @@ export function getNotificationHref(n: Notification): string | null {
     case 'event':
       return n.resource_id ? `/groups/${n.resource_id}` : null;
     default:
-      return n.resource_type === 'post' && n.resource_id ? `/post/${n.resource_id}` : null;
+      if (n.resource_type !== 'post' || !n.resource_id) return null;
+      if (!n.group_id && isUuidLike(n.resource_id)) return null;
+      return n.group_id ? `/groups/${n.group_id}` : `/post/${n.resource_id}`;
   }
 }
 
