@@ -126,9 +126,9 @@ describe('getNotificationHref', () => {
   });
 
   it('points group post comments at the group', () => {
-    expect(
-      getNotificationHref(makeNotification({ type: 'comment', group_id: 'g1' }))
-    ).toBe('/groups/g1');
+    expect(getNotificationHref(makeNotification({ type: 'comment', group_id: 'g1' }))).toBe(
+      '/groups/g1'
+    );
   });
 
   it('points group post likes at the group', () => {
