@@ -11,6 +11,8 @@ A full-stack social network built as a **reference architecture** for clean vert
 
 The point of this repo is not the social network. It is the architecture and the automated gates that keep the architecture honest.
 
+![Homepage](docs/images/homepage.png)
+
 ---
 
 ## 📖 Table of Contents
@@ -37,8 +39,8 @@ The point of this repo is not the social network. It is the architecture and the
 | **Auth** | Registration (email, password, name, date of birth), rotating double-cookie sessions (`access_token` + `refresh_token`, `HttpOnly`), OAuth via GitHub and Google, per-user rate limiting |
 | **Profiles & follows** | Public/private toggle with confirmation step. Public profiles accept a follow instantly; private profiles raise a follow request the owner can accept or decline |
 | **Posts & comments** | Image attachments (JPEG/PNG/GIF, magic-byte validated) and three visibility scopes: `public`, `almost_private` (followers only), `private` (a selected follower set) |
-| **Chat** | WebSocket direct and group messaging with a session-token handshake, follow-gating between participants, typing indicators, presence, read receipts, and emoji |
-| **Groups & events** | Group creation, follower invitations, join requests, group-exclusive posts, scheduled events with live-synced RSVPs |
+| **Chat** | WebSocket direct and group messaging with a session-token handshake, follow-gating between participants, typing indicators (gated so they only fire when a message is deliverable), read receipts, and emoji |
+| **Groups & events** | Group creation, follower invitations, join requests, group-exclusive posts, live online/offline member presence, scheduled events with live-synced RSVPs |
 | **Notifications** | Dedicated SSE stream for follow requests, group invites, join requests, and event creation |
 
 Real-time is split by purpose: **WebSockets** for chat (bidirectional), **SSE** for notifications (server-to-client only).
@@ -209,9 +211,9 @@ The notifications service verifies session cookies against the backend, so it ne
 │   ├── follow/              # relationships, pending requests
 │   ├── topic/               # posts, feed visibility, votes
 │   ├── comment/             # image-supported comments
-│   ├── group/               # communities, group posts, group chat
+│   ├── group/               # communities, group posts, group chat, presence
 │   ├── event/               # group events, RSVP tracking
-│   ├── chat/                # direct messages, presence, history
+│   ├── chat/                # direct + group messages, typing, read receipts
 │   ├── oauth/               # GitHub and Google pipelines
 │   ├── core/                # middleware, websocket hub, server, sessions
 │   ├── platform/            # database, cache, eventbus abstractions
