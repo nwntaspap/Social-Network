@@ -15,12 +15,14 @@ pre-commit:
       run: GOFUMPT=$(go env GOPATH)/bin/gofumpt GOIMPORTS=$(go env GOPATH)/bin/goimports; $GOFUMPT -l {staged_files} | xargs -r $GOFUMPT -w && $GOIMPORTS -w -local social-network {staged_files}
       stage_fixed: true
     - name: eslint
-      glob: "*.{js,mjs,cjs}"
-      run: npx eslint --fix {staged_files}
+      root: "frontend-next/"
+      glob: "*.{js,mjs,cjs,ts,tsx}"
+      run: node_modules/.bin/eslint --fix {staged_files}
       stage_fixed: true
     - name: prettier
-      glob: "*.{js,css,html,json,md}"
-      run: npx prettier --write {staged_files}
+      root: "frontend-next/"
+      glob: "*.{js,jsx,ts,tsx,css,html,json,md}"
+      run: node_modules/.bin/prettier --write {staged_files}
       stage_fixed: true
 
 pre-push:

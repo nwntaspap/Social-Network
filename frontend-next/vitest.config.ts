@@ -11,8 +11,8 @@ export default defineConfig({
     coverage: {
       reporter: ['text', 'json', 'html'],
     },
-    include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/.git/**'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['**/node_modules/**', '**/.git/**', 'e2e/**'],
   },
   resolve: {
     alias: {
